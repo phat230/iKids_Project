@@ -1,17 +1,20 @@
-# Quy tắc cộng xu từ tài liệu iKids[cite: 3]
+# Các quy tắc cộng xu cố định của hệ thống iKids
 COIN_RULES = {
-    "quiz_correct": 10,     # Làm bài đúng[cite: 3]
-    "attendance": 5,        # Đi học đầy đủ[cite: 3]
-    "streak_7_days": 20,    # Streak 7 ngày[cite: 3]
-    "teacher_praise": 15    # Giáo viên khen[cite: 3]
+    "quiz_correct": 10,     # Làm bài Quiz đúng
+    "attendance": 5,        # Đi học đầy đủ đúng giờ
+    "streak_7_days": 20,    # Chuỗi học tập 7 ngày liên tiếp
+    "teacher_praise": 15,   # Giáo viên gửi lời khen
+    "complete_video": 5     # Xem xong 1 video bài giảng AI
 }
 
 def calculate_reward(action: str) -> int:
-    """Trả về số xu dựa trên hành động thực tế[cite: 3]"""
+    """Hàm trả về số xu tương ứng với hành động thực tế"""
     return COIN_RULES.get(action, 0)
 
 def update_rank(lifetime_coins: int) -> str:
-    """Xác định cấp độ Beginner -> Explorer -> Master[cite: 3]"""
-    if lifetime_coins > 1000: return "Master"
-    if lifetime_coins > 300: return "Explorer"
-    return "Beginner"
+    """Hàm xác định cấp độ của học viên dựa trên tổng xu đã tích lũy từ trước đến nay"""
+    if lifetime_coins >= 1000: 
+        return "Master"    # Bậc thầy
+    if lifetime_coins >= 300: 
+        return "Explorer"  # Nhà thám hiểm
+    return "Beginner"      # Người mới bắt đầu

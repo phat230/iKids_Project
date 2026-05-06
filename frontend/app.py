@@ -32,9 +32,10 @@ else:
         menu_pages.append(st.Page("pages/student/ky_niem.py", title="Góc Kỷ Niệm", icon="📸"))
         
     elif role == "parent":
+        menu_pages.append(st.Page("pages/parent/quan_ly_con.py", title="Quản Lý Con Em", icon="👨‍👩‍👦"))
         menu_pages.append(st.Page("pages/parent/ket_qua.py", title="Báo Cáo Học Tập", icon="📊"))
         menu_pages.append(st.Page("pages/parent/ky_niem.py", title="Góc Kỷ Niệm", icon="📸"))
-        
+        menu_pages.append(st.Page("pages/parent/lien_he.py", title="Liên Hệ & Yêu Cầu", icon="📞"))
     pg = st.navigation(menu_pages)
     
     with st.sidebar:

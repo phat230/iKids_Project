@@ -1,49 +1,43 @@
 from fastapi import APIRouter, Depends, HTTPException
 from core.database import get_db
 from .services import add_coins_service
-from .recommender import generate_smart_recommendation
-from .schemas import RewardRedeem  # Đã khớp với schemas.py ở trên
-from datetime import datetime
-
+from .schemas import ContactMessageCreate
+from .services import submit_contact_request, get_contact_history
 router = APIRouter()
 
-@router.get("/dashboard/{student_id}")
-async def get_parent_dashboard(student_id: int):
-    """
-    Lấy toàn bộ thông tin cho Dashboard Phụ huynh.[cite: 2]
-    """
-    db = get_db() # Lấy kết nối từ database.py
-    
-    # Lấy hồ sơ gamification[cite: 2]
-    profile = await db.gamification_profiles.find_one({"student_id": student_id})
-    
-    # Lấy 5 giao dịch xu gần nhất[cite: 2]
-    transactions = await db.coin_transactions.find(
-        {"student_id": student_id}
-    ).sort("created_at", -1).to_list(length=5)
-    
-    if not profile:
-        raise HTTPException(status_code=404, detail="Hồ sơ học sinh chưa khởi tạo")
-        
-    return {
-        "profile": profile,
-        "recent_transactions": transactions
-    }
-
-@router.post("/trigger-recommendation/{student_id}")
-async def trigger_ai_suggest(student_id: int):
-    """
-    Kích hoạt hệ thống gợi ý dựa trên dữ liệu TV2.[cite: 2]
-    """
-    db = get_db()
-    result = await generate_smart_recommendation(db, student_id) # Gọi logic từ recommender.py
-    return {"status": "success", "data": result}
-
 @router.post("/earn-coins")
-async def api_earn_coins(student_id: int, action: str, reference_id: int):
+async def api_earn_coins(student_id: int, action: str, reference_id: int = None, db = Depends(get_db)):
     """
-    API dùng để tích hợp chéo với TV1 và TV2.[cite: 2]
+    API dùng để tích hợp chéo. 
+    Khi TV2 chấm điểm trắc nghiệm xong hoặc TV1 điểm danh xong, sẽ gọi API này để cộng xu.
     """
-    db = get_db()
-    result = await add_coins_service(db, student_id, action, reference_id) # Gọi logic từ services.py[cite: 1]
+    result = await add_coins_service(db, student_id, action, reference_id)
+    if result.get("status") == "failed":
+        raise HTTPException(status_code=400, detail=result.get("message"))
     return result
+
+@router.get("/gamification/profile/{student_id}")
+async def get_gamification_profile(student_id: int, db = Depends(get_db)):
+    """API để Frontend lấy thông tin Rank và Số dư Xu hiện tại hiển thị lên Dashboard"""
+    profile = await db.gamification_profiles.find_one({"student_id": student_id})
+    if not profile:
+        # Trả về thông tin mặc định nếu chưa có hồ sơ
+        return {"student_id": student_id, "total_coins": 0, "rank_level": "Beginner"}
+    
+    # Xóa _id của MongoDB trước khi trả về để tránh lỗi JSON
+    profile["_id"] = str(profile["_id"])
+    return profile
+@router.post("/contact/submit")
+async def api_submit_contact(request_data: ContactMessageCreate, db = Depends(get_db)):
+    """
+    API: Phụ huynh gửi yêu cầu xin nghỉ hoặc nhắn tin cho Giáo viên / CSKH.
+    Hệ thống sẽ tự động chuyển đổi thành Request xử lý lịch nếu là xin nghỉ học.
+    """
+    return await submit_contact_request(db, request_data)
+
+@router.get("/contact/history/{parent_id}")
+async def api_get_contact_history(parent_id: int, db = Depends(get_db)):
+    """
+    API: Lấy danh sách lịch sử tin nhắn và trạng thái các yêu cầu phụ huynh đã tạo.
+    """
+    return await get_contact_history(db, parent_id)

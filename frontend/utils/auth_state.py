@@ -12,6 +12,7 @@ def login_user(email, password):
             st.session_state["token"] = data["access_token"]
             st.session_state["user_info"] = data["user_info"]
             st.session_state["role"] = data["user_info"]["role"]
+            st.session_state["user_id"] = data["user_info"]["id"]
             return True, "Đăng nhập thành công"
         
         # Thử đọc JSON lỗi, nếu không phải JSON thì bắt lỗi
