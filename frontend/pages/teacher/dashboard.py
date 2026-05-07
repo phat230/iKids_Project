@@ -1,4 +1,5 @@
 import streamlit as st
+import requests  # Bổ sung thư viện này để gọi API
 from datetime import datetime, timedelta
 
 def get_start_of_week(date):
@@ -167,12 +168,33 @@ def render_teacher_dashboard():
                 
             reason = st.text_area("Lý do cụ thể (Bắt buộc)", placeholder="Ví dụ: Bệnh đột xuất, vướng lịch thi trên trường, xe hỏng...")
             
-            # Nút bấm to, rõ ràng
+            # --- CẬP NHẬT LOGIC API Ở ĐÂY ---
             if st.button("🚀 Gửi Đơn Lên Giám Đốc Xét Duyệt", type="primary", use_container_width=True):
                 if not reason.strip():
                     st.error("⚠️ Vui lòng nhập lý do cụ thể để Admin dễ dàng xem xét!")
                 else:
-                    st.success(f"✅ Đã gửi đơn **{req_type.replace('🛑', '').replace('🔄', '').replace('🏫', '').strip()}** thành công! Hệ thống đã tự động gửi thông báo đến Admin.")
+                    # Lọc bỏ icon để gửi tên loại đơn chuẩn lên DB
+                    clean_req_type = req_type.replace('🛑', '').replace('🔄', '').replace('🏫', '').strip()
+                    
+                    # 1. Chuẩn bị dữ liệu Payload
+                    payload = {
+                        "teacher_name": "MinhTran", # Tên giáo viên giả định
+                        "class_name": class_info,
+                        "type": clean_req_type,
+                        "reason": reason,
+                        "date": class_date
+                    }
+                    
+                    # 2. Gọi API đến Backend
+                    API_URL = "http://127.0.0.1:8000/submit-request"
+                    try:
+                        response = requests.post(API_URL, json=payload)
+                        if response.status_code == 200:
+                            st.success(f"✅ Đã gửi đơn **{clean_req_type}** thành công! Dữ liệu đã lưu vào MongoDB.")
+                        else:
+                            st.error(f"❌ Lỗi từ Server: {response.text}")
+                    except requests.exceptions.RequestException:
+                        st.error("❌ Không thể kết nối đến Backend. Hãy đảm bảo uvicorn đang chạy.")
 
 if __name__ == "__main__":
     render_teacher_dashboard()
