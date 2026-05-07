@@ -176,16 +176,21 @@ def render_teacher_dashboard():
                     # Lọc bỏ icon để gửi tên loại đơn chuẩn lên DB
                     clean_req_type = req_type.replace('🛑', '').replace('🔄', '').replace('🏫', '').strip()
                     
-                    # 1. Chuẩn bị dữ liệu Payload
+                    # 1. Lấy tên user đang đăng nhập từ session_state (Đã sửa từ Fix cứng thành Tên Động)
+                    current_user_name = "Giáo Viên Ẩn Danh"
+                    if "user_info" in st.session_state:
+                        current_user_name = st.session_state["user_info"].get("name", "Giáo Viên Ẩn Danh")
+                    
+                    # 2. Chuẩn bị dữ liệu Payload
                     payload = {
-                        "teacher_name": "MinhTran", # Tên giáo viên giả định
+                        "teacher_name": current_user_name, # <-- Tên sẽ lấy đúng theo người đang đăng nhập
                         "class_name": class_info,
                         "type": clean_req_type,
                         "reason": reason,
                         "date": class_date
                     }
                     
-                    # 2. Gọi API đến Backend
+                    # 3. Gọi API đến Backend
                     API_URL = "http://127.0.0.1:8000/submit-request"
                     try:
                         response = requests.post(API_URL, json=payload)
