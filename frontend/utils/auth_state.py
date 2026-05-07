@@ -13,11 +13,11 @@ def login_user(email, password):
             
             # 1. Lưu Token và Role
             st.session_state["token"] = data["access_token"]
+            st.session_state["access_token"] = data["access_token"] # THÊM DÒNG NÀY ĐỂ FIX LỖI KEYERROR
             st.session_state["role"] = data["user_info"]["role"]
             st.session_state["user_id"] = data["user_info"]["id"]
             
-            # 2. Quan trọng: Lưu user_info để app.py hiển thị ở Sidebar
-            # Đảm bảo user_info có đầy đủ 'name' và 'avatar_url' từ DB trả về
+            # 2. Lưu user_info để app.py hiển thị ở Sidebar
             st.session_state["user_info"] = data["user_info"]
             
             return True, "Đăng nhập thành công"
