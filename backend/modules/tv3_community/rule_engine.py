@@ -1,20 +1,23 @@
-# Các quy tắc cộng xu cố định của hệ thống iKids
-COIN_RULES = {
-    "quiz_correct": 10,     # Làm bài Quiz đúng
-    "attendance": 5,        # Đi học đầy đủ đúng giờ
-    "streak_7_days": 20,    # Chuỗi học tập 7 ngày liên tiếp
-    "teacher_praise": 15,   # Giáo viên gửi lời khen
-    "complete_video": 5     # Xem xong 1 video bài giảng AI
+
+EXP_RULES = {
+    "quiz_correct": 50,      # Làm bài Quiz đúng
+    "attendance": 20,        # Đi học đầy đủ đúng giờ
+    "streak_7_days": 100,    # Chuỗi học tập 7 ngày liên tiếp
+    "teacher_praise": 40,    # Giáo viên gửi lời khen
+    "complete_video": 30     # Xem xong 1 video bài giảng AI
 }
 
-def calculate_reward(action: str) -> int:
-    """Hàm trả về số xu tương ứng với hành động thực tế"""
-    return COIN_RULES.get(action, 0)
+def calculate_exp_reward(action: str) -> int:
+    """Hàm trả về số điểm kinh nghiệm tương ứng với hành động"""
+    return EXP_RULES.get(action, 0)
 
-def update_rank(lifetime_coins: int) -> str:
-    """Hàm xác định cấp độ của học viên dựa trên tổng xu đã tích lũy từ trước đến nay"""
-    if lifetime_coins >= 1000: 
-        return "Master"    # Bậc thầy
-    if lifetime_coins >= 300: 
-        return "Explorer"  # Nhà thám hiểm
-    return "Beginner"      # Người mới bắt đầu
+def update_rank(lifetime_exp: int) -> str:
+    """
+    Xác định cấp độ của học viên dựa trên tổng EXP tích lũy.
+    Giúp học sinh có động lực học tập để 'Khoe' Rank trên Trang cá nhân.
+    """
+    if lifetime_exp >= 5000: 
+        return "Master"     # Bậc thầy
+    if lifetime_exp >= 1500: 
+        return "Explorer"   # Nhà thám hiểm
+    return "Beginner"       # Người mới bắt đầu

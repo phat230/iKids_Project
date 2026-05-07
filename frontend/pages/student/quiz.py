@@ -1,20 +1,42 @@
 import streamlit as st
-from utils.role_guard import require_role
+import time
 
-require_role(["student"])
+st.set_page_config(page_title="Bài Tập AI", page_icon="📝")
 
-st.set_page_config(page_title="Làm Bài Quiz", page_icon="📝")
-
-st.title("📝 Kho Bài Tập AI")
-st.write("Hoàn thành bài tập để rèn luyện kiến thức và nhận thêm xu!")
+st.title("📝 Trạm Huấn Luyện AI")
+st.write("Hoàn thành các bài tập trắc nghiệm dưới đây để nhận iKids Xu nhé!")
 st.divider()
 
-st.subheader("Chưa hoàn thành")
-with st.expander("Khám phá Hệ Mặt Trời (Khoa học) - Hạn: Hôm nay", expanded=True):
-    st.write("**Câu 1: Hành tinh nào lớn nhất trong Hệ Mặt Trời?**")
-    ans = st.radio("Chọn đáp án:", ["Trái Đất", "Sao Hỏa", "Sao Mộc", "Sao Kim"], key="q1")
-    if st.button("Nộp bài"):
-        st.success("Tuyệt vời! Bạn được cộng 10 Xu.")
+# Giả lập một bài tập chưa hoàn thành
+st.subheader("📌 Nhiệm vụ đang chờ: Phép toán cơ bản")
+st.caption("Môn: Toán | Giáo viên: Cô Alice | Phần thưởng: 10 Xu")
 
-with st.expander("Từ vựng chủ đề Động Vật (Tiếng Anh) - Hạn: Ngày mai"):
-    st.write("Bấm vào để bắt đầu làm bài.")
+with st.form("quiz_form"):
+    q1 = st.radio(
+        "Câu 1: Nếu con có 5 quả táo, bạn cho thêm 7 quả nữa. Hỏi con có mấy quả?",
+        options=["10 quả", "11 quả", "12 quả", "13 quả"],
+        index=None
+    )
+    
+    q2 = st.radio(
+        "Câu 2: Hình nào dưới đây có 3 cạnh?",
+        options=["Hình vuông", "Hình tròn", "Hình tam giác", "Hình chữ nhật"],
+        index=None
+    )
+    
+    submit_quiz = st.form_submit_button("Nộp Bài & Nhận Thưởng", use_container_width=True)
+    
+    if submit_quiz:
+        if not q1 or not q2:
+            st.warning("Con hãy trả lời hết các câu hỏi trước khi nộp bài nhé!")
+        else:
+            with st.spinner("Hệ thống AI đang chấm bài..."):
+                time.sleep(1) # Giả lập thời gian chờ API
+                
+                # Logic chấm điểm đơn giản
+                if q1 == "12 quả" and q2 == "Hình tam giác":
+                    st.success("Tuyệt vời! Con trả lời đúng 100%. Đã cộng 10 iKids Xu vào ví! 🎉")
+                    st.balloons()
+                    # Ghi chú cho Backend: Tại đây sẽ gọi api_clients.tv3_client.earn_coins()
+                else:
+                    st.error("Có câu sai mất rồi. Con hãy đọc kỹ đề và làm lại nhé!")
