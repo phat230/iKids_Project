@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Chuỗi kết nối bạn cung cấp
-MONGO_DETAILS = "mongodb+srv://phay123321_db_user:2qxBnbR6Brd8mOYu@cluster0.v6iwegp.mongodb.net/"
+MONGO_DETAILS = "mongodb+srv://phay123321_db_user:F3r7WdQB7zvf5KSq@cluster0.v6iwegp.mongodb.net/"
 
 client = AsyncIOMotorClient(MONGO_DETAILS)
 
