@@ -8,8 +8,8 @@ import random
 import string
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from core.security import get_password_hash
+
 # --- CẤU HÌNH LƯU TRỮ VÀ BỘ NHỚ TẠM ---
-# Thư mục lưu ảnh đại diện thật
 UPLOAD_DIR = Path("static/avatars")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -24,7 +24,7 @@ PRODUCTS_DB = [
     {"id": 4, "name": "Sổ Tay Ghi Chép iKids", "price": 45000, "type": "accessory", "icon": "📒"},
 ]
 
-# --- 2. LOGIC TÀI CHÍNH & MUA SẮM (VÍ VNĐ) ---
+# --- 2. LOGIC TÀI CHÍNH & MUA SẮM (DÙNG VNĐ) ---
 
 async def get_store_products_service():
     """Lấy danh sách sản phẩm hiện có trong cửa hàng"""
@@ -40,7 +40,7 @@ async def deposit_money_service(db, user_id: str, amount: float):
     return {"status": "success", "message": f"Đã nạp thành công {amount:,.0f} VNĐ."}
 
 async def purchase_product_service(db, user_id: str, product_id: int):
-    """Xử lý mua hàng bằng tiền mặt (VNĐ)"""
+    """Xử lý mua hàng bằng số dư VNĐ"""
     product = next((p for p in PRODUCTS_DB if p["id"] == product_id), None)
     if not product:
         return {"status": "failed", "message": "Sản phẩm không tồn tại."}
@@ -51,7 +51,6 @@ async def purchase_product_service(db, user_id: str, product_id: int):
     if current_balance < product["price"]:
         return {"status": "failed", "message": f"Số dư không đủ. Cần nạp thêm {product['price'] - current_balance:,.0f} VNĐ."}
     
-    # Trừ tiền và lưu lịch sử
     await db.gamification_profiles.update_one(
         {"student_id": user_id},
         {"$inc": {"balance": -product["price"]}}
@@ -66,10 +65,42 @@ async def purchase_product_service(db, user_id: str, product_id: int):
     
     return {"status": "success", "message": f"Thanh toán thành công {product['name']}!"}
 
-# --- 3. QUẢN LÝ TÀI KHOẢN (HỌ TÊN, AVATAR THẬT, ĐỔI MẬT KHẨU) ---
+# --- 3. GAMIFICATION: HỆ THỐNG EXP & RANK (THAY THẾ COINS) ---
+
+async def award_exp_service(db, student_id: str, exp_amount: int, reason: str):
+    """Tặng EXP cho học sinh và tự động tính toán thăng hạng"""
+    # 1. Cập nhật EXP
+    await db.gamification_profiles.update_one(
+        {"student_id": student_id},
+        {
+            "$inc": {"exp": exp_amount},
+            "$set": {"last_updated": datetime.now()}
+        },
+        upsert=True
+    )
+    
+    # 2. Lấy profile mới nhất để tính Level/Rank
+    profile = await db.gamification_profiles.find_one({"student_id": student_id})
+    current_exp = profile.get("exp", 0)
+    
+    # Logic thăng cấp: Cứ 1000 EXP lên 1 level
+    new_level = (current_exp // 1000) + 1
+    
+    # Xác định Rank dựa trên Level
+    new_rank = "Beginner"
+    if new_level >= 10: new_rank = "Master"
+    elif new_level >= 5: new_rank = "Explorer"
+    
+    await db.gamification_profiles.update_one(
+        {"student_id": student_id},
+        {"$set": {"level": new_level, "rank_level": new_rank}}
+    )
+    
+    return {"status": "success", "message": f"Đã tặng {exp_amount} EXP vì: {reason}"}
+
+# --- 4. QUẢN LÝ TÀI KHOẢN (AVATAR THẬT, ĐỔI MẬT KHẨU) ---
 
 async def update_account_profile_service(db, user_id: str, full_name: str = None, avatar_file = None):
-    """Lưu ảnh thật vào server và cập nhật thông tin gốc vào MongoDB"""
     update_data = {}
     if full_name:
         update_data["name"] = full_name
@@ -79,11 +110,9 @@ async def update_account_profile_service(db, user_id: str, full_name: str = None
         file_name = f"{user_id}.{extension}"
         file_path = UPLOAD_DIR / file_name
         
-        # Ghi file vật lý
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(avatar_file.file, buffer)
         
-        # Lưu đường dẫn tương đối (app.mount('/static') sẽ dùng đường dẫn này)
         update_data["avatar_url"] = f"static/avatars/{file_name}"
         
     if update_data:
@@ -96,108 +125,19 @@ async def update_account_profile_service(db, user_id: str, full_name: str = None
     return {"status": "failed", "message": "Không có thay đổi."}
 
 async def change_password_service(db, user_id: str, new_password: str):
-    """Đổi mật khẩu trực tiếp (dùng cho trang cá nhân)"""
+    """Đổi mật khẩu trực tiếp (Mã hóa trước khi lưu)"""
+    hashed_password = get_password_hash(new_password)
     await db.users.update_one(
         {"_id": ObjectId(user_id)}, 
-        {"$set": {"password": new_password}} 
+        {"$set": {"password": hashed_password}} 
     )
     return {"status": "success", "message": "Đổi mật khẩu thành công!"}
 
-# --- 4. KHÔI PHỤC MẬT KHẨU QUA OTP EMAIL (QUÊN MẬT KHẨU) ---
+# --- 5. KHÔI PHỤC MẬT KHẨU QUA SMTP GMAIL (DUY NHẤT) ---
 
-def generate_otp(length=6):
-    return ''.join(random.choices(string.digits, k=length))
-
-async def send_forgot_password_email_service(db, email: str):
-    """Gửi mã OTP giả lập qua Console"""
-    user = await db.users.find_one({"email": email})
-    if not user:
-        return {"status": "failed", "message": "Email không tồn tại."}
-
-    otp = generate_otp()
-    OTP_STORE[email] = {
-        "otp": otp,
-        "expiry": datetime.now() + timedelta(minutes=5)
-    }
-
-    print(f"\n--- [IKIDS OTP] Gửi tới: {email} ---")
-    print(f"Mã xác nhận của bạn là: {otp} (Hiệu lực 5 phút)")
-    print("--------------------------------------\n")
-
-    return {"status": "success", "message": "Mã xác nhận đã được gửi!"}
-
-async def verify_otp_and_reset_password_service(db, email, otp, new_password):
-    """Xác thực mã và cập nhật mật khẩu mới (Đã mã hóa)"""
-    if email not in OTP_STORE:
-        return {"status": "failed", "message": "Yêu cầu không hợp lệ hoặc đã hết hạn."}
-
-    stored_data = OTP_STORE[email]
-    if datetime.now() > stored_data["expiry"]:
-        del OTP_STORE[email]
-        return {"status": "failed", "message": "Mã OTP đã hết hạn."}
-
-    if stored_data["otp"] != otp:
-        return {"status": "failed", "message": "Mã OTP không chính xác."}
-
-    # --- QUAN TRỌNG: MÃ HÓA MẬT KHẨU TRƯỚC KHI LƯU ---
-    hashed_password = get_password_hash(new_password)
-
-    # Cập nhật mật khẩu đã mã hóa vào MongoDB
-    await db.users.update_one(
-        {"email": email}, 
-        {"$set": {"password": hashed_password}} 
-    )
-    
-    del OTP_STORE[email]
-    return {"status": "success", "message": "Đã thiết lập mật khẩu mới thành công!"}
-# --- 5. GÓC KỶ NIỆM & LIÊN HỆ ---
-
-async def get_class_memories(db):
-    """Lấy danh sách ảnh kỷ niệm"""
-    memories = await db.memories.find().sort("created_at", -1).to_list(length=20)
-    for m in memories:
-        m["_id"] = str(m["_id"])
-    return memories
-
-async def like_memory_service(db, memory_id: str):
-    """Thả tim ảnh kỷ niệm"""
-    await db.memories.update_one(
-        {"_id": ObjectId(memory_id)}, 
-        {"$inc": {"likes": 1}}
-    )
-    return {"status": "success"}
-
-async def submit_contact_request(db, message_data):
-    """Gửi yêu cầu liên hệ / xin nghỉ học"""
-    new_message = {
-        "sender_id": message_data.sender_id,
-        "receiver_id": message_data.receiver_id,
-        "subject": message_data.subject,
-        "content": message_data.content,
-        "created_at": datetime.now()
-    }
-    await db.contact_messages.insert_one(new_message)
-    
-    if "nghỉ học" in message_data.subject.lower():
-        await db.operator_requests.insert_one({
-            "type": "leave_request",
-            "parent_id": message_data.sender_id,
-            "status": "pending",
-            "created_at": datetime.now()
-        })
-    return {"status": "success"}
-
-async def get_contact_history(db, parent_id: str):
-    """Lấy lịch sử tin nhắn liên hệ"""
-    messages = await db.contact_messages.find({"sender_id": parent_id}).sort("created_at", -1).to_list(length=20)
-    for msg in messages:
-        msg["_id"] = str(msg["_id"]) 
-    return messages
-
-# --- CẤU HÌNH SMTP GMAIL ---
 conf = ConnectionConfig(
-    MAIL_USERNAME = "phay123321@gmail.com", # Email của trung tâm
-    MAIL_PASSWORD = "zuzb mhcn fzui fldc",      # Mật khẩu ứng dụng (16 ký tự)
+    MAIL_USERNAME = "phay123321@gmail.com",
+    MAIL_PASSWORD = "zuzb mhcn fzui fldc",
     MAIL_FROM = "phay123321@gmail.com",
     MAIL_PORT = 587,
     MAIL_SERVER = "smtp.gmail.com",
@@ -219,16 +159,15 @@ async def send_forgot_password_email_service(db, email: str):
         "expiry": datetime.now() + timedelta(minutes=5)
     }
 
-    # Nội dung Email
     html = f"""
     <div style="font-family: Arial, sans-serif; border: 1px solid #ddd; padding: 20px;">
         <h2 style="color: #1E3A8A;">iKids Portal - Xác nhận đổi mật khẩu</h2>
         <p>Chào bạn,</p>
         <p>Bạn đã yêu cầu khôi phục mật khẩu. Mã xác nhận (OTP) của bạn là:</p>
-        <h1 style="color: #00adef; text-align: center;">{otp}</h1>
+        <h1 style="color: #00adef; text-align: center; letter-spacing: 5px;">{otp}</h1>
         <p>Mã này có hiệu lực trong <b>5 phút</b>. Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.</p>
         <hr>
-        <p style="font-size: 12px; color: #888;">Đây là email tự động từ hệ thống iKids.</p>
+        <p style="font-size: 12px; color: #888;">Đây là email tự động từ hệ thống iKids Portal.</p>
     </div>
     """
 
@@ -244,5 +183,60 @@ async def send_forgot_password_email_service(db, email: str):
         await fm.send_message(message)
         return {"status": "success", "message": "Mã OTP đã được gửi vào Email của bạn."}
     except Exception as e:
-        print(f"Lỗi gửi mail: {e}")
         return {"status": "failed", "message": "Không thể gửi email lúc này."}
+
+async def verify_otp_and_reset_password_service(db, email, otp, new_password):
+    if email not in OTP_STORE:
+        return {"status": "failed", "message": "Yêu cầu không hợp lệ hoặc đã hết hạn."}
+
+    stored_data = OTP_STORE[email]
+    if datetime.now() > stored_data["expiry"]:
+        del OTP_STORE[email]
+        return {"status": "failed", "message": "Mã OTP đã hết hạn."}
+
+    if stored_data["otp"] != otp:
+        return {"status": "failed", "message": "Mã OTP không chính xác."}
+
+    hashed_password = get_password_hash(new_password)
+    await db.users.update_one(
+        {"email": email}, 
+        {"$set": {"password": hashed_password}} 
+    )
+    
+    del OTP_STORE[email]
+    return {"status": "success", "message": "Đã thiết lập mật khẩu mới thành công!"}
+
+# --- 6. GÓC KỶ NIỆM & LIÊN HỆ ---
+
+async def get_class_memories(db):
+    memories = await db.memories.find().sort("created_at", -1).to_list(length=20)
+    for m in memories: m["_id"] = str(m["_id"])
+    return memories
+
+async def like_memory_service(db, memory_id: str):
+    await db.memories.update_one({"_id": ObjectId(memory_id)}, {"$inc": {"likes": 1}})
+    return {"status": "success"}
+
+async def submit_contact_request(db, message_data):
+    new_message = {
+        "sender_id": message_data.sender_id,
+        "receiver_id": message_data.receiver_id,
+        "subject": message_data.subject,
+        "content": message_data.content,
+        "created_at": datetime.now()
+    }
+    await db.contact_messages.insert_one(new_message)
+    
+    if "nghỉ học" in message_data.subject.lower():
+        await db.operator_requests.insert_one({
+            "type": "leave_request",
+            "parent_id": message_data.sender_id,
+            "status": "pending",
+            "created_at": datetime.now()
+        })
+    return {"status": "success"}
+
+async def get_contact_history(db, parent_id: str):
+    messages = await db.contact_messages.find({"sender_id": parent_id}).sort("created_at", -1).to_list(length=20)
+    for msg in messages: msg["_id"] = str(msg["_id"]) 
+    return messages
