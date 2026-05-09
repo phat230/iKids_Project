@@ -1,51 +1,63 @@
 import streamlit as st
-from api_clients.tv3_client import get_gamification_profile, get_store_products, purchase_product
+from api_clients.tv3_client import get_store_products, purchase_product, get_gamification_profile
+from utils.role_guard import require_role
 
-# Không gọi st.set_page_config nếu đã gọi ở app.py
+# 4.3: Bảo mật - Chặn truy cập trái phép, chỉ cho phép Parent và Admin
+require_role(["parent", "admin"])
 
-st.title("🛒 Cửa Hàng Học Liệu iKids")
-st.write("Mua sắm sách, dụng cụ thí nghiệm và phụ kiện học tập chính hãng.")
+def render_store():
+    # 1. Tiêu đề
+    st.title("🎒 Cửa Hàng Dụng Cụ iKids")
+    st.write("Sử dụng số dư trong ví để mua các món đồ học tập tặng cho con em mình!")
+    
+    user_id = st.session_state.get("user_id")
+    
+    # 2. Lấy số dư ví thực tế từ Backend
+    profile = get_gamification_profile(user_id)
+    balance = profile.get('balance', 0.0) 
+    
+    # Hiển thị số dư ở Sidebar
+    st.sidebar.markdown(f"### 💳 Số dư ví hiện tại:")
+    st.sidebar.title(f"{balance:,.0f} VNĐ")
+    
+    if st.sidebar.button("➕ Nạp thêm tiền", use_container_width=True):
+        # Đảm bảo đường dẫn này khớp với app.py của bạn
+        try:
+            st.switch_page("pages/parent/nap_tien.py")
+        except:
+            st.error("Không tìm thấy trang nạp tiền. Vui lòng kiểm tra lại cấu trúc thư mục.")
+    
+    st.divider()
 
-user_id = st.session_state.get("user_id")
-
-if not user_id:
-    st.error("Vui lòng đăng nhập để xem cửa hàng.")
-    st.stop()
-
-# 1. Lấy số dư ví VNĐ thực tế
-profile = get_gamification_profile(user_id)
-balance = profile.get('balance', 0.0)
-
-# Hiển thị số dư định dạng VNĐ
-st.info(f"💳 **Số dư tài khoản của bạn:** {balance:,.0f} VNĐ")
-st.divider()
-
-# 2. Hiển thị danh sách sản phẩm thực tế
-products = get_store_products()
-
-if not products:
-    st.write("Cửa hàng hiện tại chưa có sản phẩm mới.")
-else:
-    cols = st.columns(2)
-    for index, item in enumerate(products):
-        col = cols[index % 2]
-        
-        with col:
-            with st.container(border=True):
-                # Hiển thị Icon, Tên và Giá tiền VNĐ
-                st.markdown(f"### {item['icon']} {item['name']}")
-                st.markdown(f"**Giá bán:** `{item['price']:,.0f} VNĐ`")
-                st.caption(f"Loại: {item['type'].capitalize()}")
-                
-                if st.button("Thanh toán ngay", key=f"btn_buy_{item['id']}", use_container_width=True):
-                    if balance < item['price']:
-                        st.warning(f"Số dư không đủ. Bạn cần nạp thêm {item['price'] - balance:,.0f} VNĐ để mua sản phẩm này.")
-                    else:
-                        # Gọi API mua hàng thực tế
-                        success, msg = purchase_product(user_id, item['id'])
-                        if success:
-                            st.success(msg)
-                            st.balloons()
-                            st.rerun()
+    # 3. Lấy danh sách sản phẩm từ DB
+    products = get_store_products()
+    
+    if not products:
+        st.info("Cửa hàng hiện tại chưa có sản phẩm mới. Vui lòng quay lại sau!")
+    else:
+        # Hiển thị sản phẩm theo lưới 2 cột
+        cols = st.columns(2)
+        for i, p in enumerate(products):
+            with cols[i % 2]:
+                with st.container(border=True):
+                    # Hiển thị thông tin sản phẩm
+                    st.markdown(f"### {p.get('icon', '📦')} {p['name']}")
+                    st.write(f"Giá: :blue[**{p['price']:,} VNĐ**]") # Thêm màu sắc cho giá tiền
+                    st.caption(f"Loại: {p.get('type', 'Dụng cụ').capitalize()}")
+                    
+                    # Nút mua hàng
+                    if st.button(f"Mua tặng con", key=f"buy_parent_{p['id']}", use_container_width=True, type="secondary"):
+                        if balance >= p['price']:
+                            with st.spinner("Đang thực hiện giao dịch..."):
+                                success, msg = purchase_product(user_id, p['id']) 
+                                if success:
+                                    st.success(f"🎉 Đã mua thành công {p['name']}!")
+                                    st.balloons()
+                                    st.rerun() 
+                                else:
+                                    st.error(msg)
                         else:
-                            st.error(msg)
+                            st.error(f"Số dư không đủ. Cần thêm {(p['price'] - balance):,.0f} VNĐ.")
+
+if __name__ == "__main__":
+    render_store()

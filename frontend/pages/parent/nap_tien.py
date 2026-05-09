@@ -1,60 +1,63 @@
 import streamlit as st
-import pandas as pd
+import os
 from api_clients.tv3_client import get_gamification_profile, deposit_money
+from utils.role_guard import require_role
 
-st.title("💳 Quản Lý Tài Chính Gia Đình")
-st.write("Nạp tiền vào ví và theo dõi các hoạt động chi tiêu tại iKids.")
+# 4.3: Bảo mật - Chỉ cho phép Phụ huynh và Admin truy cập trang nạp tiền
+require_role(["parent", "admin"])
 
-parent_id = st.session_state.get("user_id")
-
-if not parent_id:
-    st.error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.")
-    st.stop()
-
-# --- PHẦN 1: THÔNG TIN SỐ DƯ ---
-profile = get_gamification_profile(parent_id)
-current_balance = profile.get('balance', 0.0)
-
-col_balance, col_rank = st.columns(2)
-with col_balance:
-    st.metric(label="Số dư khả dụng", value=f"{current_balance:,.0f} VNĐ")
-with col_rank:
-    st.metric(label="Hạng thành viên", value=profile.get('rank_level', 'Beginner'))
-
-st.divider()
-
-# --- PHẦN 2: FORM NẠP TIỀN ---
-with st.expander("➕ Nạp tiền mới vào tài khoản", expanded=True):
-    with st.form("deposit_form"):
-        amount = st.number_input("Số tiền muốn nạp (VNĐ)", min_value=10000, step=10000, value=50000)
-        method = st.selectbox("Phương thức thanh toán", ["Chuyển khoản Ngân hàng (QR)", "Ví MoMo / ZaloPay", "Thanh toán tại trung tâm"])
+def show_deposit_page():
+    st.title("💳 Nạp Tiền & Quản Lý Ví")
+    user_id = st.session_state.get("user_id")
+    
+    if not user_id:
+        st.warning("Vui lòng đăng nhập để thực hiện nạp tiền.")
+        st.stop()
+    
+    # 1. Hiển thị số dư hiện tại
+    profile = get_gamification_profile(user_id)
+    balance = profile.get('balance', 0)
+    st.metric("Số dư ví hiện tại", f"{balance:,.0f} VNĐ")
+    
+    st.divider()
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("1. Thông tin chuyển khoản")
+        amount = st.number_input("Nhập số tiền muốn nạp (VNĐ)", min_value=10000, step=10000, value=50000)
         
-        submit = st.form_submit_button("Xác Nhận Nạp Tiền", use_container_width=True)
+        memo = f"IKIDS NAP {user_id[-6:]}"
         
-        if submit:
-            success, msg = deposit_money(parent_id, amount)
-            if success:
-                st.success(f"🎉 Giao dịch thành công! Đã nạp {amount:,.0f} VNĐ.")
-                st.balloons()
-                st.rerun()
-            else:
-                st.error(f"Lỗi: {msg}")
+        # Thống nhất tên chủ tài khoản là NGUYEN DUC PHAT
+        st.info(f"""
+        **🏦 Ngân hàng BIDV**
+        - **Số tài khoản:** `64110001073247`
+        - **Chủ tài khoản:** NGUYEN DUC PHAT
+        """)
+        
+        st.markdown("**Nội dung chuyển khoản:**")
+        st.code(memo, language="text")
+        st.caption("⚠️ Lưu ý: Hãy copy đúng nội dung trên để hệ thống tự động cộng tiền.")
+        
+        if st.button("Tôi đã chuyển khoản xong", type="primary", use_container_width=True):
+            with st.spinner("Đang gửi yêu cầu xác nhận..."):
+                success, msg = deposit_money(user_id, amount)
+                if success:
+                    st.success(f"Yêu cầu nạp {amount:,.0f} VNĐ đã được ghi nhận!")
+                    st.balloons()
+                else:
+                    st.error(msg)
 
-# --- PHẦN 3: LỊCH SỬ GIAO DỊCH ---
-st.subheader("📜 Lịch sử giao dịch gần đây")
+    with col2:
+        st.subheader("2. Quét mã QR BIDV")
+        
+        # Cập nhật accountName trong link QR khớp với thông tin bên trái
+        bidv_qr_url = f"https://img.vietqr.io/image/BIDV-64110001073247-compact.png?amount={int(amount)}&addInfo={memo}&accountName=NGUYEN%20DUC%20PHAT"
+        
+        st.image(bidv_qr_url, width=350, caption="Quét mã bằng App Ngân hàng để tự điền thông tin")
+        
+        st.warning("Nội dung chuyển khoản phải khớp với mã QR phía trên.")
 
-# Giả lập dữ liệu lịch sử nếu Backend chưa trả về list transactions chi tiết
-# Trong đồ án, bạn nên lấy dữ liệu này từ db.purchase_history và db.deposit_history
-mock_history = [
-    {"Ngày": "2026-05-06 14:20", "Nội dung": "Nạp tiền vào tài khoản", "Số tiền": "+ 50,000", "Trạng thái": "Thành công"},
-    {"Ngày": "2026-05-05 09:15", "Nội dung": "Mua Sách Toán Tư Duy Tập 1", "Số tiền": "- 85,000", "Trạng thái": "Hoàn tất"},
-    {"Ngày": "2026-05-04 16:45", "Nội dung": "Nạp tiền vào tài khoản", "Số tiền": "+ 100,000", "Trạng thái": "Thành công"},
-]
-
-if mock_history:
-    df_history = pd.DataFrame(mock_history)
-    st.table(df_history) # Dùng st.table để hiển thị danh sách rõ ràng, không thể chỉnh sửa
-else:
-    st.info("Chưa có lịch sử giao dịch nào được ghi nhận.")
-
-st.caption("ℹ️ Mọi thắc mắc về giao dịch, vui lòng liên hệ bộ phận Chăm sóc khách hàng trong mục 'Liên hệ'.")
+if __name__ == "__main__":
+    show_deposit_page()
