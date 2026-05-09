@@ -156,7 +156,6 @@ async def submit_contact_request(db, message_data):
     })
     
     # 4.2: TỰ ĐỘNG CHUYỂN ĐỔI YÊU CẦU CHO OPERATOR (TV1)
-    # Kiểm tra từ khóa "nghỉ" trong cả tiêu đề và nội dung
     keywords = ["nghỉ học", "xin nghỉ", "off", "vắng mặt"]
     full_text = f"{message_data.subject} {message_data.content}".lower()
     
@@ -183,12 +182,13 @@ async def get_contact_history(db, user_id: str):
 async def generate_vietqr_link(amount: int, user_id: str):
     """
     Tạo link mã QR ngân hàng BIDV cho TV3
-    Cập nhật theo yêu cầu chuyển từ VCB sang BIDV
+    Đồng bộ tên chủ tài khoản NGUYEN DUC PHAT
     """
     BANK_ID = "BIDV" 
     ACCOUNT_NO = "64110001073247"
     TEMPLATE = "compact"
     description = f"IKIDS NAP {user_id[-6:]}".upper() 
     
-    qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={amount}&addInfo={description}&accountName=TRAN%20PHAM%20THANH%20MINH"
+    # Cập nhật accountName thành NGUYEN DUC PHAT để khớp với Frontend
+    qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={amount}&addInfo={description}&accountName=NGUYEN%20DUC%20PHAT"
     return qr_url, description
