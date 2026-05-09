@@ -1,6 +1,15 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+from enum import Enum
+
+class UserRole(str, Enum):
+    """Định nghĩa 5 role chuẩn của hệ thống iKids"""
+    ADMIN = "admin"
+    OPERATOR = "operator"
+    TEACHER = "teacher"
+    PARENT = "parent"
+    STUDENT = "student"
 
 class UserDBModel(BaseModel):
     """
@@ -9,9 +18,9 @@ class UserDBModel(BaseModel):
     name: str
     email: EmailStr
     password: str  # Chứa mật khẩu đã được mã hóa (hashed)
-    role: str      # Chấp nhận: student, teacher, admin, operator, parent
+    role: UserRole # Ép kiểu bằng Enum để tránh lỗi nhập sai role
     created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
     
-    # Có thể mở rộng sau này (VD: lưu ID của con nếu role là parent)
-    student_id_ref: Optional[int] = None
+    # Một phụ huynh có thể quản lý nhiều con, và MongoDB dùng str (ObjectId) thay vì int
+    student_ids_ref: Optional[List[str]] = None

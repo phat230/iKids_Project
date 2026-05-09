@@ -67,7 +67,9 @@ else:
             st.Page("pages/teacher/dashboard.py", title="Bảng Tin Giáo Viên", icon="👨‍🏫"),
             st.Page("pages/teacher/nhat_ky.py", title="Nhật Ký & Điểm Danh", icon="📔"),
             st.Page("pages/teacher/tao_quiz.py", title="Tạo Bài Tập AI", icon="🤖"),
-            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="⚙️")
+            st.Page("pages/teacher/kho_hoc_lieu.py", title="Kho Học Liệu", icon="📚"),
+            st.Page("pages/teacher/giao_bai.py", title="Giao Bài Tập", icon="📤"),
+            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="⚙️")        
         ])
 
     # 4. Role: Student (Học sinh)
