@@ -1,109 +1,113 @@
 import streamlit as st
-from datetime import datetime
+import time
+from datetime import date
 
-# Cài đặt layout rộng để hiển thị thoáng hơn
-st.set_page_config(page_title="Nhật ký giảng dạy", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Nhật Ký & Điểm Danh", page_icon="📓", layout="wide")
 
-# ================= CSS CUSTOM =================
-st.markdown("""
-    <style>
-    /* Chỉnh màu tiêu đề phân mục */
-    .section-header {
-        color: #FF4B4B;
-        border-bottom: 2px solid #FF4B4B;
-        padding-bottom: 5px;
-        margin-top: 20px;
-        margin-bottom: 15px;
-        font-family: 'Arial', sans-serif;
-    }
-    /* Chỉnh tên học sinh cho nổi bật */
-    .student-name {
-        font-size: 1.15rem;
-        font-weight: bold;
-        color: #1F77B4;
-        margin-bottom: 10px;
-    }
-    /* Khoảng cách cho nút submit */
-    .stButton>button {
-        font-weight: bold;
-        font-size: 18px;
-        margin-top: 20px;
-    }
-    </style>
-""", unsafe_allow_html=True)
-# ==============================================
+st.title("📓 Nhật Ký Giảng Dạy & Điểm Danh")
+st.write("Ghi nhận điểm danh, đánh giá học sinh và lưu trữ nhật ký bài giảng ngay sau ca dạy.")
 
-st.title("📝 Nhật ký & Điểm danh Lớp học")
+# ================= MOCK DATA (GIẢ LẬP DỮ LIỆU TỪ TV1) =================
+mock_classes = ["Tiếng Anh Giao Tiếp - Lớp T6", "Toán Tư Duy - Lớp T7", "Lớp Năng khiếu M1"]
 
-# Giả lập dữ liệu được hệ thống Vận Hành (TV1) đẩy sang
-mock_class_data = {
-    "class_id": "Lop_T6",
-    "class_name": "Tiếng Anh Thiếu Nhi - Lớp T6",
-    "students": [
-        {"id": "hs1", "name": "Nguyễn Văn A"},
-        {"id": "hs2", "name": "Trần Thị B"},
-        {"id": "hs3", "name": "Lê Hoàng C"},
-    ]
+mock_students = {
+    "Tiếng Anh Giao Tiếp - Lớp T6": ["Nguyễn Văn An", "Trần Thị Bình", "Lê Văn Cường", "Phạm Hoàng Dung"],
+    "Toán Tư Duy - Lớp T7": ["Hoàng Gia Bảo", "Vũ Thiên Kim", "Đinh Tuấn Kiệt"],
+    "Lớp Năng khiếu M1": ["Trương Tiểu My", "Lý Hải Ngọc"]
 }
 
-# --- HEADER THÔNG TIN LỚP HỌC ---
-col_info1, col_info2 = st.columns(2)
-with col_info1:
-    st.info(f"📚 **Lớp đang dạy:** {mock_class_data['class_name']}")
-with col_info2:
-    st.success(f"📅 **Ngày:** {datetime.now().strftime('%d/%m/%Y')} | 👥 **Sĩ số:** {len(mock_class_data['students'])} học sinh")
+# ================= LẤY DỮ LIỆU TỪ KHO HỌC LIỆU CỦA ÔNG =================
+if "ai_videos" not in st.session_state:
+    st.session_state.ai_videos = []
 
-# Bắt đầu Form
-with st.form("journal_form"):
-    
-    # --- PHẦN 1: NỘI DUNG BÀI GIẢNG ---
-    st.markdown("<h3 class='section-header'>1. Nội dung bài giảng</h3>", unsafe_allow_html=True)
-    with st.container(border=True): # Đóng khung phần nội dung
-        content = st.text_area("Hôm nay lớp đã học những gì?", placeholder="Nhập tóm tắt nội dung bài học để Phụ huynh theo dõi...", height=100)
-        used_video = st.selectbox("🎬 Video AI đã sử dụng (Tùy chọn)", ["Không có", "Video: Động vật quanh ta", "Video: Đếm số 1-10"])
+if "saved_quizzes" not in st.session_state:
+    st.session_state.saved_quizzes = []
 
-    # --- PHẦN 2: ĐIỂM DANH & NHẬN XÉT ---
-    st.markdown("<h3 class='section-header'>2. Điểm danh & Đánh giá chi tiết</h3>", unsafe_allow_html=True)
+# ================= GIAO DIỆN CHÍNH =================
+st.subheader("1. Lựa chọn ca dạy")
+col_date, col_class = st.columns([1, 3])
+with col_date:
+    selected_date = st.date_input("Ngày dạy:", date.today())
+with col_class:
+    selected_class = st.selectbox("Chọn lớp học:", mock_classes)
+
+st.divider()
+
+# Chia Layout: 6 phần cho Điểm danh, 4 phần cho Nhật ký
+col_left, col_right = st.columns([6, 4], gap="large")
+
+# ----------------- CỘT TRÁI: ĐIỂM DANH & ĐÁNH GIÁ -----------------
+with col_left:
+    st.markdown(f"### 👥 Điểm danh & Đánh giá: `{selected_class}`")
+    st.caption("Ghi chú: Phụ huynh sẽ nhận được thông báo ngay khi bạn lưu dữ liệu này.")
     
+    students = mock_students[selected_class]
     attendance_data = []
     
-    # Lặp qua từng học sinh, mỗi học sinh là một thẻ (Card) riêng
-    for student in mock_class_data["students"]:
-        with st.container(border=True): # Đóng khung từng học sinh cho dễ nhìn
-            st.markdown(f"<div class='student-name'>👤 {student['name']} (Mã: {student['id']})</div>", unsafe_allow_html=True)
-            
-            # Chia cột bên trong Card học sinh
-            c1, c2, c3 = st.columns([1, 1.5, 1.5])
-            
-            with c1:
-                # Dùng toggle thay cho checkbox nhìn mượt như app mobile
-                is_present = st.toggle("✅ Có mặt", value=True, key=f"att_{student['id']}")
-            
-            with c2:
-                # Nếu vắng mặt (toggle off) thì vô hiệu hóa nhập điểm
-                score = st.number_input("🎯 Điểm số", min_value=0.0, max_value=10.0, step=0.5, key=f"score_{student['id']}", disabled=not is_present)
-            
-            with c3:
-                emoji = st.selectbox("🌟 Đánh giá thái độ", ["🌟 Xuất sắc", "👍 Tốt", "💪 Cố gắng", "😴 Thiếu tập trung"], key=f"emoji_{student['id']}", disabled=not is_present)
-            
-            comment = st.text_input("💬 Nhận xét chi tiết", placeholder="Giáo viên nhận xét thêm...", key=f"comment_{student['id']}", disabled=not is_present)
-            
-            # Gom data lại chuẩn bị gửi Backend
-            attendance_data.append({
-                "student_id": student["id"],
-                "is_present": is_present,
-                "score": score if is_present else None,
-                "teacher_comment": comment if is_present else "",
-                "emoji_feedback": emoji if is_present else ""
-            })
-
-    # Nút Submit bự, căn giữa form
-    submitted = st.form_submit_button("🚀 LƯU NHẬT KÝ & GỬI BÁO CÁO", use_container_width=True)
+    # Header của bảng điểm danh
+    h1, h2, h3, h4 = st.columns([2.5, 2, 2, 3])
+    h1.write("**Họ và tên**")
+    h2.write("**Trạng thái**")
+    h3.write("**Thái độ học**")
+    h4.write("**Nhận xét nhanh**")
     
-    if submitted:
-        # Giả lập logic gửi API
-        if len(content) < 5:
-            st.error("⚠️ Vui lòng nhập nội dung bài giảng cụ thể hơn!")
+    for student in students:
+        with st.container(border=True):
+            c_name, c_att, c_emo, c_cmt = st.columns([2.5, 2, 2, 3])
+            
+            with c_name:
+                st.markdown(f"<div style='margin-top: 8px; font-weight: 500;'>{student}</div>", unsafe_allow_html=True)
+            
+            with c_att:
+                att = st.selectbox("Trạng thái", ["✅ Có mặt", "❌ Vắng", "⏳ Đi trễ"], key=f"att_{student}", label_visibility="collapsed")
+            
+            with c_emo:
+                is_disabled = True if att == "❌ Vắng" else False
+                emo = st.selectbox("Thái độ", ["⭐ Xuất sắc", "👍 Tốt", "👌 Bình thường", "👎 Thiếu tập trung"], key=f"emo_{student}", label_visibility="collapsed", disabled=is_disabled)
+            
+            with c_cmt:
+                cmt = st.text_input("Nhận xét", placeholder="Nhập nhận xét...", key=f"cmt_{student}", label_visibility="collapsed", disabled=is_disabled)
+            
+            attendance_data.append({"Tên": student, "Trạng thái": att, "Thái độ": emo, "Nhận xét": cmt})
+
+# ----------------- CỘT PHẢI: NHẬT KÝ BÀI GIẢNG -----------------
+with col_right:
+    st.markdown("### 📝 Nhật ký bài học")
+    
+    with st.container(border=True):
+        lesson_topic = st.text_input("🎯 Nội dung / Chủ đề bài học:", placeholder="Ví dụ: Unit 3 - Wild Animals")
+        
+        # CHỌN VIDEO AI (TỪ KHO)
+        available_videos = [vid["title"] for vid in st.session_state.ai_videos]
+        if not available_videos:
+            used_videos = st.multiselect("🎬 Video AI đã sử dụng trên lớp:", ["(Không có video trong kho)"], disabled=True)
         else:
-            st.success("✅ Đã lưu nhật ký thành công! Hệ thống đã gửi thông báo tới Phụ huynh và ghi nhận EXP cho Học sinh chuyên cần.")
-            st.balloons() # Thêm hiệu ứng cho vui mắt
+            used_videos = st.multiselect("🎬 Video AI đã sử dụng trên lớp:", available_videos)
+            
+        # CHỌN BÀI TẬP VỀ NHÀ (TỪ KHO QUIZ) - TÍNH NĂNG MỚI THEO Ý ÔNG
+        available_quizzes = [q["title"] for q in st.session_state.saved_quizzes]
+        if not available_quizzes:
+            st.warning("💡 Kho bài tập hiện đang trống. Hãy qua trang 'Tạo Bài Tập AI' để soạn đề trước nhé!")
+            assigned_quizzes = st.multiselect("📝 Bài tập (Quiz) giao về nhà:", ["(Không có đề nào)"], disabled=True)
+        else:
+            assigned_quizzes = st.multiselect("📝 Bài tập (Quiz) giao về nhà:", available_quizzes)
+        
+        general_note = st.text_area("💬 Ghi chú chung cho ca dạy (Nội bộ):", placeholder="Ví dụ: Lớp học sôi nổi, các con nắm bài tốt...")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if st.button("💾 LƯU NHẬT KÝ & ĐIỂM DANH", type="primary", use_container_width=True):
+            if not lesson_topic:
+                st.error("⚠️ Vui lòng nhập nội dung/chủ đề bài học!")
+            else:
+                with st.spinner("Đang đồng bộ dữ liệu hệ thống..."):
+                    time.sleep(1.5)
+                    st.success(f"✅ Đã lưu nhật ký cho lớp {selected_class} thành công!")
+                    
+                    # Hiện thông báo báo cáo các hành động đã làm
+                    if assigned_quizzes:
+                        st.info(f"🔔 Đã tự động giao {len(assigned_quizzes)} bài tập về nhà cho lớp. Thông báo đã gửi tới Học sinh/Phụ huynh (TV3).")
+                    else:
+                        st.info("🔔 Dữ liệu điểm danh & nhận xét đã được đẩy sang App Phụ Huynh (TV3).")
+                        
+                    st.balloons()
