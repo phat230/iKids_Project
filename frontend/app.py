@@ -80,7 +80,8 @@ else:
             st.Page("pages/student/quiz.py", title="Trạm Quiz AI", icon="📝"),
             st.Page("pages/student/cua_hang.py", title="Cửa Hàng iKids", icon="🛒"),
             st.Page("pages/student/ky_niem.py", title="Góc Kỷ Niệm", icon="📸"),
-            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="🧑‍🎤")
+            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="🧑‍🎤"),
+            st.Page("pages/student/video.py", title="Rạp Chiếu Video AI", icon="📺")
         ])
 
     # 5. Role: Parent (Phụ huynh)

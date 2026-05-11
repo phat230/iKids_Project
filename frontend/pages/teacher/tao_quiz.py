@@ -12,7 +12,7 @@ if "saved_quizzes" not in st.session_state:
 
 # ================= CẤU HÌNH AI =================
 # TODO: Thay API Key của ông vào đây
-GEMINI_API_KEY = "AIzaSyBFs3L4n-6x39dKfda-56OOa0CMl21fRoM" 
+GEMINI_API_KEY = "AIzaSyCD2KeHK88MBx2H_A7TOZQZhKGKW4ibCSo" 
 genai.configure(api_key=GEMINI_API_KEY)
 
 def generate_real_ai_quiz(topic, num_q):
