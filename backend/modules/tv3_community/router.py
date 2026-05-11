@@ -41,45 +41,83 @@ async def api_deposit_money(req: DepositRequest, db = Depends(get_db)):
         raise HTTPException(status_code=404, detail=result["message"])
     return result
 
-# --- WEBHOOK VIETQR.IO (PAYOS): TỰ ĐỘNG CỘNG TIỀN ---
+# --- 3. QUẢN LÝ SỰ CỐ NẠP TIỀN (PHẦN MỚI TÁCH) ---
+
+@router.get("/admin/deposit-issues")
+async def api_get_deposit_issues(db = Depends(get_db)):
+    """API cho Admin lấy danh sách sự cố nạp tiền đang chờ duyệt (status=pending)"""
+    cursor = db.deposit_issues.find({"status": "pending"}).sort("created_at", -1)
+    issues = []
+    async for doc in cursor:
+        doc["id"] = str(doc["_id"])
+        del doc["_id"]
+        issues.append(doc)
+    return issues
+
+@router.post("/admin/resolve-deposit/{issue_id}")
+async def api_resolve_deposit_issue(issue_id: str, db = Depends(get_db)):
+    try:
+        # 1. Tìm thông tin sự cố
+        issue = await db.deposit_issues.find_one({"_id": ObjectId(issue_id)})
+        if not issue:
+            raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu.")
+        
+        user_id = issue.get("sender_id")
+        
+        # 2. Ép kiểu dữ liệu nghiêm ngặt để đảm bảo phép cộng tiền thực hiện được ($inc)
+        try:
+            # Lấy amount từ DB, nếu là string "50000" nó sẽ chuyển thành số 50000.0
+            amount = float(issue.get("amount", 0))
+        except (ValueError, TypeError):
+            amount = 0.0
+
+        if amount <= 0:
+            raise HTTPException(status_code=400, detail=f"Số tiền không hợp lệ: {amount}")
+
+        # 3. Thực hiện cộng tiền vào ví người dùng thông qua service
+        deposit_res = await deposit_money_service(db, user_id, amount)
+        if deposit_res["status"] == "failed":
+            raise HTTPException(status_code=400, detail="Không thể cập nhật số dư tài khoản.")
+
+        # 4. Cập nhật trạng thái sự cố thành 'resolved' để ẩn khỏi danh sách Admin
+        result = await db.deposit_issues.update_one(
+            {"_id": ObjectId(issue_id)},
+            {"$set": {
+                "status": "resolved", 
+                "resolved_at": datetime.now(),
+                "admin_note": f"Đã duyệt thủ công số tiền {amount}"
+            }}
+        )
+
+        if result.modified_count > 0:
+            return {"status": "success", "message": f"Đã cộng {amount:,.0f} VNĐ thành công."}
+        else:
+            return {"status": "failed", "message": "Không thể cập nhật trạng thái đơn."}
+
+    except Exception as e:
+        # Trả về lỗi chi tiết để bạn dễ debug nếu vẫn chưa chạy được
+        raise HTTPException(status_code=400, detail=f"Lỗi xử lý: {str(e)}")
+# --- 4. WEBHOOK VIETQR.IO (PAYOS) ---
 @router.post("/webhook/payos")
 async def payos_webhook(request: Request, db = Depends(get_db)):
-    """
-    Cổng tiếp nhận dữ liệu từ PayOS (VietQR.io) khi có giao dịch chuyển khoản thành công.
-    """
     try:
         body = await request.json()
-        
-        # PayOS gửi dữ liệu giao dịch trong trường 'data'
         data = body.get("data", body) 
-        
-        # 1. Lấy thông tin nội dung và số tiền
-        # PayOS dùng 'description' thay cho 'content'
         description = data.get("description", "").upper()
         amount = float(data.get("amount", 0))
-        
-        # Lấy mã giao dịch để tránh xử lý trùng (Idempotency)
         reference = data.get("reference") or data.get("paymentLinkId")
 
-        # 2. Kiểm tra cú pháp: "IKIDS NAP <6 ký tự cuối ID>"
         if "IKIDS NAP" in description:
             user_suffix = description.split("IKIDS NAP")[-1].strip()
-            
-            # 3. Tìm người dùng trong DB có ID kết thúc bằng chuỗi này
             user = await db.users.find_one({"_id": {"$regex": f"{user_suffix}$"}})
             
             if user:
                 user_id = str(user["_id"])
-                
-                # Kiểm tra xem mã giao dịch này đã được xử lý chưa
                 already_processed = await db.deposit_history.find_one({"reference": reference})
                 if already_processed:
                     return {"status": "success", "message": "Giao dịch đã được xử lý trước đó."}
 
-                # 4. TỰ ĐỘNG GỌI SERVICE CỘNG TIỀN
                 await deposit_money_service(db, user_id, amount)
-                
-                # Lưu vào lịch sử nạp tiền tự động
                 await db.deposit_history.insert_one({
                     "user_id": user_id,
                     "amount": amount,
@@ -88,15 +126,12 @@ async def payos_webhook(request: Request, db = Depends(get_db)):
                     "type": "payos_auto",
                     "created_at": datetime.now()
                 })
-                
-                print(f"✅ [PayOS] Đã nạp {amount:,.0f} VNĐ cho User: {user_id}")
                 return {"status": "success", "message": "Nạp tiền tự động thành công"}
-        
-        return {"status": "ignored", "message": "Nội dung không hợp lệ hoặc không phải lệnh nạp tiền"}
+        return {"status": "ignored", "message": "Nội dung không hợp lệ"}
     except Exception as e:
-        print(f"❌ Webhook Error: {str(e)}")
-        return {"status": "error", "message": "Lỗi xử lý Webhook"}
+        return {"status": "error", "message": str(e)}
 
+# --- 5. GAMIFICATION & PROFILE ---
 @router.get("/gamification/profile/{user_id}")
 async def get_account_profile(user_id: str, db = Depends(get_db)):
     try:
@@ -114,7 +149,7 @@ async def get_account_profile(user_id: str, db = Depends(get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="ID không hợp lệ.")
 
-# --- 3. KỶ NIỆM ---
+# --- 6. KỶ NIỆM ---
 @router.get("/memories")
 async def api_get_memories(db = Depends(get_db)):
     return await get_class_memories(db)
@@ -123,7 +158,7 @@ async def api_get_memories(db = Depends(get_db)):
 async def api_like_memory(memory_id: str, db = Depends(get_db)):
     return await like_memory_service(db, memory_id)
 
-# --- 4. LIÊN HỆ & AUTH ---
+# --- 7. LIÊN HỆ & AUTH ---
 @router.post("/contact/submit")
 async def api_submit_contact(request_data: ContactMessageCreate, db = Depends(get_db)):
     return await submit_contact_request(db, request_data)
@@ -140,7 +175,7 @@ async def forgot_password(payload: dict = Body(...), db=Depends(get_db)):
 async def verify_reset(payload: dict = Body(...), db=Depends(get_db)):
     return await verify_otp_and_reset_password_service(db, payload.get("email"), payload.get("otp"), payload.get("new_password"))
 
-# --- 5. GAMIFICATION AWARD ---
+# --- 8. GAMIFICATION AWARD ---
 @router.post("/gamification/award-exp")
 async def api_award_exp(payload: dict = Body(...), db = Depends(get_db)):
     student_id = payload.get("student_id")

@@ -74,7 +74,7 @@ async def award_exp_service(db, student_id: str, exp_amount: int, reason: str):
     await db.users.update_one({"_id": ObjectId(student_id)}, {"$set": {"rank": new_rank}})
     return {"status": "success", "exp_total": current_exp, "rank": new_rank}
 
-# --- 4. TÀI KHOẢN & BẢO MẬT ---
+# --- 4. TÀI KHHOẢN & BẢO MẬT ---
 async def update_account_profile_service(db, user_id: str, full_name: str = None, avatar_file = None):
     update_data = {}
     if full_name: update_data["full_name"] = full_name
@@ -135,7 +135,7 @@ async def verify_otp_and_reset_password_service(db, email, otp, new_password):
     del OTP_STORE[email]
     return {"status": "success", "message": "Đã đặt lại mật khẩu mới thành công!"}
 
-# --- 6. KỶ NIỆM & LIÊN HỆ (Tối ưu 4.2) ---
+# --- 6. KỶ NIỆM & LIÊN HỆ & SỰ CỐ ---
 async def get_class_memories(db):
     memories = await db.memories.find().sort("created_at", -1).to_list(length=20)
     for m in memories: m["_id"] = str(m["_id"])
@@ -146,7 +146,21 @@ async def like_memory_service(db, memory_id: str):
     return {"status": "success"}
 
 async def submit_contact_request(db, message_data):
-    # Lưu vào hội thoại chung
+    subject_upper = message_data.subject.upper()
+    content_lower = message_data.content.lower()
+    
+    # 1. PHÂN LOẠI SỰ CỐ NẠP TIỀN
+    if "NẠP TIỀN" in subject_upper or any(k in content_lower for k in ["nạp tiền", "chuyển khoản", "banking"]):
+        issue_id = await db.deposit_issues.insert_one({
+            "sender_id": message_data.sender_id,
+            "subject": message_data.subject,
+            "content": message_data.content,
+            "amount": getattr(message_data, 'amount', 0), 
+            "status": "pending",
+            "created_at": datetime.now()
+        })
+        return {"status": "success", "message": "Đã gửi báo cáo sự cố.", "id": str(issue_id.inserted_id)}
+    # 2. PHÂN LOẠI XIN NGHỈ HỌC (TV1 quản lý)
     msg_id = await db.contact_messages.insert_one({
         "sender_id": message_data.sender_id,
         "receiver_id": message_data.receiver_id,
@@ -154,12 +168,9 @@ async def submit_contact_request(db, message_data):
         "content": message_data.content,
         "created_at": datetime.now()
     })
-    
-    # 4.2: TỰ ĐỘNG CHUYỂN ĐỔI YÊU CẦU CHO OPERATOR (TV1)
-    keywords = ["nghỉ học", "xin nghỉ", "off", "vắng mặt"]
-    full_text = f"{message_data.subject} {message_data.content}".lower()
-    
-    if any(k in full_text for k in keywords):
+
+    keywords_leave = ["nghỉ học", "xin nghỉ", "off", "vắng mặt"]
+    if any(k in content_lower for k in keywords_leave):
         await db.operator_requests.insert_one({
             "type": "leave_request",
             "priority": "high",
@@ -170,6 +181,8 @@ async def submit_contact_request(db, message_data):
             "is_processed": False,
             "created_at": datetime.now()
         })
+        return {"status": "success", "message": "Đã gửi đơn xin nghỉ học đến bộ phận vận hành."}
+
     return {"status": "success", "message": "Đã gửi liên hệ thành công."}
 
 async def get_contact_history(db, user_id: str):
@@ -189,6 +202,5 @@ async def generate_vietqr_link(amount: int, user_id: str):
     TEMPLATE = "compact"
     description = f"IKIDS NAP {user_id[-6:]}".upper() 
     
-    # Cập nhật accountName thành NGUYEN DUC PHAT để khớp với Frontend
     qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={amount}&addInfo={description}&accountName=NGUYEN%20DUC%20PHAT"
     return qr_url, description

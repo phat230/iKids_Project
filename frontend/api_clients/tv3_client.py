@@ -69,22 +69,17 @@ def purchase_product(user_id, product_id):
 # --- 3. LIÊN HỆ & BẢO MẬT (SỬA LỖI IMPORT TẠI ĐÂY) ---
 
 def submit_contact_request(message_data):
-    """
-    SỬA LỖI: Đồng bộ tên hàm với file nap_tien.py.
-    Gửi tin nhắn liên hệ/báo cáo sự cố nạp tiền.
-    """
-    # Xử lý nếu message_data là một object (như bạn gọi trong nap_tien.py)
+    # Thêm trường 'amount' vào payload gửi đi
     payload = {
         "sender_id": str(message_data.sender_id),
         "receiver_id": str(message_data.receiver_id),
         "subject": message_data.subject,
-        "content": message_data.content
+        "content": message_data.content,
+        "amount": getattr(message_data, 'amount', 0) # THÊM DÒNG NÀY
     }
     try:
         res = requests.post(f"{API_URL}/contact/submit", json=payload)
-        if res.status_code == 200:
-            return True, "Gửi yêu cầu thành công."
-        return False, "Gửi yêu cầu thất bại."
+        return (True, "Thành công") if res.status_code == 200 else (False, "Thất bại")
     except Exception:
         return False, "Lỗi kết nối máy chủ."
 

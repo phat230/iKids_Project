@@ -4,19 +4,39 @@ import pandas as pd
 
 st.set_page_config(page_title="Admin Dashboard - iKids", layout="wide", initial_sidebar_state="expanded")
 
+# Cấu hình địa chỉ Backend
 API_URL = "http://127.0.0.1:8000"
+API_TV3 = f"{API_URL}/api/tv3"
+
+# --- CÁC HÀM GỌI API ---
 
 def fetch_pending_requests():
+    """Lấy đơn từ Giáo viên (TV1)"""
     try:
         res = requests.get(f"{API_URL}/pending-requests")
         return res.json() if res.status_code == 200 else []
     except: return []
 
 def fetch_history_requests():
+    """Lấy lịch sử đơn Giáo viên (TV1)"""
     try:
         res = requests.get(f"{API_URL}/request-history")
         return res.json() if res.status_code == 200 else []
     except: return []
+
+def fetch_deposit_issues():
+    """Lấy danh sách sự cố nạp tiền thực tế từ TV3 (Chỉ lấy status=pending)"""
+    try:
+        res = requests.get(f"{API_TV3}/admin/deposit-issues")
+        return res.json() if res.status_code == 200 else []
+    except: return []
+
+def approve_deposit_issue(issue_id):
+    """Gửi lệnh duyệt: Cộng tiền vào ví và đổi status thành resolved"""
+    try:
+        res = requests.post(f"{API_TV3}/admin/resolve-deposit/{issue_id}")
+        return res.status_code == 200
+    except: return False
 
 # --- CSS CUSTOM ---
 st.markdown("""
@@ -38,13 +58,17 @@ st.write("---")
 
 # --- 1. CHỈ SỐ TỔNG QUAN ---
 pending_requests = fetch_pending_requests()
-total_pending = len(pending_requests)
+total_pending_tv1 = len(pending_requests)
+
+# Lấy dữ liệu sự cố nạp tiền thực tế
+deposit_issues = fetch_deposit_issues()
+total_pending_tv3 = len(deposit_issues)
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown(f"""<div class="metric-card tv1-border">
         <p style="color:#64748b; margin:0; font-size:14px; font-weight:bold;">ĐƠN GV CHỜ DUYỆT (TV1)</p>
-        <h2 style="color:#0f172a; margin:0; font-size:32px;">{total_pending}</h2>
+        <h2 style="color:#0f172a; margin:0; font-size:32px;">{total_pending_tv1}</h2>
         <p style="color:#ef4444; margin:0; font-size:12px;">Dữ liệu trực tiếp từ MongoDB</p></div>""", unsafe_allow_html=True)
 with col2:
     st.markdown("""<div class="metric-card tv1-border">
@@ -57,10 +81,10 @@ with col3:
         <h2 style="color:#0f172a; margin:0; font-size:32px;">--</h2>
         <p style="color:#f59e0b; margin:0; font-size:12px;">Đang cập nhật luồng API</p></div>""", unsafe_allow_html=True)
 with col4:
-    st.markdown("""<div class="metric-card tv3-border">
-        <p style="color:#64748b; margin:0; font-size:14px; font-weight:bold;">ĐƠN TỪ PHỤ HUYNH (TV3)</p>
-        <h2 style="color:#0f172a; margin:0; font-size:32px;">--</h2>
-        <p style="color:#3b82f6; margin:0; font-size:12px;">Đang cập nhật luồng API</p></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="metric-card tv3-border">
+        <p style="color:#64748b; margin:0; font-size:14px; font-weight:bold;">SỰ CỐ NẠP TIỀN (TV3)</p>
+        <h2 style="color:#0f172a; margin:0; font-size:32px;">{total_pending_tv3}</h2>
+        <p style="color:#3b82f6; margin:0; font-size:12px;">Dữ liệu từ deposit_issues</p></div>""", unsafe_allow_html=True)
 
 st.write("<br>", unsafe_allow_html=True)
 
@@ -73,69 +97,43 @@ left_col, right_col = st.columns([1.6, 1])
 with left_col:
     st.subheader("📑 1. Phê duyệt & Điều phối (Thành viên 1)")
     
-    # ---------------------------------------------------------
-    # PHẦN A: ĐƠN CHỜ DUYỆT 
-    # ---------------------------------------------------------
-    st.markdown(f"**A. Yêu cầu đang chờ duyệt ({total_pending})**")
+    st.markdown(f"**A. Yêu cầu đang chờ duyệt ({total_pending_tv1})**")
     if not pending_requests:
         st.success("✨ Tuyệt vời! Hiện tại không có đơn hỗ trợ nào cần xử lý.")
     else:
         for req in pending_requests:
             with st.container(border=True):
                 c_info, c_btn = st.columns([3, 1])
-                
                 with c_info:
                     icon = "🔴" if "nghỉ" in req.get('type', '').lower() else "🔄"
                     st.markdown(f"<h6 style='margin-bottom: 5px;'>{icon} {req.get('type', '')} - GV: {req.get('teacher_name', '')}</h6>", unsafe_allow_html=True)
                     st.caption(f"**Lớp:** {req.get('class_name', '')} | **Ngày:** {req.get('date', '')}")
                     st.markdown(f"**Lý do:** {req.get('reason', '')}")
-                
                 with c_btn:
                     if st.button("✅ Phê duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True):
                         res = requests.post(f"{API_URL}/approve/{req['id']}")
-                        if res.status_code == 200:
-                            st.rerun()
+                        if res.status_code == 200: st.rerun()
                     if st.button("❌ Từ chối", key=f"rej_{req['id']}", use_container_width=True):
                         res = requests.post(f"{API_URL}/reject/{req['id']}")
-                        if res.status_code == 200:
-                            st.rerun()
+                        if res.status_code == 200: st.rerun()
 
     st.write("---")
-
-    # ---------------------------------------------------------
-    # PHẦN B: LỊCH SỬ XÉT DUYỆT (Có thêm Cột LÝ DO và THỜI GIAN)
-    # ---------------------------------------------------------
     st.markdown("**B. Lịch sử xét duyệt gần đây**")
     history_requests = fetch_history_requests()
-    
-    if not history_requests:
-        st.info("Chưa có lịch sử xét duyệt nào.")
-    else:
+    if history_requests:
         history_data = []
         for h in history_requests:
             status_text = "✅ Đã duyệt" if h.get('status') == "approved" else "❌ Từ chối"
-            
-            # Xử lý format thời gian
             raw_time = h.get("updated_at")
-            time_str = "Chưa rõ"
-            if raw_time:
-                try:
-                    time_obj = pd.to_datetime(raw_time)
-                    time_str = time_obj.strftime("%d/%m/%Y %H:%M")
-                except:
-                    pass
-                    
+            time_str = pd.to_datetime(raw_time).strftime("%d/%m/%Y %H:%M") if raw_time else "Chưa rõ"
             history_data.append({
                 "Giáo viên": h.get("teacher_name", ""),
                 "Loại đơn": h.get("type", ""),
-                "Lý do": h.get("reason", ""),
                 "Lớp học": h.get("class_name", ""),
                 "Thời gian xử lý": time_str,
                 "Trạng thái": status_text
             })
-            
-        df_history = pd.DataFrame(history_data)
-        st.dataframe(df_history, use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
 
 
 # =========================================================
@@ -146,20 +144,33 @@ with right_col:
     
     with st.container(border=True):
         st.markdown("**A. Báo cáo Video AI & Nhật ký (TV2)**")
-        st.caption("Đo lường mức độ tương tác và sử dụng học liệu của giáo viên.")
-        
-        # Đã xóa dữ liệu ảo (Mock Data). Chờ API kết nối từ TV2
         st.info("🕒 Đang chờ kết nối dữ liệu từ module Học thuật (TV2)...")
         
-        if st.button("Xem chi tiết Nhật ký chưa nộp", use_container_width=True, disabled=True):
-            pass
-
     with st.container(border=True):
         st.markdown("**B. Trung tâm Tương tác Phụ huynh (TV3)**")
-        st.caption("Các yêu cầu từ App Phụ huynh được hệ thống tự động Convert thành Request.")
+        st.caption("Duyệt sự cố nạp tiền và tự động cộng tiền vào ví.")
         
-        # Đã xóa dữ liệu ảo (Mock Data). Chờ API kết nối từ TV3
-        st.info("🕒 Đang chờ kết nối dữ liệu từ module Phụ huynh (TV3)...")
-        
-        if st.button("Chuyển yêu cầu cho Vận Hành xử lý", use_container_width=True, disabled=True):
-            pass
+        if not deposit_issues:
+            st.success("🎉 Hiện tại không có sự cố nạp tiền nào cần xử lý.")
+        else:
+            for issue in deposit_issues:
+                with st.container(border=True):
+                    # Hiển thị số tiền nổi bật để Admin đối soát
+                    amount = issue.get('amount', 0)
+                    st.markdown(f"### 💰 {amount:,.0f} VNĐ")
+                    st.markdown(f"**Lý do:** {issue.get('content')}")
+                    st.caption(f"Người gửi: {issue.get('sender_id')} | Gửi lúc: {issue.get('created_at')}")
+                    
+                    col_app, col_chk = st.columns(2)
+                    if col_app.button("✅ Duyệt & Cộng tiền", key=f"res_{issue['id']}", type="primary", use_container_width=True):
+                        with st.spinner("Đang thực thi..."):
+                            if approve_deposit_issue(issue['id']):
+                                st.success("Đã cộng tiền thành công!")
+                                st.rerun() # Refresh để yêu cầu biến mất khỏi danh sách chờ
+                                
+                    if col_chk.button("⚠️ Cần kiểm tra", key=f"check_{issue['id']}", use_container_width=True):
+                        st.warning("Đã ghi chú cần kiểm tra lại.")
+
+    with st.container(border=True):
+        st.markdown("**C. Yêu cầu xin nghỉ từ Phụ huynh**")
+        st.info("🕒 Yêu cầu xin nghỉ học sẽ được tự động đồng bộ sang bộ phận Vận hành (TV1).")
