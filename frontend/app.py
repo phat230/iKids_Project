@@ -48,7 +48,7 @@ else:
     if role == "admin":
         menu_pages.extend([
             st.Page("pages/admin/dashboard.py", title="Bảng Điều Khiển Admin", icon="🛡️"),
-            st.Page("pages/admin/manage_users.py", title="Quản Lý Nhân Sự", icon="👥"),
+            st.Page("pages/admin/quan_ly_nhan_su.py", title="Quản Lý Nhân Sự", icon="👥"),
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Hệ Thống", icon="⚙️")
         ])
 

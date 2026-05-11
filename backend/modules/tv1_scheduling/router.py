@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_current_user
 from core.database import get_db
 from .models import TeacherRequestCreate
 from bson import ObjectId
@@ -78,15 +79,32 @@ async def reject_request(request_id: str, db = Depends(get_db)):
 
 # 1. API: Lấy danh sách tất cả tài khoản
 @router.get("/staff")
-async def get_all_staff(db = Depends(get_db)):
+async def get_all_staff(
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+
+    # Chỉ admin được xem
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ Admin mới có quyền"
+        )
+
     cursor = db.users.find().sort("name", 1)
+
     staff_list = []
+
     async for doc in cursor:
+
         doc["id"] = str(doc["_id"])
         del doc["_id"]
+
         if "password" in doc:
             del doc["password"]
+
         staff_list.append(doc)
+
     return staff_list
 
 # 2. API: Thêm nhân sự mới (Cấp tài khoản & Mã hóa mật khẩu)
@@ -105,9 +123,116 @@ async def add_staff(staff_data: dict, db = Depends(get_db)):
 
 # 3. API: Xóa tài khoản nhân sự
 @router.delete("/staff/{staff_id}")
-async def delete_staff(staff_id: str, db = Depends(get_db)):
+async def delete_staff(
+    staff_id: str,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Chỉ Admin mới được xóa
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ Admin mới có quyền xóa tài khoản"
+        )
+
+    user = await db.users.find_one({"_id": ObjectId(staff_id)})
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy tài khoản"
+        )
+
+    # Không cho xóa admin
+    if user["role"] == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Không thể xóa tài khoản Admin"
+        )
+
     await db.users.delete_one({"_id": ObjectId(staff_id)})
-    return {"status": "success"}
+
+    return {
+        "status": "success",
+        "message": "Đã xóa tài khoản thành công"
+    }
+
+@router.put("/staff/{staff_id}/disable")
+async def disable_staff(
+    staff_id: str,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Chỉ Admin
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ Admin mới có quyền vô hiệu hóa tài khoản"
+        )
+
+    user = await db.users.find_one({"_id": ObjectId(staff_id)})
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy tài khoản"
+        )
+
+    # Không khóa admin
+    if user["role"] == "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Không thể khóa tài khoản Admin"
+        )
+
+    await db.users.update_one(
+        {"_id": ObjectId(staff_id)},
+        {
+            "$set": {
+                "is_active": False
+            }
+        }
+    )
+
+    return {
+        "status": "success",
+        "message": "Tài khoản đã bị vô hiệu hóa"
+    }
+
+@router.put("/staff/{staff_id}/enable")
+async def enable_staff(
+    staff_id: str,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Chỉ Admin
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ Admin mới có quyền kích hoạt tài khoản"
+        )
+
+    user = await db.users.find_one({"_id": ObjectId(staff_id)})
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Không tìm thấy tài khoản"
+        )
+
+    await db.users.update_one(
+        {"_id": ObjectId(staff_id)},
+        {
+            "$set": {
+                "is_active": True
+            }
+        }
+    )
+
+    return {
+        "status": "success",
+        "message": "Đã kích hoạt lại tài khoản"
+    }
 
 # 4. API: Cập nhật thông tin cơ bản hoặc trạng thái (Vô hiệu hóa)
 @router.put("/staff/{staff_id}")
