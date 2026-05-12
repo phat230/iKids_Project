@@ -118,7 +118,7 @@ async def create_student_by_parent(db, parent_id: str, student_data: UserCreate)
     # Liên kết ID
     await db.users.update_one(
         {"_id": ObjectId(parent_id)},
-        {"$set": {"student_id_ref": new_student_id}}
+        {"$push": {"student_ids_ref": new_student_id}} 
     )
 
     await db.gamification_profiles.insert_one({

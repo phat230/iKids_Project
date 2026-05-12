@@ -56,26 +56,48 @@ def get_store_products():
         return []
 
 def purchase_product(user_id, product_id):
-    """Xử lý mua sản phẩm bằng số dư ví."""
+    """
+    XỬ LÝ MUA TRỰC TIẾP: Trừ tiền thẳng vào ví của người dùng.
+    Dùng khi học sinh đã có đủ tiền trong ví.
+    """
     payload = {"user_id": str(user_id), "product_id": int(product_id)}
     try:
         res = requests.post(f"{API_URL}/products/purchase", json=payload)
         if res.status_code == 200:
-            return True, res.json()["message"]
-        return False, res.json().get("detail", "Số dư không đủ hoặc sản phẩm hết hàng.")
+            return True, res.json().get("message", "Mua hàng thành công!")
+        return False, res.json().get("detail", "Số dư không đủ hoặc lỗi hệ thống.")
     except Exception:
         return False, "Lỗi kết nối máy chủ."
 
-# --- 3. LIÊN HỆ & BẢO MẬT (SỬA LỖI IMPORT TẠI ĐÂY) ---
+def request_purchase(student_id, product_id, product_name, price):
+    """
+    XỬ LÝ XIN PHÉP: Gửi yêu cầu chờ phụ huynh duyệt.
+    Dùng khi học sinh không đủ tiền hoặc hệ thống yêu cầu xin phép.
+    """
+    payload = {
+        "student_id": str(student_id),
+        "product_id": int(product_id),
+        "product_name": product_name,
+        "price": float(price),
+        "parent_id": None # Backend sẽ tự tìm parent_id dựa trên student_id
+    }
+    try:
+        res = requests.post(f"{API_URL}/store/request-purchase", json=payload)
+        if res.status_code == 200:
+            return True, res.json().get("message", "Đã gửi yêu cầu tới Ba Mẹ.")
+        return False, res.json().get("detail", "Lỗi khi gửi yêu cầu.")
+    except Exception:
+        return False, "Lỗi kết nối máy chủ."
+
+# --- 3. LIÊN HỆ & BẢO MẬT ---
 
 def submit_contact_request(message_data):
-    # Thêm trường 'amount' vào payload gửi đi
     payload = {
         "sender_id": str(message_data.sender_id),
         "receiver_id": str(message_data.receiver_id),
         "subject": message_data.subject,
         "content": message_data.content,
-        "amount": getattr(message_data, 'amount', 0) # THÊM DÒNG NÀY
+        "amount": getattr(message_data, 'amount', 0) 
     }
     try:
         res = requests.post(f"{API_URL}/contact/submit", json=payload)
@@ -84,7 +106,6 @@ def submit_contact_request(message_data):
         return False, "Lỗi kết nối máy chủ."
 
 def get_contact_history(user_id):
-    """Lấy lịch sử tin nhắn."""
     try:
         res = requests.get(f"{API_URL}/contact/history/{user_id}")
         return res.json() if res.status_code == 200 else []
@@ -112,7 +133,6 @@ def verify_and_reset_password(email, otp, new_password):
 
 @st.cache_data(ttl=600)
 def get_memories():
-    """Lấy ảnh kỷ niệm (Cache để tiết kiệm băng thông vì ảnh nặng)."""
     try:
         res = requests.get(f"{API_URL}/memories")
         return res.json() if res.status_code == 200 else []
