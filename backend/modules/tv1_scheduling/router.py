@@ -268,3 +268,138 @@ async def reset_password(staff_id: str, pwd_data: dict, db = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản")
     except Exception:
         raise HTTPException(status_code=400, detail="Lỗi cập nhật mật khẩu")
+    
+# =========================
+# QUẢN LÝ XẾP LỊCH HỌC
+# =========================
+
+from .models import ClassScheduleModel
+
+# 1. TẠO LỊCH HỌC
+@router.post("/schedule/create")
+async def create_schedule(
+    schedule: ClassScheduleModel,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+
+    # Chỉ operator hoặc admin
+    if current_user["role"] not in ["operator", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn không có quyền tạo lịch"
+        )
+
+    # =========================
+    # KIỂM TRA GIÁO VIÊN BỊ TRÙNG CA
+    # =========================
+    existing_schedule = await db.class_schedules.find_one({
+        "teacher_id": schedule.teacher_id,
+        "study_date": schedule.study_date,
+        "start_time": schedule.start_time,
+        "status": "active"
+    })
+
+    if existing_schedule:
+        raise HTTPException(
+            status_code=400,
+            detail="Giáo viên đã có lịch ở khung giờ này"
+        )
+
+    schedule_dict = schedule.model_dump()
+
+    result = await db.class_schedules.insert_one(schedule_dict)
+
+    return {
+        "status": "success",
+        "message": "Tạo lịch học thành công",
+        "schedule_id": str(result.inserted_id)
+    }
+# 2. LẤY DANH SÁCH LỊCH HỌC
+@router.get("/schedule/list")
+async def get_schedule_list(
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+
+    schedules = []
+
+    cursor = db.class_schedules.find().sort("study_date", 1)
+
+    async for doc in cursor:
+
+        doc["id"] = str(doc["_id"])
+        del doc["_id"]
+
+        schedules.append(doc)
+
+    return schedules
+# 3. SỬA LỊCH HỌC
+@router.put("/schedule/{schedule_id}")
+async def update_schedule(
+    schedule_id: str,
+    payload: dict,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+
+    if current_user["role"] not in ["operator", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Không có quyền"
+        )
+
+    await db.class_schedules.update_one(
+        {"_id": ObjectId(schedule_id)},
+        {
+            "$set": payload
+        }
+    )
+
+    return {
+        "status": "success",
+        "message": "Đã cập nhật lịch học"
+    }
+# 4. XÓA LỊCH HỌC
+@router.delete("/schedule/{schedule_id}")
+async def delete_schedule(
+    schedule_id: str,
+    db = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+
+    if current_user["role"] not in ["operator", "admin"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Không có quyền"
+        )
+
+    await db.class_schedules.delete_one({
+        "_id": ObjectId(schedule_id)
+    })
+
+    return {
+        "status": "success",
+        "message": "Đã xóa lịch học"
+    }
+# 5. LẤY DANH SÁCH GIÁO VIÊN
+@router.get("/teachers")
+async def get_teachers(
+    db = Depends(get_db)
+):
+
+    teachers = await db.users.find(
+        {
+            "role": "teacher",
+            "is_active": True
+        },
+        {
+            "password": 0
+        }
+    ).to_list(length=100)
+
+    for t in teachers:
+        t["id"] = str(t["_id"])
+        del t["_id"]
+
+    return teachers
