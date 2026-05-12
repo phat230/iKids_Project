@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import json
 from datetime import datetime
+import requests
 import google.generativeai as genai
 
 st.set_page_config(page_title="Tạo Bài Tập AI", page_icon="🤖", layout="wide")
@@ -10,9 +11,12 @@ st.set_page_config(page_title="Tạo Bài Tập AI", page_icon="🤖", layout="w
 if "saved_quizzes" not in st.session_state:
     st.session_state.saved_quizzes = []
 
+# ================= KẾT NỐI API BACKEND =================
+API_URL_QUIZZES = "http://127.0.0.1:8000/api/tv2/quizzes"
+
 # ================= CẤU HÌNH AI =================
 # TODO: Thay API Key của ông vào đây
-GEMINI_API_KEY = "AIzaSyCD2KeHK88MBx2H_A7TOZQZhKGKW4ibCSo" 
+GEMINI_API_KEY = "AIzaSyChVKPJxTjK2o_fd0_EzV_-ENyZApq_5aw" 
 genai.configure(api_key=GEMINI_API_KEY)
 
 def generate_real_ai_quiz(topic, num_q):
@@ -137,7 +141,7 @@ with tab_manual:
 
 st.divider()
 
-# ================= PHẦN HIỂN THỊ & LƯU TRỮ =================
+# ================= PHẦN HIỂN THỊ & LƯU TRỮ VÀO DATABASE =================
 if st.session_state.quiz_questions:
     st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu hỏi)")
     
@@ -163,17 +167,22 @@ if st.session_state.quiz_questions:
             st.error("⚠️ Vui lòng đặt tên cho bộ Quiz trước khi lưu.")
         else:
             new_quiz = {
-                "id": f"quiz_{int(time.time())}",
                 "title": quiz_title,
                 "questions": st.session_state.quiz_questions,
                 "created_at": datetime.now().strftime("%d/%m/%Y %H:%M")
             }
-            st.session_state.saved_quizzes.insert(0, new_quiz)
             
-            st.success(f"🎉 Đã lưu thành công bộ đề '{quiz_title}'! Đang chuyển sang Kho Học Liệu...")
-            
-            st.session_state.quiz_questions = []
-            time.sleep(1.5)
-            st.switch_page("pages/teacher/kho_hoc_lieu.py")
+            # BẮN API LƯU XUỐNG MONGODB
+            try:
+                response = requests.post(API_URL_QUIZZES, json=new_quiz)
+                if response.status_code in [200, 201]:
+                    st.success(f"🎉 Đã lưu thành công bộ đề '{quiz_title}' vào Database thật! Đang chuyển sang Kho Học Liệu...")
+                    st.session_state.quiz_questions = [] # Xóa sạch bộ nhớ tạm sau khi lưu thành công
+                    time.sleep(1.5)
+                    st.switch_page("pages/teacher/kho_hoc_lieu.py")
+                else:
+                    st.error("⚠️ Lỗi khi lưu vào Database. Vui lòng thử lại!")
+            except Exception as e:
+                st.error(f"⚠️ Mất kết nối đến Backend Database: {e}")
 else:
     st.info("💡 Chưa có câu hỏi nào. Hãy sử dụng AI hoặc tự nhập câu hỏi ở phía trên để bắt đầu.")
