@@ -22,6 +22,11 @@ class AIQuizRequest(BaseModel):
     topic: str
     num_questions: int = 5
 
+# Schema nhận dữ liệu sửa bộ đề
+class QuizUpdateModel(BaseModel):
+    title: str
+    questions: List[dict]
+
 # ================= API CHỨC NĂNG =================
 
 @router.get("/videos")
@@ -64,7 +69,7 @@ async def generate_quiz(request: AIQuizRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi AI: {str(e)}")
 
-# ================= SỬA LỖI Ở ĐÂY =================
+# ================= QUẢN LÝ BỘ ĐỀ QUIZ =================
 @router.post("/quizzes", status_code=status.HTTP_201_CREATED)
 async def create_quiz(quiz_data: dict):
     """API nhận và lưu bộ Quiz từ Frontend vào MongoDB"""
@@ -75,6 +80,49 @@ async def create_quiz(quiz_data: dict):
         
     result = await db["quizzes"].insert_one(quiz_data)
     return {"message": "Đã lưu bộ Quiz thành công!", "id": str(result.inserted_id)}
+
+@router.get("/quizzes")
+async def get_quizzes():
+    """API lấy danh sách Quiz từ MongoDB"""
+    # Lấy tất cả quiz, bỏ đi trường '_id' mặc định của Mongo để đỡ lỗi JSON
+    quizzes = await db["quizzes"].find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return quizzes
+
+@router.delete("/quizzes/{quiz_id}")
+async def delete_quiz(quiz_id: str, author: str):
+    """API Xóa đề: Chỉ người tạo mới được xóa"""
+    quiz = await db["quizzes"].find_one({"id": quiz_id})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bộ đề")
+    
+    # Kiểm tra quyền tác giả
+    if quiz.get("author_email") != author and quiz.get("author") != author:
+        raise HTTPException(status_code=403, detail="Cảnh báo: Bạn không có quyền xóa bộ đề của giáo viên khác!")
+    
+    await db["quizzes"].delete_one({"id": quiz_id})
+    return {"message": "Đã xóa bộ đề thành công"}
+
+@router.put("/quizzes/{quiz_id}")
+async def update_quiz(quiz_id: str, author: str, data: QuizUpdateModel):
+    """API Sửa đề: Chỉ người tạo mới được sửa"""
+    quiz = await db["quizzes"].find_one({"id": quiz_id})
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bộ đề")
+    
+    # Kiểm tra quyền tác giả
+    if quiz.get("author_email") != author and quiz.get("author") != author:
+        raise HTTPException(status_code=403, detail="Cảnh báo: Bạn không có quyền sửa bộ đề của giáo viên khác!")
+    
+    await db["quizzes"].update_one(
+        {"id": quiz_id},
+        {"$set": {
+            "title": data.title, 
+            "questions": data.questions,
+            "updated_at": datetime.now()
+        }}
+    )
+    return {"message": "Đã cập nhật bộ đề thành công"}
+
 # ==================================================
 
 @router.post("/assign-quiz")
@@ -95,13 +143,6 @@ async def add_video(video_data: dict):
     
     result = await db["ai_videos"].insert_one(video_data)
     return {"message": "Đã lưu Video AI thành công!", "id": str(result.inserted_id)}
-
-@router.get("/quizzes")
-async def get_quizzes():
-    """API lấy danh sách Quiz từ MongoDB"""
-    # Lấy tất cả quiz, bỏ đi trường '_id' mặc định của Mongo để đỡ lỗi JSON
-    quizzes = await db["quizzes"].find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
-    return quizzes
 
 # Schema nhận dữ liệu từ Frontend
 class CommentModel(BaseModel):
@@ -181,6 +222,7 @@ async def submit_quiz(username: str, payload: QuizSubmitModel):
     })
     
     return {"message": "Lưu kết quả thành công!"}
+
 # Model nhận dữ liệu hoàn thành Video
 class VideoCompleteModel(BaseModel):
     video_id: str

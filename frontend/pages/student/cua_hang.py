@@ -1,14 +1,15 @@
 import streamlit as st
-from api_clients.tv3_client import get_store_products, purchase_product, get_gamification_profile
+# Import cả 2 hàm: purchase_product (mua thẳng) và request_purchase (xin phép)
+from api_clients.tv3_client import get_store_products, get_gamification_profile, purchase_product, request_purchase
 from utils.role_guard import require_role
 
-# 4.3: Bảo mật - Chỉ cho phép Học sinh truy cập (Học sinh tự mua bằng ví cá nhân)
+# Bảo mật - Chỉ cho phép Học sinh truy cập
 require_role(["student"])
 
 def show_student_store():
     # 1. Cấu hình tiêu đề trang
     st.title("🛍️ Cửa Hàng iKids")
-    st.write("Dùng số tiền em tích lũy được từ việc học để đổi lấy những món quà yêu thích nhé!")
+    st.write("Em có thể dùng tiền tự tích lũy để mua đồ hoặc xin phép Ba Mẹ mua tặng nhé!")
     
     user_id = st.session_state.get("user_id")
     
@@ -16,18 +17,18 @@ def show_student_store():
         st.error("Vui lòng đăng nhập để tiếp tục.")
         st.stop()
     
-    # 2. Lấy số dư thực tế từ hệ thống Gamification
+    # 2. Lấy số dư thực tế từ ví của bé
     profile = get_gamification_profile(user_id)
     balance = profile.get('balance', 0)
     
-    # Hiển thị số dư hiện có một cách nổi bật ở Sidebar
+    # Hiển thị số dư hiện có ở Sidebar
     st.sidebar.markdown("### 💰 Ví tiền của em")
-    st.sidebar.subheader(f":green[{balance:,.0f} VNĐ]") # Màu xanh cho tiền của bé
-    st.sidebar.info("💡 Học tập chăm chỉ và làm bài tập điểm cao để được Ba Mẹ nạp thêm tiền nhé!")
+    st.sidebar.subheader(f":green[{balance:,.0f} VNĐ]") 
+    st.sidebar.info("💡 Nếu ví có đủ tiền, em có thể tự mua ngay mà không cần chờ Ba Mẹ duyệt!")
     
     st.divider()
 
-    # 3. Lấy danh sách sản phẩm thực tế từ cơ sở dữ liệu
+    # 3. Lấy danh sách sản phẩm
     products = get_store_products()
     
     if not products:
@@ -38,27 +39,34 @@ def show_student_store():
     cols = st.columns(2)
     for idx, p in enumerate(products):
         with cols[idx % 2]:
-            # Thêm border và hiệu ứng cho container
             with st.container(border=True):
-                # Hiển thị Icon, Tên và Giá sản phẩm
+                # Hiển thị thông tin sản phẩm
                 st.markdown(f"### {p.get('icon', '📦')} {p['name']}")
                 st.write(f"Giá: :orange[**{p['price']:,} VNĐ**]")
                 
-                # Nút thực hiện mua hàng
-                if st.button(f"🛒 Mua ngay", key=f"btn_{p['id']}", use_container_width=True, type="primary"):
-                    if balance >= p['price']:
-                        # Hiệu ứng spinner khi gọi API
-                        with st.spinner("Đang kiểm tra túi tiền của em..."):
+                # --- LOGIC XỬ LÝ NÚT BẤM DỰA TRÊN SỐ DƯ ---
+                if balance >= p['price']:
+                    # TRƯỜNG HỢP 1: ĐỦ TIỀN -> TỰ MUA LUÔN
+                    if st.button(f"🛒 Mua ngay bằng ví", key=f"buy_{p['id']}", use_container_width=True, type="primary"):
+                        with st.spinner("Đang thực hiện thanh toán..."):
                             success, msg = purchase_product(user_id, p['id'])
                             if success:
-                                st.success(f"🎊 Chúc mừng! Em đã mua thành công {p['name']}")
-                                st.balloons() # Hiệu ứng bóng bay chúc mừng 
-                                st.rerun()    # Tải lại trang để cập nhật số dư mới
+                                st.success(f"🎊 Tuyệt vời! Em đã tự mua thành công {p['name']}.")
+                                st.balloons()
+                                st.rerun() # Reload để cập nhật lại số dư ví mới
                             else:
                                 st.error(msg)
-                    else:
-                        # Thông báo khi số dư không đủ
-                        st.warning(f"Số dư không đủ. Em cần thêm :red[**{(p['price'] - balance):,.0f} VNĐ**] nữa!")
+                else:
+                    # TRƯỜNG HỢP 2: KHÔNG ĐỦ TIỀN -> HIỆN NÚT XIN PHÉP
+                    st.caption(f" Thiếu {(p['price'] - balance):,.0f} VNĐ để tự mua.")
+                    if st.button(f"📩 Xin Ba Mẹ mua giúp", key=f"req_{p['id']}", use_container_width=True):
+                        with st.spinner("Đang gửi tin nhắn cho Ba Mẹ..."):
+                            # Gửi yêu cầu chờ duyệt (status pending)
+                            success, msg = request_purchase(user_id, p['id'], p['name'], p['price'])
+                            if success:
+                                st.info(f"✅ Đã gửi yêu cầu mua {p['name']}. Em hãy đợi Ba Mẹ đồng ý nhé!")
+                            else:
+                                st.error(msg)
 
 if __name__ == "__main__":
     show_student_store()

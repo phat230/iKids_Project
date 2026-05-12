@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Request
 from core.database import get_db
 from .schemas import PurchaseRequest, DepositRequest, ContactMessageCreate
+from core.security import get_current_user
 from .rule_engine import calculate_exp_reward 
 from .services import (
     get_store_products_service, 
@@ -15,6 +16,7 @@ from .services import (
     send_forgot_password_email_service,
     verify_otp_and_reset_password_service,
     award_exp_service
+    
 )
 from bson import ObjectId
 from datetime import datetime
@@ -183,3 +185,126 @@ async def api_award_exp(payload: dict = Body(...), db = Depends(get_db)):
     amount = calculate_exp_reward(action)
     if amount <= 0: raise HTTPException(status_code=400, detail="Hành động không hợp lệ.")
     return await award_exp_service(db, student_id, amount, action)
+# --- 9. QUẢN LÝ CON & PHÊ DUYỆT (PHẦN MỚI CẬP NHẬT) ---
+
+@router.get("/parent/my-children")
+async def get_my_children(
+    db = Depends(get_db), 
+    current_user: dict = Depends(get_current_user)
+):
+    parent = await db.users.find_one({"_id": ObjectId(current_user["user_id"])})
+    if not parent or not parent.get("student_ids_ref"):
+        return []
+    
+    # Lấy thông tin chi tiết của tất cả các con dựa trên list ID
+    child_ids = [ObjectId(sid) for sid in parent["student_ids_ref"]]
+    children = await db.users.find({"_id": {"$in": child_ids}}).to_list(length=20)
+    
+    for c in children:
+        c["id"] = str(c["_id"])
+        del c["_id"]
+        if "password" in c:
+            del c["password"]
+    return children
+
+# --- QUẢN LÝ VÍ CỦA CON ---
+@router.post("/parent/transfer-to-child")
+async def transfer_to_child(payload: dict = Body(...), db=Depends(get_db), current_user: dict = Depends(get_current_user)):
+    child_id = payload.get("child_id")
+    amount = float(payload.get("amount", 0))
+    parent_id = current_user["user_id"]
+    
+    if amount <= 0: return {"status": "failed", "message": "Số tiền không hợp lệ."}
+    
+    parent = await db.users.find_one({"_id": ObjectId(parent_id)})
+    if parent.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Số dư ví phụ huynh không đủ."}
+        
+    # Trừ tiền mẹ, cộng tiền con
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": amount}})
+    return {"status": "success", "message": "Đã gửi tiền cho con."}
+
+@router.post("/parent/withdraw-from-child")
+async def withdraw_from_child(payload: dict = Body(...), db=Depends(get_db), current_user: dict = Depends(get_current_user)):
+    child_id = payload.get("child_id")
+    amount = float(payload.get("amount", 0))
+    parent_id = current_user["user_id"]
+    
+    if amount <= 0: return {"status": "failed", "message": "Số tiền không hợp lệ."}
+    
+    child = await db.users.find_one({"_id": ObjectId(child_id)})
+    if child.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Ví của bé không đủ số dư này."}
+        
+    # Trừ tiền con, cộng lại cho mẹ
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": amount}})
+    return {"status": "success", "message": "Đã rút tiền từ ví con."}
+
+# --- CỬA HÀNG: HỌC SINH & PHỤ HUYNH ---
+@router.post("/store/request-purchase")
+async def student_request_purchase(req: dict = Body(...), db = Depends(get_db)):
+    """API cho Học sinh gửi yêu cầu mua đồ"""
+    # Lấy thông tin tài khoản học sinh
+    student = await db.users.find_one({"_id": ObjectId(req["student_id"])})
+    child_name = student.get("name", "Bé") if student else "Bé"
+
+    request_doc = {
+        "student_id": req["student_id"],
+        "parent_id": req.get("parent_id"), # Có thể bỏ qua nếu tự dò từ DB, nhưng để tạm theo payload
+        "child_name": child_name, # Thêm tên bé để frontend hiển thị
+        "product_id": req["product_id"],
+        "product_name": req["product_name"],
+        "price": float(req["price"]),
+        "status": "pending",
+        "created_at": datetime.now()
+    }
+    
+    # Tìm parent_id nếu frontend không gửi
+    if not request_doc["parent_id"]:
+        parent = await db.users.find_one({"student_ids_ref": req["student_id"]})
+        if parent:
+            request_doc["parent_id"] = str(parent["_id"])
+
+    await db.purchase_requests.insert_one(request_doc)
+    return {"status": "success", "message": "Đã gửi yêu cầu mua tới Phụ huynh!"}
+
+@router.get("/parent/purchase-requests")
+async def get_parent_purchase_requests(db = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """API lấy danh sách các đơn hàng con đang xin mua"""
+    parent_id = current_user["user_id"]
+    cursor = db.purchase_requests.find({"parent_id": parent_id, "status": "pending"})
+    requests_list = []
+    async for req in cursor:
+        req["id"] = str(req["_id"])
+        del req["_id"]
+        requests_list.append(req)
+    return requests_list
+
+@router.post("/parent/approve-purchase/{request_id}")
+async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db = Depends(get_db)):
+    """API Phụ huynh duyệt hoặc từ chối đơn hàng"""
+    action = payload.get("action")
+    req = await db.purchase_requests.find_one({"_id": ObjectId(request_id)})
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Không tìm thấy yêu cầu.")
+        
+    if action == "reject":
+        await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "rejected"}})
+        return {"message": "Đã từ chối yêu cầu."}
+    
+    if action == "approve":
+        # 1. Trừ tiền ví con (Ví của con đã được mẹ nạp trước đó)
+        child = await db.users.find_one({"_id": ObjectId(req["student_id"])})
+        if child.get("balance", 0) < req["price"]:
+            return {"status": "failed", "message": "Ví của bé không đủ tiền. Vui lòng nạp thêm cho bé!"}
+        
+        # 2. Trừ tiền con
+        await db.users.update_one({"_id": ObjectId(req["student_id"])}, {"$inc": {"balance": -req["price"]}})
+        
+        # 3. Cập nhật trạng thái và ghi log mua hàng (nếu có)
+        await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "approved"}})
+        
+        return {"status": "success", "message": "Đã duyệt mua đồ cho con!"}
