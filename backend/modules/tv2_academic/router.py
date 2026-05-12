@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/tv2", tags=["TV2 - Academic & Teacher"])
 
 # ================= CẤU HÌNH AI (BACKEND) =================
 # Khuyên ông nên để trong file .env, ở đây tui dán tạm theo yêu cầu của ông
-GEMINI_API_KEY = "AIzaSyCD2KeHK88MBx2H_A7TOZQZhKGKW4ibCSo"
+GEMINI_API_KEY = "AIzaSyChVKPJxTjK2o_fd0_EzV_-ENyZApq_5aw"
 genai.configure(api_key=GEMINI_API_KEY)
 
 class AIQuizRequest(BaseModel):
