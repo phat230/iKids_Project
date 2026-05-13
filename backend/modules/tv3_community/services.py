@@ -257,3 +257,49 @@ async def generate_vietqr_link(amount: int, user_id: str):
     description = f"IKIDS NAP {user_id[-6:]}".upper() 
     qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={amount}&addInfo={description}&accountName=NGUYEN%20DUC%20PHAT"
     return qr_url, description
+
+async def transfer_to_child_service(db, parent_id: str, child_id: str, amount: float):
+    """Phụ huynh gửi tiền cho con"""
+    parent = await db.users.find_one({"_id": ObjectId(parent_id)})
+    if parent.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Số dư ví của bạn không đủ."}
+    
+    # 1. Trừ tiền phụ huynh, cộng tiền cho con
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": amount}})
+    
+    # 2. Gửi thông báo cho CON
+    await create_notification(db, {
+        "sender_id": parent_id,
+        "sender_role": "parent",
+        "sender_name": f"Ba/Mẹ {parent.get('name')}",
+        "receiver_id": child_id,
+        "receiver_role": "student",
+        "type": "finance",
+        "title": "💰 Bạn vừa nhận được tiền!",
+        "content": f"Ba/Mẹ đã chuyển {amount:,.0f} VNĐ vào ví của bạn. Chăm chỉ học tập nhé!"
+    })
+    return {"status": "success"}
+
+async def withdraw_from_child_service(db, parent_id: str, child_id: str, amount: float):
+    """Phụ huynh rút tiền từ ví của con về ví mình"""
+    child = await db.users.find_one({"_id": ObjectId(child_id)})
+    if child.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Số dư ví của bé không đủ để rút."}
+    
+    # 1. Trừ tiền con, cộng tiền cho phụ huynh
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": amount}})
+    
+    # 2. Gửi thông báo cho CON
+    await create_notification(db, {
+        "sender_id": parent_id,
+        "sender_role": "parent",
+        "sender_name": "Hệ thống iKids",
+        "receiver_id": child_id,
+        "receiver_role": "student",
+        "type": "finance",
+        "title": "💸 Thông báo biến động số dư",
+        "content": f"Ba/Mẹ đã rút {amount:,.0f} VNĐ từ ví của bạn."
+    })
+    return {"status": "success"}
