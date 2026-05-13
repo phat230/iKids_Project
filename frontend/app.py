@@ -9,11 +9,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. ĐỊNH NGHĨA CÁC TRANG CƠ BẢN (Luôn tồn tại ở thư mục gốc hoặc auth/)
+# 2. ĐỊNH NGHĨA CÁC TRANG CƠ BẢN
 home_page = st.Page("home.py", title="Trang Chủ", icon="🏠", default=True)
 login_page = st.Page("auth/login.py", title="Đăng Nhập", icon="🔐")
 register_page = st.Page("auth/register.py", title="Đăng Ký", icon="📝")
 forgot_page = st.Page("auth/forgot_password.py", title="Quên Mật Khẩu", icon="🔑")
+
+# TRANG THÔNG BÁO DÙNG CHUNG (Mới thêm)
+notification_page = st.Page("pages/shared/thong_bao.py", title="Hộp Thư & Thông Báo", icon="🔔")
 
 # 3. XỬ LÝ ĐIỀU HƯỚNG
 if "token" not in st.session_state or st.session_state.token is None:
@@ -23,7 +26,7 @@ if "token" not in st.session_state or st.session_state.token is None:
         "Tài khoản": [login_page, register_page, forgot_page]
     })
     
-    # CSS để ẩn trang Quên mật khẩu khỏi menu (nhưng switch_page vẫn chạy được)
+    # CSS ẩn trang Quên mật khẩu khỏi menu chính
     st.markdown("""
         <style>
             [data-testid="stSidebarNav"] ul li:has(span:contains("Quên Mật Khẩu")) {
@@ -38,11 +41,10 @@ else:
     role = st.session_state.get("role", "").lower()
     user = st.session_state.get("user_info", {})
     
-    # Trang dùng chung
-    menu_pages = [home_page] 
+    # Mọi User khi đăng nhập đều có trang Home và trang Thông báo
+    menu_pages = [home_page, notification_page] 
     
     # --- PHÂN QUYỀN MENU CHI TIẾT ---
-    # Lưu ý: Đảm bảo các file .py dưới đây đã tồn tại trong thư mục pages/
     
     # 1. Role: Admin
     if role == "admin":
@@ -57,7 +59,6 @@ else:
         menu_pages.extend([
             st.Page("pages/operator/dashboard.py", title="Bảng Vận Hành", icon="🕹️"),
             st.Page("pages/operator/xep_lich.py", title="Xếp Lịch Dạy", icon="📅"),
-            # ĐÃ MỞ LẠI: Quản lý lớp học để thêm học sinh và liên hệ phụ huynh
             st.Page("pages/operator/quan_ly_lop.py", title="Quản Lý Lớp Học", icon="🏫"), 
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="👤")
         ])
@@ -67,7 +68,7 @@ else:
         menu_pages.extend([
             st.Page("pages/teacher/dashboard.py", title="Bảng Tin Giáo Viên", icon="👨‍🏫"),
             st.Page("pages/teacher/nhat_ky.py", title="Nhật Ký & Điểm Danh", icon="📔"),
-            st.Page("pages/teacher/tao_quiz.py", title="Quản Lý Bài Tập AI", icon="🤖"), # Đã cập nhật tên trang
+            st.Page("pages/teacher/tao_quiz.py", title="Quản Lý Bài Tập AI", icon="🤖"),
             st.Page("pages/teacher/kho_hoc_lieu.py", title="Kho Học Liệu", icon="📚"),
             st.Page("pages/teacher/giao_bai.py", title="Giao Bài Tập", icon="📤"),
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="⚙️")        
@@ -89,7 +90,6 @@ else:
     elif role == "parent":
         menu_pages.extend([
             st.Page("pages/parent/quan_ly_con.py", title="Quản Lý Con Em", icon="👨‍👩‍👦"),
-            # THÊM MỚI: Trang cho phụ huynh chọn lớp học
             st.Page("pages/parent/chon_lop.py", title="Đăng Ký Lớp Học", icon="📑"), 
             st.Page("pages/parent/ket_qua.py", title="Báo Cáo Học Tập", icon="📊"),
             st.Page("pages/parent/nap_tien.py", title="Nạp Tiền & Ví", icon="💳"),
@@ -114,6 +114,8 @@ else:
             st.image("https://www.w3schools.com/howto/img_avatar.png", width=100)
             
         st.caption(f"Quyền truy cập: {role.upper()}")
+        
+        # Hiển thị thông báo chấm đỏ nếu có tin nhắn mới (Tùy chọn thêm)
         st.divider()
         
         if st.button("🚪 Đăng Xuất", key="logout_sidebar", use_container_width=True, type="primary"):
