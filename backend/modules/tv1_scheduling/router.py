@@ -5,7 +5,7 @@ from .models import ClassScheduleModel, TeacherRequestCreate, ClassModel
 from bson import ObjectId
 from datetime import datetime
 from passlib.context import CryptContext
-
+from modules.notification.services import create_notification
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter()
 
@@ -509,3 +509,35 @@ async def remove_student_from_class(class_id: str, student_id: str, db = Depends
     if result.modified_count:
         return {"status": "success", "message": "Đã xóa học sinh khỏi lớp"}
     raise HTTPException(status_code=400, detail="Không thể xóa hoặc học sinh không có trong lớp")
+# Giả sử sau khi db.class_schedules.update_one thành công:
+async def notify_schedule_change(db, class_id, class_name, old_time, new_time):
+    # 1. Tìm tất cả học sinh trong lớp này
+    course = await db.classes.find_one({"_id": ObjectId(class_id)})
+    student_ids = course.get("student_ids", [])
+
+    for s_id in student_ids:
+        # 2. Gửi cho Học sinh
+        await create_notification(db, {
+            "sender_id": "system_operator",
+            "sender_role": "operator",
+            "sender_name": "Bộ phận Vận hành",
+            "receiver_id": s_id,
+            "receiver_role": "student",
+            "type": "schedule",
+            "title": "📅 Thay đổi lịch học!",
+            "content": f"Lớp {class_name} đã đổi lịch từ {old_time} sang {new_time}. Nhớ đi học đúng giờ nhé!"
+        })
+
+        # 3. Gửi cho Phụ huynh (Tìm phụ huynh của bé này)
+        parent = await db.users.find_one({"student_ids_ref": s_id})
+        if parent:
+            await create_notification(db, {
+                "sender_id": "system_operator",
+                "sender_role": "operator",
+                "sender_name": "Bộ phận Vận hành",
+                "receiver_id": str(parent["_id"]),
+                "receiver_role": "parent",
+                "type": "schedule",
+                "title": "🔔 Thông báo đổi lịch học của con",
+                "content": f"Kính thưa phụ huynh, lớp {class_name} của bé đã được điều chỉnh lịch học mới. Vui lòng kiểm tra ứng dụng."
+            })
