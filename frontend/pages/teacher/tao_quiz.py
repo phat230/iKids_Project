@@ -11,12 +11,30 @@ st.set_page_config(page_title="Tạo Bài Tập AI", page_icon="🤖", layout="w
 if "saved_quizzes" not in st.session_state:
     st.session_state.saved_quizzes = []
 
+# LẤY CẢ EMAIL VÀ TÊN THẬT TỪ HỆ THỐNG ĐỂ LƯU VÀO DB
+def get_teacher_info():
+    if "user_info" in st.session_state:
+        info = st.session_state.user_info
+        
+        email = info.get("email", "khach@gmail.com")
+        
+        # Quét tên thật từ DB của TV1
+        name = info.get("full_name", 
+               info.get("name", 
+               info.get("ho_ten", 
+               info.get("ho_va_ten", 
+               info.get("username", email.split('@')[0])))))
+               
+        return email, name
+    return "khach@gmail.com", "Khách"
+
+teacher_email, teacher_name = get_teacher_info()
+
 # ================= KẾT NỐI API BACKEND =================
 API_URL_QUIZZES = "http://127.0.0.1:8000/api/tv2/quizzes"
 
 # ================= CẤU HÌNH AI =================
-# TODO: Thay API Key của ông vào đây
-GEMINI_API_KEY = "AIzaSyChVKPJxTjK2o_fd0_EzV_-ENyZApq_5aw" 
+GEMINI_API_KEY = "AIzaSyBgREbTgan_MGy14hcNsr8B3hmuBfVvnGA" 
 genai.configure(api_key=GEMINI_API_KEY)
 
 def generate_real_ai_quiz(topic, num_q):
@@ -38,7 +56,6 @@ def generate_real_ai_quiz(topic, num_q):
         response = model.generate_content(prompt)
         raw_text = response.text.strip()
         
-        # Làm sạch JSON
         if raw_text.startswith("```json"):
             raw_text = raw_text[7:-3]
         elif raw_text.startswith("```"):
@@ -46,29 +63,22 @@ def generate_real_ai_quiz(topic, num_q):
             
         data = json.loads(raw_text)
         
-        # ================= SỬA LỖI Ở ĐÂY: XỬ LÝ HẬU KỲ BẰNG PYTHON =================
-        # Bất chấp AI trả về thế nào, Python sẽ ép format A, B, C, D
         prefixes = ["A", "B", "C", "D"]
         for q in data:
             formatted_options = []
             correct_idx = 0
             
-            # Tìm vị trí của câu trả lời đúng trước
             for idx, opt in enumerate(q["options"]):
-                # Lọc bỏ A. B. C. D. nếu AI có lỡ tự sinh ra để so sánh cho chuẩn
                 clean_opt = opt.replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
                 clean_correct = str(q.get("correct_answer", "")).replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
                 
                 if clean_opt == clean_correct:
                     correct_idx = idx
                 
-                # Ép tiền tố A. B. C. D. vào mảng
                 formatted_options.append(f"{prefixes[idx]}. {clean_opt}")
             
-            # Gán lại mảng đã format cho câu hỏi
             q["options"] = formatted_options
             q["correct_answer"] = formatted_options[correct_idx]
-        # =========================================================================
 
         return data
     except Exception as e:
@@ -96,8 +106,6 @@ with tab_ai:
     if st.button("🚀 AI Bắt đầu soạn đề", type="primary"):
         if not topic:
             st.warning("⚠️ Vui lòng nhập chủ đề trước khi gọi AI!")
-        elif GEMINI_API_KEY == "YOUR_GEMINI_API_KEY":
-            st.error("⚠️ Ông chưa thay GEMINI_API_KEY kìa! Đăng ký API Key rồi dán vào code đi.")
         else:
             with st.spinner(f"AI đang phân tích chủ đề '{topic}' và soạn {num_q} câu hỏi..."):
                 real_questions = generate_real_ai_quiz(topic, num_q)
@@ -121,7 +129,6 @@ with tab_manual:
         
         if st.button("➕ Thêm vào bộ Quiz"):
             if manual_q and opt_a and opt_b and opt_c and opt_d:
-                # Ép tiền tố A, B, C, D cho nhập thủ công
                 fmt_a = opt_a if opt_a.upper().startswith("A. ") else f"A. {opt_a}"
                 fmt_b = opt_b if opt_b.upper().startswith("B. ") else f"B. {opt_b}"
                 fmt_c = opt_c if opt_c.upper().startswith("C. ") else f"C. {opt_c}"
@@ -141,7 +148,6 @@ with tab_manual:
 
 st.divider()
 
-# ================= PHẦN HIỂN THỊ & LƯU TRỮ VÀO DATABASE =================
 if st.session_state.quiz_questions:
     st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu hỏi)")
     
@@ -169,15 +175,16 @@ if st.session_state.quiz_questions:
             new_quiz = {
                 "title": quiz_title,
                 "questions": st.session_state.quiz_questions,
-                "created_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+                "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "author_email": teacher_email, # Khóa bảo mật
+                "author": teacher_name         # Tên hiển thị đẹp đúng lấy từ DB
             }
             
-            # BẮN API LƯU XUỐNG MONGODB
             try:
                 response = requests.post(API_URL_QUIZZES, json=new_quiz)
                 if response.status_code in [200, 201]:
                     st.success(f"🎉 Đã lưu thành công bộ đề '{quiz_title}' vào Database thật! Đang chuyển sang Kho Học Liệu...")
-                    st.session_state.quiz_questions = [] # Xóa sạch bộ nhớ tạm sau khi lưu thành công
+                    st.session_state.quiz_questions = [] 
                     time.sleep(1.5)
                     st.switch_page("pages/teacher/kho_hoc_lieu.py")
                 else:
