@@ -1,16 +1,17 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-
+from modules.notification.router import router as notification_router
 # Import các router
 from modules.auth.router import router as auth_router
 from modules.tv3_community.router import router as tv3_router
 from modules.tv1_scheduling.router import router as scheduling_router
+from modules.tv1_scheduling.router import router as tv1_router
 # Nhúng thêm router của TV2
 from modules.tv2_academic.router import router as tv2_router
 
 app = FastAPI(title="iKids Education Portal API")
-
+app.include_router(notification_router)
 # CẤU HÌNH CORS (Để Frontend Streamlit có thể gọi API mà không bị chặn)
 app.add_middleware(
     CORSMiddleware,
@@ -21,7 +22,8 @@ app.add_middleware(
 )
 
 # Đăng ký các module vào hệ thống
-app.include_router(auth_router) 
+app.include_router(auth_router)
+app.include_router(tv1_router)
 
 # Module TV1: Lịch dạy & Vận hành
 app.include_router(scheduling_router)

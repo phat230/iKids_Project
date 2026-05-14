@@ -9,6 +9,9 @@ from pathlib import Path
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from core.security import get_password_hash
 
+# IMPORT THÊM HÀM THÔNG BÁO TỪ MODULE NOTIFICATION
+from modules.notification.services import create_notification
+
 # --- CẤU HÌNH LƯU TRỮ ---
 UPLOAD_DIR = Path("static/avatars")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,8 +35,23 @@ async def deposit_money_service(db, user_id: str, amount: float):
         {"_id": ObjectId(user_id)},
         {"$inc": {"balance": amount}, "$set": {"last_deposit": datetime.now()}}
     )
+    
     if result.modified_count == 0:
         return {"status": "failed", "message": "Không tìm thấy tài khoản."}
+    
+    # --- GỬI THÔNG BÁO CHO PHỤ HUYNH KHI NẠP TIỀN THÀNH CÔNG ---
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    await create_notification(db, {
+        "sender_id": "system",
+        "sender_role": "system",
+        "sender_name": "Hệ thống iKids",
+        "receiver_id": user_id,
+        "receiver_role": "parent",
+        "type": "finance",
+        "title": "💰 Nạp tiền thành công",
+        "content": f"Tài khoản của bạn đã được cộng {amount:,.0f} VNĐ. Số dư hiện tại: {user.get('balance', 0):,.0f} VNĐ."
+    })
+    
     return {"status": "success", "message": f"Đã nạp thành công {amount:,.0f} VNĐ."}
 
 async def purchase_product_service(db, user_id: str, product_id: int):
@@ -47,7 +65,7 @@ async def purchase_product_service(db, user_id: str, product_id: int):
     if current_balance < product["price"]:
         return {"status": "failed", "message": f"Số dư không đủ để mua {product['name']}."}
     
-    # Thực hiện trừ tiền và lưu lịch sử mua hàng
+    # 1. Thực hiện trừ tiền và lưu lịch sử mua hàng
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"balance": -product["price"]}})
     await db.purchase_history.insert_one({
         "user_id": user_id,
@@ -55,6 +73,35 @@ async def purchase_product_service(db, user_id: str, product_id: int):
         "price": product["price"],
         "created_at": datetime.now()
     })
+    
+    # 2. THÔNG BÁO CHO CON (STUDENT) KHI ĐƯỢC TẶNG QUÀ
+    # Dựa trên mảng student_ids_ref trong document của phụ huynh
+    child_ids = user.get("student_ids_ref", [])
+    if child_ids:
+        for child_id in child_ids:
+            await create_notification(db, {
+                "sender_id": user_id,
+                "sender_role": "parent",
+                "sender_name": f"Ba/Mẹ {user.get('name')}",
+                "receiver_id": str(child_id),
+                "receiver_role": "student",
+                "type": "finance",
+                "title": "🎁 Bạn nhận được quà tặng!",
+                "content": f"Ba/Mẹ vừa tặng bạn món quà: {product['icon']} {product['name']}. Hãy kiểm tra túi đồ nhé!"
+            })
+            
+    # 3. THÔNG BÁO XÁC NHẬN CHO PHỤ HUYNH
+    await create_notification(db, {
+        "sender_id": "system",
+        "sender_role": "system",
+        "sender_name": "Cửa hàng iKids",
+        "receiver_id": user_id,
+        "receiver_role": "parent",
+        "type": "finance",
+        "title": "🛍️ Giao dịch thành công",
+        "content": f"Bạn đã mua tặng con món quà {product['name']}. Tài khoản đã trừ {product['price']:,.0f} VNĐ."
+    })
+
     return {"status": "success", "message": f"Mua thành công {product['name']}!"}
 
 # --- 3. GAMIFICATION ---
@@ -66,7 +113,6 @@ async def award_exp_service(db, student_id: str, exp_amount: int, reason: str):
     student = await db.users.find_one({"_id": ObjectId(student_id)})
     current_exp = student.get("exp", 0)
     
-    # Logic xếp hạng (Rank)
     if current_exp >= 5000: new_rank = "Master"
     elif current_exp >= 1500: new_rank = "Explorer"
     else: new_rank = "Beginner"
@@ -74,7 +120,7 @@ async def award_exp_service(db, student_id: str, exp_amount: int, reason: str):
     await db.users.update_one({"_id": ObjectId(student_id)}, {"$set": {"rank": new_rank}})
     return {"status": "success", "exp_total": current_exp, "rank": new_rank}
 
-# --- 4. TÀI KHHOẢN & BẢO MẬT ---
+# --- 4. TÀI KHOẢN & BẢO MẬT ---
 async def update_account_profile_service(db, user_id: str, full_name: str = None, avatar_file = None):
     update_data = {}
     if full_name: update_data["full_name"] = full_name
@@ -91,7 +137,7 @@ async def update_account_profile_service(db, user_id: str, full_name: str = None
         return {"status": "success", "data": update_data}
     return {"status": "no_change"}
 
-# --- 5. QUÊN MẬT KHẨU (Email OTP) ---
+# --- 5. QUÊN MẬT KHẨU ---
 conf = ConnectionConfig(
     MAIL_USERNAME="phay123321@gmail.com",
     MAIL_PASSWORD="zuzb mhcn fzui fldc",
@@ -113,7 +159,7 @@ async def send_forgot_password_email_service(db, email: str):
     message = MessageSchema(
         subject="iKids Learning - Mã xác thực đặt lại mật khẩu",
         recipients=[email],
-        body=f"Mã OTP của bạn là: {otp}. Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này.",
+        body=f"Mã OTP của bạn là: {otp}. Mã có hiệu lực trong 5 phút.",
         subtype=MessageType.plain
     )
     fm = FastMail(conf)
@@ -121,19 +167,17 @@ async def send_forgot_password_email_service(db, email: str):
     return {"status": "success", "message": "Mã OTP đã được gửi về email của bạn."}
 
 async def verify_otp_and_reset_password_service(db, email, otp, new_password):
-    if email not in OTP_STORE: return {"status": "failed", "message": "Không tìm thấy yêu cầu đặt lại mật khẩu."}
+    if email not in OTP_STORE: return {"status": "failed", "message": "Không tìm thấy yêu cầu."}
     stored_data = OTP_STORE[email]
-    
     if datetime.now() > stored_data["expiry"]:
         del OTP_STORE[email]
-        return {"status": "failed", "message": "Mã OTP đã hết hạn hiệu lực."}
-    
+        return {"status": "failed", "message": "Mã OTP hết hạn."}
     if stored_data["otp"] != otp: return {"status": "failed", "message": "Mã OTP không chính xác."}
     
     hashed_password = get_password_hash(new_password)
     await db.users.update_one({"email": email}, {"$set": {"password": hashed_password}})
     del OTP_STORE[email]
-    return {"status": "success", "message": "Đã đặt lại mật khẩu mới thành công!"}
+    return {"status": "success", "message": "Đổi mật khẩu thành công!"}
 
 # --- 6. KỶ NIỆM & LIÊN HỆ & SỰ CỐ ---
 async def get_class_memories(db):
@@ -149,9 +193,9 @@ async def submit_contact_request(db, message_data):
     subject_upper = message_data.subject.upper()
     content_lower = message_data.content.lower()
     
-    # 1. PHÂN LOẠI SỰ CỐ NẠP TIỀN
+    # 1. PHÂN LOẠI SỰ CỐ NẠP TIỀN -> GỬI THÔNG BÁO CHO ADMIN
     if "NẠP TIỀN" in subject_upper or any(k in content_lower for k in ["nạp tiền", "chuyển khoản", "banking"]):
-        issue_id = await db.deposit_issues.insert_one({
+        issue_result = await db.deposit_issues.insert_one({
             "sender_id": message_data.sender_id,
             "subject": message_data.subject,
             "content": message_data.content,
@@ -159,8 +203,22 @@ async def submit_contact_request(db, message_data):
             "status": "pending",
             "created_at": datetime.now()
         })
-        return {"status": "success", "message": "Đã gửi báo cáo sự cố.", "id": str(issue_id.inserted_id)}
-    # 2. PHÂN LOẠI XIN NGHỈ HỌC (TV1 quản lý)
+        
+        # THÔNG BÁO CHO ADMIN VỀ SỰ CỐ
+        await create_notification(db, {
+            "sender_id": message_data.sender_id,
+            "sender_role": "parent",
+            "sender_name": "Phụ huynh hệ thống",
+            "receiver_id": "all",
+            "receiver_role": "admin",
+            "type": "request",
+            "title": "⚠️ SỰ CỐ NẠP TIỀN CẦN XỬ LÝ",
+            "content": f"Phụ huynh báo nạp {getattr(message_data, 'amount', 0):,.0f} VNĐ nhưng chưa nhận được. Vui lòng đối soát."
+        })
+        
+        return {"status": "success", "message": "Đã gửi báo cáo sự cố.", "id": str(issue_result.inserted_id)}
+
+    # 2. PHÂN LOẠI XIN NGHỈ HỌC / LIÊN HỆ
     msg_id = await db.contact_messages.insert_one({
         "sender_id": message_data.sender_id,
         "receiver_id": message_data.receiver_id,
@@ -193,14 +251,55 @@ async def get_contact_history(db, user_id: str):
     return messages
 
 async def generate_vietqr_link(amount: int, user_id: str):
-    """
-    Tạo link mã QR ngân hàng BIDV cho TV3
-    Đồng bộ tên chủ tài khoản NGUYEN DUC PHAT
-    """
     BANK_ID = "BIDV" 
     ACCOUNT_NO = "64110001073247"
     TEMPLATE = "compact"
     description = f"IKIDS NAP {user_id[-6:]}".upper() 
-    
     qr_url = f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-{TEMPLATE}.png?amount={amount}&addInfo={description}&accountName=NGUYEN%20DUC%20PHAT"
     return qr_url, description
+
+async def transfer_to_child_service(db, parent_id: str, child_id: str, amount: float):
+    """Phụ huynh gửi tiền cho con"""
+    parent = await db.users.find_one({"_id": ObjectId(parent_id)})
+    if parent.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Số dư ví của bạn không đủ."}
+    
+    # 1. Trừ tiền phụ huynh, cộng tiền cho con
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": amount}})
+    
+    # 2. Gửi thông báo cho CON
+    await create_notification(db, {
+        "sender_id": parent_id,
+        "sender_role": "parent",
+        "sender_name": f"Ba/Mẹ {parent.get('name')}",
+        "receiver_id": child_id,
+        "receiver_role": "student",
+        "type": "finance",
+        "title": "💰 Bạn vừa nhận được tiền!",
+        "content": f"Ba/Mẹ đã chuyển {amount:,.0f} VNĐ vào ví của bạn. Chăm chỉ học tập nhé!"
+    })
+    return {"status": "success"}
+
+async def withdraw_from_child_service(db, parent_id: str, child_id: str, amount: float):
+    """Phụ huynh rút tiền từ ví của con về ví mình"""
+    child = await db.users.find_one({"_id": ObjectId(child_id)})
+    if child.get("balance", 0) < amount:
+        return {"status": "failed", "message": "Số dư ví của bé không đủ để rút."}
+    
+    # 1. Trừ tiền con, cộng tiền cho phụ huynh
+    await db.users.update_one({"_id": ObjectId(child_id)}, {"$inc": {"balance": -amount}})
+    await db.users.update_one({"_id": ObjectId(parent_id)}, {"$inc": {"balance": amount}})
+    
+    # 2. Gửi thông báo cho CON
+    await create_notification(db, {
+        "sender_id": parent_id,
+        "sender_role": "parent",
+        "sender_name": "Hệ thống iKids",
+        "receiver_id": child_id,
+        "receiver_role": "student",
+        "type": "finance",
+        "title": "💸 Thông báo biến động số dư",
+        "content": f"Ba/Mẹ đã rút {amount:,.0f} VNĐ từ ví của bạn."
+    })
+    return {"status": "success"}
