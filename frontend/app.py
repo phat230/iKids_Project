@@ -71,6 +71,7 @@ else:
             st.Page("pages/teacher/tao_quiz.py", title="Quản Lý Bài Tập AI", icon="🤖"),
             st.Page("pages/teacher/kho_hoc_lieu.py", title="Kho Học Liệu", icon="📚"),
             st.Page("pages/teacher/giao_bai.py", title="Giao Bài Tập", icon="📤"),
+            st.Page("pages/teacher/quan_ly_lich.py", title="Quản Lý Lịch", icon="📅"),
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="⚙️")        
         ])
 
