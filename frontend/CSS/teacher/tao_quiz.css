@@ -1,0 +1,44 @@
+/* Tổng thể trang soạn bài tập */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Định dạng các Tab */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    font-weight: 700;
+    color: #475569;
+}
+
+/* Khung soạn bài AI và Thủ công */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 20px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Nút bấm AI Bắt đầu (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #8b5cf6 !important; /* Màu tím AI */
+    border: none !important;
+    height: 3rem;
+    font-weight: bold !important;
+    border-radius: 8px !important;
+}
+
+/* Định dạng bảng điểm học sinh */
+.stTable {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Container câu hỏi trong tab Preview */
+div[key^="preview_q_"] {
+    background-color: #f8fafc;
+    border-left: 5px solid #8b5cf6 !important;
+}

@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import os
 from datetime import datetime, date
 
 API = "http://127.0.0.1:8000"
@@ -11,24 +12,34 @@ st.set_page_config(
     layout="wide"
 )
 
+# ================= HÀM ĐỌC FILE CSS (TỰ ĐỘNG DÒ ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """Tự động tìm file CSS trong thư mục frontend/CSS/"""
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # Đang ở pages/operator
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS làm đẹp
+load_css("operator/xep_lich.css")
+
 # =========================
-# CHECK LOGIN
+# CHECK LOGIN & PERMISSION
 # =========================
 if "token" not in st.session_state:
     st.error("Vui lòng đăng nhập")
     st.stop()
 
-if "role" not in st.session_state:
-    st.error("Không tìm thấy quyền tài khoản")
-    st.stop()
-
-if st.session_state["role"] not in ["operator", "admin"]:
+if st.session_state.get("role") not in ["operator", "admin"]:
     st.error("Chỉ nhân viên vận hành hoặc admin được truy cập")
     st.stop()
 
-headers = {
-    "Authorization": f"Bearer {st.session_state['token']}"
-}
+headers = {"Authorization": f"Bearer {st.session_state['token']}"}
 
 st.title("📅 Xếp lịch học & Gửi thông báo")
 st.write("Chọn lớp học để lên lịch và tự động gửi thông báo thay đổi cho phụ huynh/học sinh.")
@@ -37,16 +48,12 @@ st.write("Chọn lớp học để lên lịch và tự động gửi thông bá
 # HÀM HỖ TRỢ THÔNG BÁO TỰ ĐỘNG
 # =========================
 def send_auto_notification(class_id, class_name, title, content):
-    """Gửi thông báo tới toàn bộ học sinh và phụ huynh trong lớp khi sửa lịch"""
     try:
-        # 1. Lấy danh sách học viên thực tế của lớp
         res = requests.get(f"{API}/classes/{class_id}/students/details", headers=headers)
         if res.status_code == 200:
             students = res.json()
             for s in students:
                 stu_id = s.get("Mã HS")
-                
-                # A. Thông báo cho Học sinh
                 payload_stu = {
                     "sender_id": st.session_state.get("user_id"),
                     "sender_role": "operator",
@@ -58,11 +65,10 @@ def send_auto_notification(class_id, class_name, title, content):
                     "content": content
                 }
                 requests.post(f"{API}/api/notifications/send", json=payload_stu)
-
-                # B. Thông báo cho Phụ huynh (Gửi theo ID nếu có hoặc gửi theo role)
+                
                 payload_parent = payload_stu.copy()
                 payload_parent["receiver_role"] = "parent"
-                payload_parent["receiver_id"] = "all" # Đảm bảo phụ huynh của bé thấy tin
+                payload_parent["receiver_id"] = "all"
                 requests.post(f"{API}/api/notifications/send", json=payload_parent)
     except Exception as e:
         st.error(f"Lỗi gửi thông báo tự động: {e}")
@@ -74,56 +80,33 @@ def send_auto_notification(class_id, class_name, title, content):
 def get_classes():
     try:
         res = requests.get(f"{TV1_API}/classes", timeout=10)
-        if res.status_code == 200:
-            data = res.json()
-            return [c for c in data if isinstance(c, dict)]
-        return []
-    except Exception as e:
-        st.error(f"Lỗi lấy danh sách lớp học: {e}")
-        return []
+        return res.json() if res.status_code == 200 else []
+    except: return []
 
 def get_schedules():
     try:
         res = requests.get(f"{TV1_API}/schedule/list", headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-        return []
-    except Exception as e:
-        st.error(f"Lỗi lấy lịch học: {e}")
-        return []
+        return res.json() if res.status_code == 200 else []
+    except: return []
 
 def create_schedule(data):
-    try:
-        return requests.post(f"{TV1_API}/schedule/create", json=data, headers=headers, timeout=10)
-    except Exception as e:
-        st.error(f"Lỗi tạo lịch: {e}")
-        return None
+    return requests.post(f"{TV1_API}/schedule/create", json=data, headers=headers)
 
 def update_schedule(schedule_id, data):
-    try:
-        return requests.put(f"{TV1_API}/schedule/{schedule_id}", json=data, headers=headers, timeout=10)
-    except Exception as e:
-        st.error(f"Lỗi cập nhật lịch: {e}")
-        return None
+    return requests.put(f"{TV1_API}/schedule/{schedule_id}", json=data, headers=headers)
 
 def delete_schedule(schedule_id):
-    try:
-        return requests.delete(f"{TV1_API}/schedule/{schedule_id}", headers=headers, timeout=10)
-    except Exception as e:
-        st.error(f"Lỗi xóa lịch: {e}")
-        return None
+    return requests.delete(f"{TV1_API}/schedule/{schedule_id}", headers=headers)
 
 # =========================
-# LOAD DATA
+# XỬ LÝ DỮ LIỆU
 # =========================
 classes = get_classes()
 schedules = get_schedules()
-class_options = {f"{c.get('class_name', 'Không tên')} - {c.get('subject', '')}": c for c in classes}
+class_options = {f"{c.get('class_name', 'N/A')} - {c.get('subject', '')}": c for c in classes}
 DAY_CHOICES = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
-# =========================
-# FORM TẠO LỊCH (GIỮ NGUYÊN)
-# =========================
+# --- FORM TẠO LỊCH ---
 st.subheader("➕ Tạo lịch học mới")
 with st.form("create_schedule_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
@@ -135,7 +118,7 @@ with st.form("create_schedule_form", clear_on_submit=True):
             selected_class_label = st.selectbox("Chọn lớp học (*)", options=list(class_options.keys()))
             if selected_class_label:
                 cls_data = class_options[selected_class_label]
-                st.info(f"👨‍🏫 Giáo viên phụ trách: **{cls_data.get('teacher_name', 'Chưa xếp')}**")
+                st.info(f"👨‍🏫 Giáo viên: **{cls_data.get('teacher_name', 'Chưa xếp')}**")
         selected_days = st.multiselect("Lịch học trong tuần (*)", options=DAY_CHOICES, default=["Thứ 7", "Chủ nhật"])
         room = st.text_input("Phòng học / Hình thức", value="Online")
     with col2:
@@ -145,6 +128,7 @@ with st.form("create_schedule_form", clear_on_submit=True):
         c_time1, c_time2 = st.columns(2)
         with c_time1: start_time = st.time_input("Giờ bắt đầu")
         with c_time2: end_time = st.time_input("Giờ kết thúc")
+    
     if st.form_submit_button("✅ Tạo lịch học"):
         if not selected_class_label or not selected_days or start_date > end_date:
             st.error("Vui lòng kiểm tra lại thông tin nhập liệu")
@@ -164,16 +148,12 @@ with st.form("create_schedule_form", clear_on_submit=True):
                 "created_by": st.session_state.get("user_id", "operator"),
                 "status": "active"
             }
-            res = create_schedule(payload)
-            if res and res.status_code == 200:
-                st.success("Tạo lịch thành công!")
-                st.rerun()
+            if create_schedule(payload).status_code == 200:
+                st.success("Tạo lịch thành công!"); st.rerun()
 
 st.divider()
 
-# =========================
-# DANH SÁCH LỊCH HỌC & SỬA GỬI THÔNG BÁO
-# =========================
+# --- DANH SÁCH & SỬA GỬI THÔNG BÁO ---
 st.subheader("📋 Danh sách lịch học")
 if not schedules:
     st.info("Chưa có lịch học nào")
@@ -184,49 +164,37 @@ else:
             with col1:
                 st.markdown(f"### 🏫 {item.get('class_name', '')}")
                 st.write(f"**Môn:** {item.get('subject', '')}")
-                st.write(f"**Phòng:** {item.get('room', '')}")
+                st.caption(f"📍 Phòng: {item.get('room', '')}")
             with col2:
-                st.write(f"**Thứ:** {', '.join(item.get('days_of_week', []))}")
-                st.write(f"**Khóa:** {item.get('study_date', '')}")
-                st.write(f"**Giờ:** {item.get('start_time')} - {item.get('end_time')}")
+                st.write(f"📅 **Thứ:** {', '.join(item.get('days_of_week', []))}")
+                st.write(f"🗓️ **Khóa:** {item.get('study_date', '')}")
+                st.write(f"⏰ **Giờ:** {item.get('start_time')} - {item.get('end_time')}")
             with col3:
-                schedule_id = item.get("id", item.get("_id"))
-                if st.button("✏️ Sửa & Gửi Thông báo", key=f"edit_{schedule_id}"):
-                    st.session_state["editing_schedule"] = schedule_id
-                if st.button("🗑️ Xóa", key=f"del_{schedule_id}"):
-                    if delete_schedule(schedule_id).status_code == 200: st.rerun()
+                sid = item.get("id", item.get("_id"))
+                if st.button("✏️ Sửa & Gửi Tin", key=f"edit_{sid}"):
+                    st.session_state["editing_schedule"] = sid
+                if st.button("🗑️ Xóa", key=f"del_{sid}"):
+                    if delete_schedule(sid).status_code == 200: st.rerun()
 
-            # FORM SỬA VÀ TỰ ĐỘNG GỬI TIN
-            if st.session_state.get("editing_schedule") == schedule_id:
-                with st.form(f"edit_form_{schedule_id}"):
-                    st.warning("💡 Lưu ý: Khi nhấn Lưu, hệ thống sẽ tự động nhắn tin cho Phụ huynh & Học sinh lớp này.")
+            if st.session_state.get("editing_schedule") == sid:
+                with st.form(f"edit_form_{sid}"):
+                    st.warning("💡 Hệ thống sẽ tự động nhắn tin cho Phụ huynh & Học sinh khi bạn nhấn Lưu.")
                     c1, c2 = st.columns(2)
                     with c1:
-                        new_days = st.multiselect("Thứ trong tuần", options=DAY_CHOICES, default=item.get("days_of_week", []))
-                        new_room = st.text_input("Phòng học", value=item.get("room", "Online"))
+                        n_days = st.multiselect("Thứ trong tuần", options=DAY_CHOICES, default=item.get("days_of_week", []))
+                        n_room = st.text_input("Phòng học", value=item.get("room", "Online"))
                     with c2:
-                        new_start_time = st.time_input("Giờ bắt đầu", value=datetime.strptime(item.get("start_time"), "%H:%M").time())
-                        new_end_time = st.time_input("Giờ kết thúc", value=datetime.strptime(item.get("end_time"), "%H:%M").time())
+                        n_start = st.time_input("Giờ bắt đầu", value=datetime.strptime(item.get("start_time"), "%H:%M").time())
+                        n_end = st.time_input("Giờ kết thúc", value=datetime.strptime(item.get("end_time"), "%H:%M").time())
                     
                     if st.form_submit_button("💾 Lưu & Gửi Thông Báo", type="primary"):
                         payload = item.copy()
                         payload.update({
-                            "days_of_week": new_days,
-                            "room": new_room,
-                            "start_time": new_start_time.strftime("%H:%M"),
-                            "end_time": new_end_time.strftime("%H:%M")
+                            "days_of_week": n_days, "room": n_room,
+                            "start_time": n_start.strftime("%H:%M"), "end_time": n_end.strftime("%H:%M")
                         })
-                        
-                        res = update_schedule(schedule_id, payload)
-                        if res and res.status_code == 200:
-                            # --- GỬI THÔNG BÁO TỰ ĐỘNG ---
+                        if update_schedule(sid, payload).status_code == 200:
                             msg_title = f"🔔 Thay đổi lịch học lớp {item.get('class_name')}"
-                            msg_content = (f"Thông báo: Lớp {item.get('class_name')} đã đổi sang lịch học mới: "
-                                          f"{', '.join(new_days)} lúc {new_start_time.strftime('%H:%M')}. "
-                                          f"Phòng học: {new_room}. Vui lòng kiểm tra lại thời khóa biểu.")
-                            
+                            msg_content = f"Thông báo: Lớp {item.get('class_name')} đổi lịch sang {', '.join(n_days)} lúc {n_start.strftime('%H:%M')}. Phòng: {n_room}."
                             send_auto_notification(item.get("class_id"), item.get("class_name"), msg_title, msg_content)
-                            
-                            st.success("Cập nhật và gửi tin nhắn thành công!")
-                            st.session_state["editing_schedule"] = None
-                            st.rerun()
+                            st.success("Cập nhật thành công!"); st.session_state["editing_schedule"] = None; st.rerun()

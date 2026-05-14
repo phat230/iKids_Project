@@ -1,8 +1,25 @@
 import streamlit as st
 import pandas as pd
 import requests
+import os
 
 st.set_page_config(page_title="Quản Lý Lớp Học", page_icon="🏫", layout="wide")
+
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """Tự động tìm file CSS trong thư mục frontend/CSS/"""
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # pages/operator
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS làm đẹp
+load_css("operator/quan_ly_lop.css")
 
 API_URL = "http://localhost:8000"
 
@@ -15,8 +32,7 @@ def get_teachers():
     try:
         res = requests.get(f"{API_URL}/teachers", timeout=10)
         return res.json() if res.status_code == 200 else []
-    except:
-        return []
+    except: return []
 
 def get_classes():
     try:
@@ -25,10 +41,8 @@ def get_classes():
             data = res_classes.json()
             return [c for c in data if isinstance(c, dict)]
         return []
-    except:
-        return []
+    except: return []
 
-# Lấy dữ liệu chung cho toàn trang
 teachers_data = get_teachers()
 teacher_options = {}
 if isinstance(teachers_data, list):
@@ -40,7 +54,7 @@ if isinstance(teachers_data, list):
 
 tab_tao_lop, tab_danh_sach = st.tabs(["➕ Tạo lớp học mới", "📋 Quản lý & Danh sách lớp"])
 
-# ================= TAB 1: TẠO LỚP HỌC MỚI =================
+# --- TAB 1: TẠO LỚP HỌC MỚI ---
 with tab_tao_lop:
     with st.container(border=True):
         st.subheader("Nhập thông tin lớp học")
@@ -56,163 +70,87 @@ with tab_tao_lop:
                 else:
                     selected_teacher_label = st.selectbox("Giáo viên phụ trách (*)", options=list(teacher_options.keys()))
                 
-            is_public = st.checkbox("Mở lớp (Cho phép phụ huynh thấy và đăng ký trên hệ thống)", value=True)
+            is_public = st.checkbox("Mở lớp (Công khai cho phụ huynh đăng ký)", value=True)
             description = st.text_area("Ghi chú nội bộ")
             
-            if st.form_submit_button("Tạo Lớp Học Mới", type="primary"):
+            if st.form_submit_button("Tạo Lớp Học Mới", type="primary", use_container_width=True):
                 if not class_name or not subject or not selected_teacher_label:
-                    st.error("⚠️ Vui lòng điền đầy đủ các trường có dấu (*)")
+                    st.error("⚠️ Vui lòng điền đầy đủ các trường (*)")
                 else:
                     selected_teacher = teacher_options[selected_teacher_label]
                     payload = {
-                        "class_name": class_name,
-                        "subject": subject,
-                        "teacher_id": selected_teacher["id"],
-                        "teacher_name": selected_teacher["name"],
-                        "student_ids": [],
-                        "is_public": is_public,
-                        "description": description,
-                        "status": "active"
+                        "class_name": class_name, "subject": subject,
+                        "teacher_id": selected_teacher["id"], "teacher_name": selected_teacher["name"],
+                        "student_ids": [], "is_public": is_public,
+                        "description": description, "status": "active"
                     }
                     try:
                         res = requests.post(f"{API_URL}/classes/create", json=payload)
                         if res.status_code == 200:
                             st.success(f"✅ Đã tạo lớp '{class_name}' thành công!")
-                            st.balloons()
-                            st.rerun()
-                        else:
-                            st.error(f"❌ Lỗi từ Backend: {res.text}")
-                    except Exception as e:
-                        st.error(f"❌ Lỗi kết nối Backend: {e}")
+                            st.balloons(); st.rerun()
+                    except: st.error("❌ Lỗi kết nối Backend")
 
-# ================= TAB 2: QUẢN LÝ LỚP HỌC (SỬA/XÓA/XEM) =================
+# --- TAB 2: QUẢN LÝ LỚP HỌC ---
 with tab_danh_sach:
     classes = get_classes()
-
     if not classes:
-        st.info("💡 Hiện tại chưa có lớp học nào trong hệ thống.")
+        st.info("💡 Hiện tại chưa có lớp học nào.")
     else:
-        # Tạo danh sách chọn lớp
-        class_options_dict = {
-            c.get("id", c.get("_id")): f"{c.get('class_name', 'Lớp chưa rõ tên')} - {c.get('subject', '')}"
-            for c in classes
-        }
-        
-        selected_class_id = st.selectbox(
-            "🔎 Chọn lớp học để quản lý:", 
-            options=list(class_options_dict.keys()), 
-            format_func=lambda x: class_options_dict[x]
-        )
+        class_options_dict = {c.get("id", c.get("_id")): f"{c.get('class_name')} - {c.get('subject')}" for c in classes}
+        selected_class_id = st.selectbox("🔎 Chọn lớp để quản lý:", options=list(class_options_dict.keys()), format_func=lambda x: class_options_dict[x])
         
         if selected_class_id:
-            selected_class_data = next((c for c in classes if c.get("id", c.get("_id")) == selected_class_id), None)
-            
-            if selected_class_data:
-                st.markdown(f"### 🏫 Quản lý: `{selected_class_data.get('class_name')}`")
+            sel = next((c for c in classes if c.get("id", c.get("_id")) == selected_class_id), None)
+            if sel:
+                st.markdown(f"### 🏫 Quản lý: `{sel.get('class_name')}`")
+                sub_info, sub_edit, sub_del = st.tabs(["👥 Học viên", "✏️ Sửa lớp", "🗑️ Xóa lớp"])
                 
-                # CHIA LÀM 3 TAB CON: THÔNG TIN - SỬA - XÓA
-                sub_tab_info, sub_tab_edit, sub_tab_del = st.tabs(["📋 Danh sách Học viên", "✏️ Chỉnh sửa thông tin", "🗑️ Xóa lớp"])
-                
-                # --- SUB TAB 1: THÔNG TIN HỌC VIÊN ---
-                with sub_tab_info:
-                    st.write(f"**Môn học:** {selected_class_data.get('subject')} | **Giáo viên:** {selected_class_data.get('teacher_name')}")
-                    student_count = len(selected_class_data.get("student_ids", []))
-                    st.caption(f"Sĩ số lớp hiện tại: {student_count} học sinh")
-                    
-                    # 1. GỌI API LẤY DỮ LIỆU THỰC TỪ BACKEND
+                with sub_info:
+                    st.write(f"**Môn:** {sel.get('subject')} | **GV:** {sel.get('teacher_name')}")
                     try:
-                        res_students = requests.get(f"{API_URL}/classes/{selected_class_id}/students/details")
-                        if res_students.status_code == 200 and res_students.json():
-                            real_student_data = res_students.json()
-                        else:
-                            real_student_data = []
-                    except:
-                        real_student_data = []
+                        res_st = requests.get(f"{API_URL}/classes/{selected_class_id}/students/details")
+                        real_st = res_st.json() if res_st.status_code == 200 else []
+                    except: real_st = []
 
-                    # 2. HIỂN THỊ LÊN BẢNG EXCEL VÀ CHỨC NĂNG XÓA
-                    if not real_student_data:
-                        st.info("💡 Lớp học này hiện tại chưa có học sinh nào đăng ký.")
-                        df = pd.DataFrame(columns=["Mã HS", "Tên Học Sinh", "Tên Phụ Huynh", "SĐT Liên Hệ", "Tình trạng"])
-                        st.dataframe(df, use_container_width=True)
+                    if not real_st:
+                        st.info("💡 Lớp chưa có học sinh.")
                     else:
-                        df = pd.DataFrame(real_student_data)
-                        st.dataframe(df, use_container_width=True)
+                        df = pd.DataFrame(real_st)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                        st.download_button("📥 Tải Excel (CSV)", data=df.to_csv(index=False).encode('utf-8-sig'), file_name=f"lop_{sel.get('class_name')}.csv", mime="text/csv")
                         
-                        st.download_button(
-                            label="📥 Xuất danh sách Excel (CSV)",
-                            data=df.to_csv(index=False).encode('utf-8-sig'),
-                            file_name=f"danh_sach_lop_{selected_class_data.get('class_name')}.csv",
-                            mime="text/csv"
-                        )
-                        
-                        st.markdown("---")
-                        st.write("#### 🛠️ Quản lý & Xóa học viên")
-                        
-                        # Tạo danh sách chọn học sinh để xóa
-                        student_dict = {row["Mã HS"]: f"Mã: {row['Mã HS']} - Tên: {row['Tên Học Sinh']}" for row in real_student_data}
-                        selected_student_to_remove = st.selectbox(
-                            "Chọn học sinh cần xóa khỏi lớp:", 
-                            options=list(student_dict.keys()), 
-                            format_func=lambda x: student_dict[x]
-                        )
-                        
+                        st.divider()
+                        st.write("#### 🛠️ Xóa học viên khỏi lớp")
+                        st_dict = {r["Mã HS"]: f"{r['Mã HS']} - {r['Tên Học Sinh']}" for r in real_st}
+                        st_to_del = st.selectbox("Chọn học sinh:", options=list(st_dict.keys()), format_func=lambda x: st_dict[x])
                         if st.button("🗑️ Xóa học sinh này", type="primary"):
-                            try:
-                                res_remove = requests.delete(f"{API_URL}/classes/{selected_class_id}/students/{selected_student_to_remove}")
-                                if res_remove.status_code == 200:
-                                    st.success("✅ Đã xóa học sinh khỏi lớp thành công!")
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Không thể xóa học sinh. Vui lòng thử lại.")
-                            except Exception as e:
-                                st.error(f"❌ Lỗi kết nối Backend: {e}")
+                            if requests.delete(f"{API_URL}/classes/{selected_class_id}/students/{st_to_del}").status_code == 200:
+                                st.success("Đã xóa học sinh!"); st.rerun()
 
-                # --- SUB TAB 2: CHỈNH SỬA LỚP ---
-                with sub_tab_edit:
-                    with st.form(f"edit_form_{selected_class_id}"):
-                        st.info("Cập nhật lại thông tin của lớp học này.")
+                with sub_edit:
+                    with st.form(f"edit_{selected_class_id}"):
                         e1, e2 = st.columns(2)
                         with e1:
-                            new_class_name = st.text_input("Tên lớp", value=selected_class_data.get("class_name", ""))
-                            new_subject = st.text_input("Môn học", value=selected_class_data.get("subject", ""))
+                            n_name = st.text_input("Tên lớp", value=sel.get("class_name", ""))
+                            n_sub = st.text_input("Môn học", value=sel.get("subject", ""))
                         with e2:
-                            current_teacher_id = selected_class_data.get("teacher_id")
-                            default_index = 0
-                            teacher_labels = list(teacher_options.keys())
-                            for i, label in enumerate(teacher_labels):
-                                if teacher_options[label]["id"] == current_teacher_id:
-                                    default_index = i
-                                    break
-                            
-                            new_teacher_label = st.selectbox("Đổi Giáo viên", options=teacher_labels, index=default_index)
-                            
-                        new_is_public = st.checkbox("Mở đăng ký công khai", value=selected_class_data.get("is_public", True))
-                        new_desc = st.text_area("Ghi chú", value=selected_class_data.get("description", ""))
+                            t_labels = list(teacher_options.keys())
+                            cur_t_id = sel.get("teacher_id")
+                            def_idx = next((i for i, l in enumerate(t_labels) if teacher_options[l]["id"] == cur_t_id), 0)
+                            n_t_label = st.selectbox("Đổi Giáo viên", options=t_labels, index=def_idx)
+                        
+                        n_pub = st.checkbox("Mở đăng ký", value=sel.get("is_public", True))
+                        n_desc = st.text_area("Ghi chú", value=sel.get("description", ""))
 
-                        if st.form_submit_button("💾 Lưu Thay Đổi", type="primary"):
-                            selected_teacher = teacher_options[new_teacher_label]
-                            update_payload = {
-                                "class_name": new_class_name,
-                                "subject": new_subject,
-                                "teacher_id": selected_teacher["id"],
-                                "teacher_name": selected_teacher["name"],
-                                "is_public": new_is_public,
-                                "description": new_desc
-                            }
-                            res_update = requests.put(f"{API_URL}/classes/{selected_class_id}", json=update_payload)
-                            if res_update.status_code == 200:
-                                st.success("Cập nhật thành công!")
-                                st.rerun()
-                            else:
-                                st.error("Có lỗi xảy ra khi cập nhật.")
+                        if st.form_submit_button("💾 Lưu Thay Đổi", type="primary", use_container_width=True):
+                            sel_t = teacher_options[n_t_label]
+                            upd = {"class_name": n_name, "subject": n_sub, "teacher_id": sel_t["id"], "teacher_name": sel_t["name"], "is_public": n_pub, "description": n_desc}
+                            if requests.put(f"{API_URL}/classes/{selected_class_id}", json=upd).status_code == 200:
+                                st.success("Đã cập nhật!"); st.rerun()
 
-                # --- SUB TAB 3: XÓA LỚP ---
-                with sub_tab_del:
-                    st.warning("⚠️ Hành động này sẽ xóa vĩnh viễn lớp học này khỏi hệ thống. Nếu lớp đã có lịch học hoặc học sinh, vui lòng cân nhắc kỹ trước khi xóa.")
-                    if st.button("🗑️ Xác nhận Xóa lớp học này", type="primary"):
-                        res_del = requests.delete(f"{API_URL}/classes/{selected_class_id}")
-                        if res_del.status_code == 200:
-                            st.success("Đã xóa lớp học thành công!")
-                            st.rerun()
-                        else:
-                            st.error("Không thể xóa lớp học này.")
+                with sub_del:
+                    st.warning("⚠️ Hành động xóa lớp học là vĩnh viễn!")
+                    if st.button("🗑️ Xác nhận Xóa lớp học", type="primary", use_container_width=True):
+                        if requests.delete(f"{API_URL}/classes/{selected_class_id}").status_code == 200:
+                            st.success("Đã xóa lớp!"); st.rerun()

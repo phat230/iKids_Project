@@ -1,0 +1,49 @@
+/* Khoảng cách tổng thể */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Định dạng tiêu đề chính */
+h1 {
+    color: #4f46e5;
+    font-weight: bold;
+}
+
+/* Làm đẹp cho các Tab */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 20px;
+}
+.stTabs [data-baseweb="tab"] {
+    font-weight: 600;
+}
+
+/* Tùy chỉnh các nút bấm */
+.stButton > button {
+    border-radius: 8px !important;
+    transition: all 0.2s;
+}
+
+/* Hiệu ứng cho nút Gửi (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #4f46e5 !important;
+    color: white !important;
+}
+
+/* Kiểu dáng cho container thông báo */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    transition: transform 0.2s;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: scale(1.01);
+}
+
+/* Màu sắc bổ sung cho nội dung tin nhắn */
+.noti-content {
+    background-color: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+}

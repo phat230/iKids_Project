@@ -3,6 +3,7 @@ import requests
 import pandas as pd
 from datetime import datetime
 import time
+import os
 
 # Cấu hình URL Backend
 API_AUTH = "http://localhost:8000/api/auth"
@@ -10,7 +11,29 @@ API_TV3 = "http://localhost:8000/api/tv3"
 
 st.set_page_config(page_title="Quản Lý Con Em - iKids", layout="wide")
 
-st.title("👨‍👩‍👦 Quản Lý Hồ Sơ & Phê Duyệt")
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'parent/quan_ly_con.css'
+    """
+    # Lấy đường dẫn tuyệt đối đến thư mục chứa file hiện tại (frontend/pages/parent)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS làm đẹp cho trang Quản lý của Phụ huynh
+load_css("parent/quan_ly_con.css")
+
+st.title("👨‍👩‍👧‍👦 Quản Lý Hồ Sơ & Phê Duyệt")
 st.write("Tại đây, bạn có thể tạo tài khoản cho bé, quản lý ví tiền và phê duyệt các yêu cầu mua sắm.")
 
 # 1. KIỂM TRA XÁC THỰC
@@ -18,7 +41,7 @@ parent_id = st.session_state.get("user_id")
 token = st.session_state.get("access_token")
 
 if not parent_id or not token:
-    st.error("🔑 Phiên làm việc hết hạn. Vui lòng đăng nhập lại.")
+    st.error("⚠️ Phiên làm việc hết hạn. Vui lòng đăng nhập lại.")
     st.stop()
 
 headers = {"Authorization": f"Bearer {token}", "parent-id": str(parent_id)}
@@ -41,8 +64,8 @@ def fetch_purchase_requests():
 # --- GIAO DIỆN CHÍNH ---
 tab_list, tab_approve, tab_add = st.tabs([
     "👥 Danh sách con em", 
-    "🔔 Phê duyệt mua sắm", 
-    "📝 Tạo tài khoản mới"
+    "🛒 Phê duyệt mua sắm", 
+    "➕ Tạo tài khoản mới"
 ])
 
 # TAB 1: DANH SÁCH & QUẢN LÝ VÍ
@@ -63,8 +86,7 @@ with tab_list:
                     balance = child.get('balance', 0)
                     st.metric("Ví của con", f"{balance:,.0f} VNĐ")
                 with col3:
-                    # TÍNH NĂNG NẠP/RÚT TIỀN KÈM THÔNG BÁO TỰ ĐỘNG
-                    with st.expander("💳 Giao dịch ví của con"):
+                    with st.expander("💸 Giao dịch ví của con"):
                         amount = st.number_input("Số tiền (VNĐ)", min_value=0, step=10000, key=f"amt_{child['id']}")
                         c_btn1, c_btn2 = st.columns(2)
                         
@@ -77,7 +99,7 @@ with tab_list:
                                                         json={"child_id": child['id'], "amount": amount}, headers=headers)
                                     if res.status_code == 200:
                                         st.success(f"Đã chuyển {amount:,.0f} VNĐ thành công!")
-                                        st.toast(f"🔔 Bé {child['name']} đã nhận được thông báo tiền về!", icon="💰")
+                                        st.toast(f"📩 Bé {child['name']} đã nhận được thông báo tiền về!", icon="📩")
                                         time.sleep(1)
                                         st.rerun()
                                     else:
@@ -92,7 +114,7 @@ with tab_list:
                                                         json={"child_id": child['id'], "amount": amount}, headers=headers)
                                     if res.status_code == 200:
                                         st.success(f"Đã rút {amount:,.0f} VNĐ về ví của bạn.")
-                                        st.toast("🔔 Đã gửi thông báo rút tiền cho bé.", icon="💸")
+                                        st.toast("📩 Đã gửi thông báo rút tiền cho bé.", icon="📩")
                                         time.sleep(1)
                                         st.rerun()
                                     else:

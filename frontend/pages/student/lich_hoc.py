@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import os
 from datetime import datetime
 from utils.role_guard import require_role
 
@@ -8,6 +9,28 @@ from utils.role_guard import require_role
 require_role(["student"])
 
 st.set_page_config(page_title="Lịch Học Của Tôi", page_icon="📅", layout="wide")
+
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'student/lich_hoc.css'
+    """
+    # Lấy đường dẫn tuyệt đối đến thư mục chứa file lich_hoc.py hiện tại
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS (Chỉ truyền phần tên thư mục con và file)
+load_css("student/lich_hoc.css")
 
 API_URL = "http://localhost:8000"
 
@@ -64,7 +87,7 @@ with st.spinner("Đang tải thời khóa biểu của bạn..."):
     schedules = get_my_schedules(student_id)
 
 if not schedules:
-    st.info("💡 Bạn chưa có lịch học nào. Vui lòng đợi Nhân viên vận hành xếp lịch hoặc nhờ Phụ huynh đăng ký lớp mới nhé!")
+    st.info("ℹ️ Bạn chưa có lịch học nào. Vui lòng đợi Nhân viên vận hành xếp lịch hoặc nhờ Phụ huynh đăng ký lớp mới nhé!")
     
     # Hiển thị bảng trống cho đẹp mắt
     empty_df = pd.DataFrame(columns=["Môn học", "Tên lớp", "Giáo viên", "Thứ trong tuần", "Ca học", "Khóa học", "Phòng học", "Trạng thái"])
@@ -118,4 +141,4 @@ else:
     # Hiển thị bảng dữ liệu (Table/Dataframe)
     st.dataframe(df, use_container_width=True, hide_index=True)
     
-    st.caption("📌 Lịch học sẽ tự động cập nhật nếu Nhân viên vận hành thay đổi thời gian hoặc phòng học.")
+    st.caption("💡 Lịch học sẽ tự động cập nhật nếu Nhân viên vận hành thay đổi thời gian hoặc phòng học.")

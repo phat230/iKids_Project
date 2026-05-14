@@ -1,0 +1,51 @@
+/* Tổng thể trang nhật ký */
+.block-container {
+    padding-top: 1.5rem;
+}
+
+/* Định dạng tiêu đề chính */
+h1 {
+    color: #1e293b;
+    font-weight: 800;
+}
+
+/* Header giả lập bảng điểm danh */
+.stMarkdown div[data-testid="stMarkdownContainer"] p strong {
+    color: #475569;
+    font-size: 1rem;
+}
+
+/* Khung container cho từng dòng học sinh */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 10px 15px !important;
+    margin-bottom: 8px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: #059669 !important;
+}
+
+/* Tùy chỉnh các ô Selectbox trong bảng */
+div[data-testid="stSelectbox"] {
+    margin-bottom: 0 !important;
+}
+
+/* Nút Lưu & Gửi (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #059669 !important; /* Màu xanh lá chuyên nghiệp */
+    border: none !important;
+    height: 3.5rem;
+    font-weight: bold !important;
+    border-radius: 10px !important;
+}
+
+/* Khung Nhật ký bài học bên phải */
+div[data-testid="stColumn"]:last-child [data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #f8fafc;
+    border-left: 5px solid #059669 !important;
+}

@@ -1,13 +1,30 @@
 import streamlit as st
+import os
+
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
+def load_css(file_name):
+  
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 def render_profile_page():
-    st.set_page_config(layout="wide")
+
+    load_css("teacher/trang_ca_nhan.css")
+
     st.title("👤 Quản Lý Tài Khoản")
     st.markdown("Cập nhật thông tin cá nhân, ảnh đại diện và các liên kết mạng xã hội của bạn để kết nối tốt hơn với học viên và đồng nghiệp.")
 
     st.divider()
 
-    # --- CHIA LAYOUT 2 CỘT CHO THẨM MỸ ---
+    # --- CHIA LAYOUT 2 CỘT ---
     col_avatar, col_info = st.columns([1, 2.5], gap="large")
 
     # ==========================================
@@ -16,7 +33,8 @@ def render_profile_page():
     with col_avatar:
         st.markdown("### 🖼️ Ảnh đại diện")
         with st.container(border=True):
-            st.image("https://api.dicebear.com/7.x/avataaars/svg?seed=MinhTran&backgroundColor=e2e8f0", use_column_width=True)
+            # Sử dụng ảnh avatar mẫu hoặc ảnh từ session_state nếu có
+            st.image("https://api.dicebear.com/7.x/avataaars/svg?seed=MinhTran&backgroundColor=e2e8f0", use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
             uploaded_file = st.file_uploader("Tải ảnh mới lên", type=['png', 'jpg', 'jpeg'], help="Giới hạn 200MB mỗi file")
             if uploaded_file is not None:
@@ -56,6 +74,7 @@ def render_profile_page():
                 if not name.strip():
                     st.error("⚠️ Họ và Tên không được để trống!")
                 else:
+                    # Tại đây bạn sẽ thực hiện gọi API cập nhật Database
                     st.success("🎉 Đã cập nhật thông tin hồ sơ thành công!")
 
 if __name__ == "__main__":

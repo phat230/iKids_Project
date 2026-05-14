@@ -1,25 +1,49 @@
 import streamlit as st
 import requests
 import pandas as pd
+import os
 
 # 1. CẤU HÌNH TRANG
-st.set_page_config(page_title="Hộp Thư & Thông Báo", page_icon="🔔", layout="wide")
+st.set_page_config(page_title="Hộp Thư & Thông Báo", page_icon="📨", layout="wide")
+# ================= HÀM ĐỌC FILE CSS =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'shared/thong_bao.css'
+    """
+    # Lấy đường dẫn đến thư mục iKids_Project (gốc)
+    # __file__ là đường dẫn của file thong_bao.py hiện tại
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # Đang ở frontend/pages/shared
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp từ pages/shared/ rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        # Nếu vẫn lỗi, nó sẽ in ra đường dẫn chính xác mà máy đang tìm để bạn kiểm tra
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS (Chỉ cần truyền phần đuôi sau thư mục CSS/)
+load_css("shared/thong_bao.css")
 
 API_URL = "http://localhost:8000"
 
 # 1. KIỂM TRA ĐĂNG NHẬP
 if "token" not in st.session_state:
-    st.error("🔒 Vui lòng đăng nhập để xem thông báo.")
+    st.error("⚠️ Vui lòng đăng nhập để xem thông báo.")
     st.stop()
 
 user_id = st.session_state.get("user_id")
 user_role = st.session_state.get("role", "").lower()
 user_name = st.session_state.get("user_info", {}).get("name", "Người dùng")
 
-st.title("🔔 Trung Tâm Thông Báo & Hộp Thư")
+st.title("📨 Trung Tâm Thông Báo & Hộp Thư")
 
 # =========================
-# 2. CẤU HÌNH PHÂN QUYỀN GỬI (ĐÃ TỐI ƯU)
+# 2. CẤU HÌNH PHÂN QUYỀN GỬI
 # =========================
 ROLE_TARGETS = {
     "admin": {"operator": "Nhân viên vận hành", "teacher": "Giáo viên"},
@@ -33,7 +57,7 @@ NOTI_TYPES = {
     "message": "💬 Tin nhắn trao đổi",
     "schedule": "📅 Lịch học",
     "finance": "💰 Tài chính & Học phí",
-    "request": "📝 Đơn từ & Yêu cầu",
+    "request": "📄 Đơn từ & Yêu cầu",
     "system": "⚙️ Hệ thống"
 }
 
@@ -59,13 +83,12 @@ def mark_read(noti_id):
 # =========================
 # 4. GIAO DIỆN CHÍNH
 # =========================
-tab_inbox, tab_compose, tab_sent = st.tabs(["📥 Hộp thư đến", "✍️ Soạn thông báo", "📤 Lịch sử đã gửi"])
+tab_inbox, tab_compose, tab_sent = st.tabs(["📥 Hộp thư đến", "✍️ Soạn thông báo", "🕒 Lịch sử đã gửi"])
 
 # --- TAB 1: HỘP THƯ ĐẾN ---
 with tab_inbox:
     inbox_data = fetch_inbox()
     
-    # Bộ lọc nhanh theo loại (Hữu ích cho Phụ huynh xem Tài chính/Lịch học)
     col_f1, col_f2 = st.columns([2, 1])
     with col_f1:
         filter_type = st.multiselect("Lọc theo loại:", options=list(NOTI_TYPES.keys()), 
@@ -81,23 +104,24 @@ with tab_inbox:
     else:
         unread = [n for n in filtered_data if not n.get("is_read")]
         if unread:
-            st.toast(f"Bạn có {len(unread)} thông báo chưa đọc!", icon="📨")
+            st.toast(f"Bạn có {len(unread)} thông báo chưa đọc!", icon="🔔")
 
         for noti in filtered_data:
             is_read = noti.get("is_read", False)
-            bg_color = "#1E1E1E" if is_read else "#262730" # Làm nổi bật tin chưa đọc
             
             with st.container(border=True):
                 c1, c2 = st.columns([4, 1])
                 with c1:
-                    type_label = NOTI_TYPES.get(noti.get('type'), '🔔')
-                    st.markdown(f"**{type_label} | {noti.get('title')}**")
+                    type_label = NOTI_TYPES.get(noti.get('type'), '📨')
+                    # Đánh dấu in đậm tiêu đề nếu chưa đọc
+                    title_prefix = "🔵 " if not is_read else ""
+                    st.markdown(f"**{title_prefix}{type_label} | {noti.get('title')}**")
                     st.caption(f"Từ: {noti.get('sender_name')} ({noti.get('sender_role').upper()})")
                 with c2:
-                    st.caption(f"🕒 {noti.get('created_at', '')[:16].replace('T', ' ')}")
+                    st.caption(f"📅 {noti.get('created_at', '')[:16].replace('T', ' ')}")
                 
                 with st.expander("Xem chi tiết nội dung"):
-                    st.write(noti.get("content"))
+                    st.markdown(f"<div class='noti-content'>{noti.get('content')}</div>", unsafe_allow_html=True)
                     if not is_read:
                         if st.button("Đánh dấu đã đọc", key=f"btn_{noti.get('id')}"):
                             mark_read(noti.get('id'))
@@ -118,7 +142,6 @@ with tab_compose:
                 noti_type = st.selectbox("Loại thông báo (*):", options=list(NOTI_TYPES.keys()), 
                                          format_func=lambda x: NOTI_TYPES[x])
             with col_b:
-                # Nếu là admin/operator thì mới hiện ô nhập ID, học sinh/phụ huynh thường gửi cho 'all' gv/nhân viên
                 if user_role in ["admin", "operator"]:
                     receiver_id = st.text_input("Mã người nhận cụ thể (Để trống nếu gửi cho tất cả):")
                 else:

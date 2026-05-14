@@ -1,0 +1,43 @@
+/* Tổng thể trang */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Làm đẹp tiêu đề */
+h1 {
+    color: #1e293b;
+    font-weight: 800;
+}
+
+/* Tùy chỉnh Form tạo lịch */
+[data-testid="stForm"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 25px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Thẻ lịch học trong danh sách */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #f8fafc;
+    border-radius: 10px !important;
+    transition: transform 0.2s;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-2px);
+    border-color: #3b82f6 !important;
+}
+
+/* Nút bấm Lưu & Gửi (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #2563eb !important;
+    color: white !important;
+    font-weight: bold !important;
+}
+
+/* Thông báo nhỏ (Caption) */
+.stCaption {
+    color: #64748b;
+}

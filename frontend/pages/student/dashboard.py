@@ -1,8 +1,31 @@
 import streamlit as st
 import requests
 import urllib.parse
+import os
 
-st.set_page_config(page_title="Bảng Điều Khiển Học Sinh", page_icon="🌟", layout="wide")
+st.set_page_config(page_title="Bảng Điều Khiển Học Sinh", page_icon="🏠", layout="wide")
+
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'student/dashboard.css'
+    """
+    # Lấy đường dẫn tuyệt đối đến thư mục chứa file dashboard.py hiện tại
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # Đang ở frontend/pages/student
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp từ pages/student/ rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS làm đẹp cho trang Dashboard (Chỉ truyền phần sau thư mục CSS/)
+load_css("student/dashboard.css")
 
 # ================= HÀM LẤY TÊN USER =================
 def get_current_username():
@@ -35,7 +58,7 @@ completed_tasks = student_profile.get("completed_tasks", [])
 
 # ================= LOGIC TÍNH TOÁN THĂNG HẠNG (CHẾ ĐỘ HARDCORE) =================
 def get_rank_info(current_exp):
-    # Các mốc thăng hạng siêu khó
+    # Các mốc thăng hạng
     ranks = [
         (0, "Beginner"),
         (500, "Explorer"),
@@ -56,7 +79,6 @@ def get_rank_info(current_exp):
             if i + 1 < len(ranks):
                 next_rank = ranks[i+1][1]
                 exp_needed = ranks[i+1][0]
-                # Tính % cho thanh tiến trình
                 exp_range = ranks[i+1][0] - ranks[i][0]
                 exp_gained = current_exp - ranks[i][0]
                 progress = exp_gained / exp_range
@@ -73,7 +95,7 @@ current_rank, next_rank, exp_needed, progress = get_rank_info(exp)
 exp_remaining = exp_needed - exp if next_rank != "Tối Đa" else 0
 
 # ================= GIAO DIỆN CHÍNH =================
-st.title("🌟 Bảng Điều Khiển Học Sinh")
+st.title("🏠 Bảng Điều Khiển Học Sinh")
 
 # 1. Hiển thị Thông số
 col1, col2, col3 = st.columns(3)
@@ -84,7 +106,7 @@ col3.metric("Số dư ví", "0.0 VNĐ")
 st.success(f"Chào mừng trở lại, {real_name}!")
 
 # 2. Thanh Tiến trình Thăng hạng
-st.markdown("### 🏆 Tiến trình thăng hạng")
+st.markdown("### 🚀 Tiến trình thăng hạng")
 if next_rank != "Tối Đa":
     st.write(f"Còn **{exp_remaining} EXP** nữa để đạt hạng **{next_rank}**")
     st.progress(progress)
@@ -97,7 +119,7 @@ st.divider()
 # 3. Nhiệm vụ hôm nay
 st.markdown("### 🎯 Nhiệm vụ hôm nay")
 
-# Quét xem đã làm bài nào chưa (Dựa vào ID lưu trong DB)
+# Quét xem đã làm bài nào chưa
 has_completed_video = any(str(task).startswith("vid_") for task in completed_tasks)
 has_completed_quiz = any(str(task).startswith("quiz_") for task in completed_tasks)
 
@@ -105,9 +127,9 @@ has_completed_quiz = any(str(task).startswith("quiz_") for task in completed_tas
 c1, c2, c3 = st.columns([6, 2, 2])
 with c1:
     if has_completed_video:
-        st.markdown("✅ ~~Xem 1 video bài giảng AI~~")
+        st.markdown("<div class='task-text'>✅ ~~Xem 1 video bài giảng AI~~</div>", unsafe_allow_html=True)
     else:
-        st.markdown("📺 Xem 1 video bài giảng AI")
+        st.markdown("<div class='task-text'>🎬 Xem 1 video bài giảng AI</div>", unsafe_allow_html=True)
 with c2:
     st.button("+30 EXP", disabled=True, key="btn_exp_vid", use_container_width=True)
 with c3:
@@ -121,9 +143,9 @@ with c3:
 c4, c5, c6 = st.columns([6, 2, 2])
 with c4:
     if has_completed_quiz:
-        st.markdown("✅ ~~Hoàn thành 1 bài Quiz học tập~~")
+        st.markdown("<div class='task-text'>✅ ~~Hoàn thành 1 bài Quiz học tập~~</div>", unsafe_allow_html=True)
     else:
-        st.markdown("📝 Hoàn thành 1 bài Quiz học tập")
+        st.markdown("<div class='task-text'>🧩 Hoàn thành 1 bài Quiz học tập</div>", unsafe_allow_html=True)
 with c5:
     st.button("+50 EXP", disabled=True, key="btn_exp_quiz", use_container_width=True)
 with c6:
@@ -133,11 +155,11 @@ with c6:
         if st.button("Làm ngay", key="btn_do_quiz_go", use_container_width=True):
             st.switch_page("pages/student/quiz.py")
 
-# Task 3: Điểm danh (Mặc định cho sẵn)
+# Task 3: Điểm danh
 c7, c8, c9 = st.columns([6, 2, 2])
 with c7:
-    st.markdown("✅ ~~Điểm danh chuyên cần~~")
+    st.markdown("<div class='task-text'>✅ ~~Điểm danh chuyên cần~~</div>", unsafe_allow_html=True)
 with c8:
     st.button("+20 EXP", disabled=True, key="btn_exp_att", use_container_width=True)
 with c9:
-    st.write("<div style='margin-top:10px; color:gray;'>Tự động</div>", unsafe_allow_html=True)
+    st.markdown("<div class='auto-text'>Tự động</div>", unsafe_allow_html=True)

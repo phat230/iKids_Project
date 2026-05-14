@@ -4,8 +4,32 @@ import time
 import re
 import html
 import urllib.parse # Thư viện mã hóa tên để gọi API không bị lỗi
+import os
 
-st.set_page_config(page_title="Rạp Chiếu Video AI", page_icon="📺", layout="wide")
+st.set_page_config(page_title="Rạp Chiếu Video AI", page_icon="🎬", layout="wide")
+
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'student/video.css'
+    """
+    # Lấy đường dẫn tuyệt đối đến thư mục chứa file video.py hiện tại
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # Đang ở frontend/pages/student
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp từ pages/student/ rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải file CSS (Chỉ cần truyền phần sau thư mục CSS/)
+load_css("student/video.css")
+
 
 # ================= HÀM LẤY THUMBNAIL YOUTUBE =================
 def get_yt_thumbnail(url):
@@ -31,45 +55,20 @@ def submit_comment(vid_id):
         real_name = get_current_username()
         new_comment = {"author": real_name, "text": cmt_text.strip()}
         
-        # BẮN API XUỐNG BACKEND LƯU MONGODB
         try:
             requests.post(f"http://127.0.0.1:8000/api/tv2/videos/{vid_id}/comments", json=new_comment)
-            time.sleep(0.2) # Đợi DB update 1 xíu
+            time.sleep(0.2) 
         except:
-            pass # Bỏ qua nếu lỗi mạng
+            pass 
             
     st.session_state[f"input_cmt_{vid_id}"] = ""
-
-# ================= CSS CHUẨN EDTECH & YOUTUBE =================
-st.markdown("""
-    <style>
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    .grid-title { font-size: 1rem; font-weight: bold; color: #0f0f0f; margin-top: 8px; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3;}
-    .grid-info { font-size: 0.8rem; color: #606060; margin-bottom: 10px; }
-    .yt-title { font-size: 1.4rem; font-weight: bold; color: #0f0f0f; margin-top: 15px; margin-bottom: 5px;}
-    .yt-stats { font-size: 0.9rem; color: #606060; margin-bottom: 15px; font-weight: 500;}
-    .playlist-scrollable { max-height: 650px; overflow-y: auto; overflow-x: hidden; padding-right: 8px; }
-    .playlist-scrollable::-webkit-scrollbar { width: 6px; }
-    .playlist-scrollable::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
-    .playlist-scrollable::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-    .playlist-scrollable::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    .yt-sidebar-title { font-size: 0.85rem; font-weight: bold; color: #0f0f0f; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 2px;}
-    .yt-sidebar-author { font-size: 0.75rem; color: #606060;}
-    .cmt-list-container { margin-top: 25px; }
-    .cmt-container { display: flex; gap: 15px; margin-bottom: 20px; }
-    .cmt-avatar { width: 40px; height: 40px; border-radius: 50%; background-color: #4F46E5; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;}
-    .cmt-content { flex: 1; }
-    .cmt-name { font-size: 0.9rem; font-weight: bold; color: #0f0f0f; margin-bottom: 3px;}
-    .cmt-text { font-size: 0.95rem; color: #0f0f0f;}
-    </style>
-""", unsafe_allow_html=True)
 
 if "student_profile" not in st.session_state:
     st.session_state.student_profile = {"name": "Học sinh", "exp": 0, "completed_tasks": []}
 if "selected_video" not in st.session_state:
     st.session_state.selected_video = None
 
-# GỌI API LẤY DATA (LUÔN LÀ DATA MỚI NHẤT TỪ DB)
+# GỌI API LẤY DATA
 API_URL = "http://127.0.0.1:8000/api/tv2/videos"
 try:
     response = requests.get(API_URL)
@@ -81,7 +80,7 @@ except:
 # VIEW 1: TRANG CHỦ (GRID 4 CỘT)
 # -------------------------------------------------------------------------
 if st.session_state.selected_video is None:
-    st.title("📺 Rạp Chiếu Video Bài Giảng")
+    st.title("🍿 Rạp Chiếu Video Bài Giảng")
     search_term = st.text_input("🔍 Tìm kiếm bài học...", placeholder="Nhập tên video...")
     filtered = [v for v in ai_videos if search_term.lower() in v.get('title','').lower()]
 
@@ -99,9 +98,9 @@ if st.session_state.selected_video is None:
                         st.image(get_yt_thumbnail(v['url']), use_container_width=True)
                         st.markdown(f"<div class='grid-title' title='{html.escape(v['title'])}'>{html.escape(v['title'])}</div>", unsafe_allow_html=True)
                         if v['id'] in st.session_state.student_profile['completed_tasks']:
-                            st.markdown("<div class='grid-info'>✅ Đã xem | 📚 " + html.escape(v.get('topic', 'Khác')) + "</div>", unsafe_allow_html=True)
+                            st.markdown("<div class='grid-info'>✅ Đã xem | 📌 " + html.escape(v.get('topic', 'Khác')) + "</div>", unsafe_allow_html=True)
                         else:
-                            st.markdown("<div class='grid-info'>🎁 +30 EXP | 📚 " + html.escape(v.get('topic', 'Khác')) + "</div>", unsafe_allow_html=True)
+                            st.markdown("<div class='grid-info'>⭐ +30 EXP | 📌 " + html.escape(v.get('topic', 'Khác')) + "</div>", unsafe_allow_html=True)
                         
                         if st.button("Xem ngay", key=f"home_{v['id']}", use_container_width=True):
                             st.session_state.selected_video = v
@@ -114,16 +113,14 @@ if st.session_state.selected_video is None:
 # VIEW 2: CHI TIẾT PLAYER
 # -------------------------------------------------------------------------
 else:
-    # Cập nhật lại current_v từ ai_videos mới nhất (tránh data bị cũ khi vừa Like xong)
     current_v = next((vid for vid in ai_videos if vid["id"] == st.session_state.selected_video["id"]), st.session_state.selected_video)
     st.session_state.selected_video = current_v 
     
     vid_id = current_v['id']
     is_completed = vid_id in st.session_state.student_profile['completed_tasks']
     real_name = get_current_username()
-    encoded_name = urllib.parse.quote(real_name) # Mã hóa để API không bị lỗi
+    encoded_name = urllib.parse.quote(real_name)
 
-    # THAY THẾ BẰNG 2 NÚT ĐIỀU HƯỚNG MỚI ĐỂ TRÁNH LÚ
     nav_c1, nav_c2, _ = st.columns([2, 2, 6])
     with nav_c1:
         if st.button("⬅️ Danh sách Video", use_container_width=True):
@@ -135,16 +132,14 @@ else:
 
     col_video, col_playlist = st.columns([7, 3], gap="large")
 
-    # ================== CỘT TRÁI ==================
     with col_video:
         try: st.video(current_v['url'])
         except: st.error("Link video không hợp lệ!")
         
         safe_title = html.escape(current_v.get('title', ''))
         st.markdown(f"<div class='yt-title'>{safe_title}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='yt-stats'>📚 Chủ đề: {html.escape(current_v.get('topic',''))} • 🎓 Trình độ: {html.escape(current_v.get('level',''))} • 🎁 Phần thưởng: +30 EXP</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='yt-stats'>📌 Chủ đề: {html.escape(current_v.get('topic',''))} • 📊 Trình độ: {html.escape(current_v.get('level',''))} • 🎁 Phần thưởng: +30 EXP</div>", unsafe_allow_html=True)
         
-        # LOGIC LIKE DATABASE: Kiểm tra tên user có trong danh sách liked_by không
         liked_by_list = current_v.get("liked_by", [])
         total_likes = current_v.get("likes", 0)
         has_liked = real_name in liked_by_list
@@ -153,7 +148,6 @@ else:
         with btn_c1:
             like_icon = f"❤️ Đã Thích ({total_likes})" if has_liked else f"👍 Thích ({total_likes})"
             if st.button(like_icon, key=f"like_{vid_id}", use_container_width=True):
-                # GỌI API TOGGLE LIKE XUỐNG DB
                 try:
                     requests.post(f"http://127.0.0.1:8000/api/tv2/videos/{vid_id}/like", json={"username": real_name})
                     time.sleep(0.2)
@@ -164,14 +158,12 @@ else:
         with btn_c2:
             if not is_completed:
                 if st.button("✅ Hoàn thành bài học", type="primary", use_container_width=True):
-                    # BẮN API LƯU ĐIỂM XUỐNG DATABASE GIỐNG TRẠM QUIZ
                     submit_payload = {"video_id": vid_id, "exp_earned": 30}
                     try:
                         requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/complete-video", json=submit_payload, timeout=5)
                     except Exception as e:
-                        st.toast("⚠️ Có lỗi khi lưu dữ liệu lên server, nhưng kết quả tạm thời vẫn được ghi nhận.")
+                        st.toast("⚠️ Có lỗi khi lưu dữ liệu lên server.")
 
-                    # Cập nhật Giao diện ngay lập tức
                     st.session_state.student_profile['completed_tasks'].append(vid_id)
                     st.session_state.student_profile['exp'] += 30
                     st.toast("🎉 Đã hoàn thành! Nhận +30 EXP")
@@ -182,9 +174,7 @@ else:
                 
         st.divider()
 
-        # DANH SÁCH BÌNH LUẬN (LẤY TRỰC TIẾP TỪ DB, KHÔNG XÀI SESSION_STATE NỮA)
         db_comments = current_v.get("comments", [])
-        # Đảo ngược danh sách để comment mới nhất lên đầu
         db_comments.reverse() 
         
         st.markdown(f"<h4>{len(db_comments)} Bình luận</h4>", unsafe_allow_html=True)
@@ -223,9 +213,8 @@ else:
             """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # ================== CỘT PHẢI ==================
     with col_playlist:
-        st.markdown("#### 📽️ Danh sách bài học")
+        st.markdown("#### 🎞️ Danh sách bài học")
         with st.container(height=650, border=False):
             for v in ai_videos:
                 if v['id'] == vid_id: continue 

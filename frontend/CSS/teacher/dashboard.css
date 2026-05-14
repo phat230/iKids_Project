@@ -1,0 +1,105 @@
+/* Tổng thể bảng lịch */
+.custom-calendar { 
+    width: 100%; 
+    border-collapse: collapse; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    background-color: white; 
+    margin-top: 10px;
+}
+
+.custom-calendar th, .custom-calendar td { 
+    border: 1px solid #cbd5e1; 
+    padding: 10px; 
+    text-align: center; 
+    vertical-align: middle; 
+}
+
+/* Header bảng */
+.custom-calendar th { 
+    background-color: #f1f5f9; 
+    color: #1e293b; 
+    font-weight: bold; 
+    font-size: 15px;
+}
+
+/* Cột Buổi (Sáng/Chiều/Tối) */
+.session-col { 
+    font-weight: bold; 
+    background-color: #e2e8f0; 
+    color: #0f172a; 
+    writing-mode: vertical-rl; 
+    transform: rotate(180deg); 
+    width: 50px; 
+    font-size: 16px; 
+    letter-spacing: 3px;
+}
+
+/* Cột Thời gian */
+.time-col { 
+    background-color: #f8fafc; 
+    font-weight: 600; 
+    font-size: 13px; 
+    color: #475569; 
+    width: 120px; 
+}
+
+/* Định dạng ngày lễ */
+.holiday-header { 
+    color: #ef4444 !important; 
+    background-color: #fef2f2 !important; 
+}
+
+.holiday-text { 
+    color: #ef4444; 
+    font-size: 11px; 
+    font-weight: bold; 
+    display: block; 
+    margin-top: 5px; 
+}
+
+.holiday-cell { 
+    background-color: #fef2f2; 
+    color: #ef4444; 
+    font-weight: bold; 
+    height: 100px; 
+    font-size: 14px;
+}
+
+/* Thẻ lớp học trong ô */
+.class-cell { 
+    background-color: #eff6ff; 
+    border: 1px solid #bfdbfe; 
+    border-radius: 6px; 
+    padding: 10px; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+    min-height: 80px;
+    text-align: left;
+}
+
+.class-subject { 
+    color: #1e3a8a; 
+    font-weight: bold; 
+    margin-bottom: 5px; 
+    font-size: 14px;
+}
+
+.class-name { 
+    color: #475569; 
+    font-size: 0.85em; 
+    font-weight: bold; 
+    margin-bottom: 3px; 
+}
+
+.class-room { 
+    color: #b91c1c; 
+    font-size: 0.8em; 
+}
+
+.class-teacher { 
+    color: #0f172a; 
+    font-weight: bold; 
+    font-size: 0.9em; 
+    border-top: 1px dashed #bfdbfe;
+    margin-top: 5px;
+    padding-top: 5px;
+}

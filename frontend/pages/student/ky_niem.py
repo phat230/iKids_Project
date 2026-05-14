@@ -1,8 +1,32 @@
 import streamlit as st
+import os
 from api_clients.tv3_client import get_memories, like_memory
 
 st.set_page_config(page_title="Góc Kỷ Niệm", page_icon="📸")
 
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'student/ky_niem.css'
+    """
+    # Lấy đường dẫn tuyệt đối của thư mục chứa file hiện tại (frontend/pages/student)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Lùi 2 cấp để về thư mục iKids_Project, sau đó vào frontend/CSS
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS (Chỉ truyền phần tên thư mục con và file nằm sau thư mục CSS/)
+load_css("student/ky_niem.css")
+
+# ================= GIAO DIỆN CHÍNH =================
 st.title("📸 Góc Kỷ Niệm")
 st.write("Nơi lưu giữ những khoảnh khắc học tập và vui chơi tuyệt vời của các bé!")
 st.divider()

@@ -1,30 +1,37 @@
 import streamlit as st
 import time
 import requests
+import os
 from datetime import datetime
 import pandas as pd
 
 st.set_page_config(page_title="Quản Lý Bài Tập AI", page_icon="🤖", layout="wide")
 
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
+def load_css(file_name):
+    """Tự động tìm file CSS trong thư mục frontend/CSS/"""
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # pages/teacher
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS (Truyền folder con teacher/)
+load_css("teacher/tao_quiz.css")
+
 # ================= KHỞI TẠO KHO LƯU TRỮ CHUNG =================
 if "quiz_questions" not in st.session_state:
     st.session_state.quiz_questions = []
-if "saved_quizzes" not in st.session_state:
-    st.session_state.saved_quizzes = []
 
-# LẤY CẢ EMAIL VÀ TÊN THẬT TỪ HỆ THỐNG ĐỂ LƯU VÀO DB
 def get_teacher_info():
     if "user_info" in st.session_state:
         info = st.session_state.user_info
         email = info.get("email", "khach@gmail.com")
-        
-        # Quét tên thật từ DB của TV1
-        name = info.get("full_name", 
-               info.get("name", 
-               info.get("ho_ten", 
-               info.get("ho_va_ten", 
-               info.get("username", email.split('@')[0])))))
-               
+        name = info.get("full_name", info.get("name", email.split('@')[0]))
         return email, name
     return "khach@gmail.com", "Khách"
 
@@ -35,20 +42,13 @@ API_URL = "http://127.0.0.1:8000"
 API_URL_QUIZZES = f"{API_URL}/api/tv2/quizzes"
 API_GENERATE_QUIZ = f"{API_URL}/api/tv2/generate-quiz"
 
-# ================= HÀM GỌI AI THÔNG QUA BACKEND =================
 def generate_real_ai_quiz(topic, num_q):
-    """Bắn Request xuống Backend, để Backend tự xài Key an toàn gọi Google AI"""
     try:
-        payload = {
-            "topic": topic,
-            "num_questions": num_q
-        }
-        
+        payload = {"topic": topic, "num_questions": num_q}
         response = requests.post(API_GENERATE_QUIZ, json=payload, timeout=60)
         
         if response.status_code == 200:
             data = response.json()
-            # Xử lý format tiền tố A, B, C, D cho chắc ăn
             raw_questions = data.get("questions", [])
             prefixes = ["A", "B", "C", "D"]
             for q in raw_questions:
@@ -63,159 +63,92 @@ def generate_real_ai_quiz(topic, num_q):
                 q["options"] = formatted_options
                 if formatted_options:
                     q["correct_answer"] = formatted_options[correct_idx]
-                    
             return raw_questions
-        elif response.status_code == 429:
-            st.error("⚠️ Backend báo: Hết hạn mức API (Quota) hoặc gọi quá nhanh. Hãy thử lại sau 1 phút!")
-            return []
-        else:
-            st.error(f"⚠️ Lỗi từ Backend: {response.text}")
-            return []
-            
-    except requests.exceptions.ConnectionError:
-        st.error("🔌 Lỗi: Không thể kết nối với Backend. Bạn đã bật Uvicorn chưa?")
         return []
     except Exception as e:
         st.error(f"🔥 Lỗi hệ thống: {e}")
         return []
 
 def get_completed_tasks():
-    """Lấy danh sách kết quả bài tập từ học sinh (TV2 Academic)"""
     try:
         res = requests.get(f"{API_URL}/api/tv2/quizzes/results")
         return res.json() if res.status_code == 200 else []
-    except:
-        return []
+    except: return []
 
 # ================= GIAO DIỆN CHÍNH =================
 st.title("🤖 Quản Lý Bài Tập & Tiến Độ Học Sinh")
 
-# Tạo 3 Tab
 tab_create, tab_preview, tab_tracking = st.tabs([
     "✨ Soạn bài tập (AI/Thủ công)", 
     "📋 Xem trước & Lưu kho", 
-    "📈 Tiến độ học sinh hoàn thành"
+    "📈 Tiến độ học sinh"
 ])
 
-# ----------------- TAB 1: SOẠN BÀI TẬP -----------------
+# --- TAB 1: SOẠN BÀI TẬP ---
 with tab_create:
     col_ai, col_manual = st.columns(2, gap="large")
-    
     with col_ai:
         st.subheader("Sinh đề bằng AI")
         topic = st.text_input("Chủ đề học tập", placeholder="Ví dụ: Động vật hoang dã")
         num_q = st.slider("Số lượng câu", 1, 10, 5)
-        
-        if st.button("🚀 AI Bắt đầu soạn đề", type="primary"):
-            if not topic:
-                st.warning("⚠️ Vui lòng nhập chủ đề trước khi gọi AI!")
+        if st.button("🚀 AI Bắt đầu soạn đề", type="primary", use_container_width=True):
+            if not topic: st.warning("⚠️ Vui lòng nhập chủ đề!")
             else:
-                with st.spinner(f"AI (Backend) đang phân tích chủ đề '{topic}' và soạn {num_q} câu hỏi..."):
-                    real_questions = generate_real_ai_quiz(topic, num_q)
-                    if real_questions:
-                        st.session_state.quiz_questions.extend(real_questions)
-                        st.success("✅ AI đã soạn xong! Hãy chuyển sang tab 'Xem trước & Lưu kho' bên cạnh để kiểm tra.")
+                with st.spinner(f"AI đang soạn {num_q} câu về '{topic}'..."):
+                    qs = generate_real_ai_quiz(topic, num_q)
+                    if qs:
+                        st.session_state.quiz_questions.extend(qs)
+                        st.success("✅ AI soạn xong! Hãy sang tab Xem trước.")
 
     with col_manual:
         st.subheader("Nhập câu hỏi thủ công")
         with st.form("manual_form"):
             manual_q = st.text_input("Câu hỏi")
             c1, c2 = st.columns(2)
-            opt_a = c1.text_input("Đáp án A")
-            opt_b = c1.text_input("Đáp án B")
-            opt_c = c2.text_input("Đáp án C")
-            opt_d = c2.text_input("Đáp án D")
-            correct_opt = st.selectbox("Đáp án đúng", ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"])
-            
-            if st.form_submit_button("➕ Thêm câu hỏi"):
-                if manual_q and opt_a and opt_b and opt_c and opt_d:
-                    fmt_a = opt_a if opt_a.upper().startswith("A. ") else f"A. {opt_a}"
-                    fmt_b = opt_b if opt_b.upper().startswith("B. ") else f"B. {opt_b}"
-                    fmt_c = opt_c if opt_c.upper().startswith("C. ") else f"C. {opt_c}"
-                    fmt_d = opt_d if opt_d.upper().startswith("D. ") else f"D. {opt_d}"
-                    
-                    opts_list = [fmt_a, fmt_b, fmt_c, fmt_d]
-                    correct_idx = ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"].index(correct_opt)
-                    
-                    st.session_state.quiz_questions.append({
-                        "question": manual_q,
-                        "options": opts_list,
-                        "correct_answer": opts_list[correct_idx]
-                    })
-                    st.success("Đã thêm 1 câu hỏi thủ công!")
-                else:
-                    st.error("Vui lòng điền đầy đủ câu hỏi và 4 đáp án.")
+            o_a, o_b = c1.text_input("Đáp án A"), c1.text_input("Đáp án B")
+            o_c, o_d = c2.text_input("Đáp án C"), c2.text_input("Đáp án D")
+            correct = st.selectbox("Đáp án đúng", ["A", "B", "C", "D"])
+            if st.form_submit_button("➕ Thêm câu hỏi", use_container_width=True):
+                if all([manual_q, o_a, o_b, o_c, o_d]):
+                    opts = [f"A. {o_a}", f"B. {o_b}", f"C. {o_c}", f"D. {o_d}"]
+                    idx = ["A", "B", "C", "D"].index(correct)
+                    st.session_state.quiz_questions.append({"question": manual_q, "options": opts, "correct_answer": opts[idx]})
+                    st.success("Đã thêm 1 câu!")
 
-# ----------------- TAB 2: XEM TRƯỚC & LƯU KHO -----------------
+# --- TAB 2: XEM TRƯỚC ---
 with tab_preview:
     if not st.session_state.quiz_questions:
-        st.info("💡 Chưa có câu hỏi nào. Hãy sử dụng AI hoặc tự nhập câu hỏi ở tab bên cạnh để bắt đầu.")
+        st.info("💡 Chưa có câu hỏi nào.")
     else:
-        st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu hỏi)")
-        quiz_title = st.text_input("Tên bộ Quiz (để lưu vào kho)", placeholder="Nhập tên để dễ quản lý sau này...")
+        st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu)")
+        quiz_title = st.text_input("Tên bộ Quiz", placeholder="Nhập tên để lưu...")
         
         for i, q in enumerate(st.session_state.quiz_questions):
             with st.container(border=True):
-                col_q, col_btn = st.columns([9, 1])
-                with col_q:
-                    st.markdown(f"**Câu {i+1}: {q['question']}**")
-                    correct_index = q['options'].index(q['correct_answer']) if q['correct_answer'] in q['options'] else 0
-                    st.radio("Các lựa chọn:", options=q['options'], index=correct_index, key=f"preview_q_{i}", disabled=True)
-                with col_btn:
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    if st.button("🗑️ Xóa", key=f"del_{i}"):
-                        st.session_state.quiz_questions.pop(i)
-                        st.rerun()
-            
-        st.markdown("<br>", unsafe_allow_html=True)
+                cq, cb = st.columns([9, 1])
+                cq.markdown(f"**Câu {i+1}: {q['question']}**")
+                ans_idx = q['options'].index(q['correct_answer']) if q['correct_answer'] in q['options'] else 0
+                cq.radio("Lựa chọn:", q['options'], index=ans_idx, key=f"preview_{i}", disabled=True)
+                if cb.button("🗑️", key=f"del_{i}"):
+                    st.session_state.quiz_questions.pop(i); st.rerun()
         
-        if st.button("💾 LƯU BỘ ĐỀ VÀO KHO HỌC LIỆU", type="primary", use_container_width=True):
-            if not quiz_title:
-                st.error("⚠️ Vui lòng đặt tên cho bộ Quiz trước khi lưu.")
+        if st.button("💾 LƯU BỘ ĐỀ VÀO KHO", type="primary", use_container_width=True):
+            if not quiz_title: st.error("⚠️ Hãy đặt tên bộ đề!")
             else:
-                new_quiz = {
-                    "title": quiz_title,
-                    "questions": st.session_state.quiz_questions,
-                    "created_at": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                    "author_email": teacher_email,
-                    "author": teacher_name
+                payload = {
+                    "title": quiz_title, "questions": st.session_state.quiz_questions,
+                    "author_email": teacher_email, "author": teacher_name
                 }
-                
-                try:
-                    response = requests.post(API_URL_QUIZZES, json=new_quiz)
-                    if response.status_code in [200, 201]:
-                        st.success(f"🎉 Đã lưu thành công bộ đề '{quiz_title}' vào Database thật! Đang chuyển sang Kho Học Liệu...")
-                        st.session_state.quiz_questions = [] 
-                        time.sleep(1.5)
-                        st.switch_page("pages/teacher/kho_hoc_lieu.py")
-                    else:
-                        st.error("⚠️ Lỗi khi lưu vào Database. Vui lòng thử lại!")
-                except Exception as e:
-                    st.error(f"⚠️ Mất kết nối đến Backend Database: {e}")
+                if requests.post(API_URL_QUIZZES, json=payload).status_code in [200, 201]:
+                    st.success("🎉 Đã lưu thành công!"); st.session_state.quiz_questions = []
+                    time.sleep(1); st.switch_page("pages/teacher/kho_hoc_lieu.py")
 
-# ----------------- TAB 3: TIẾN ĐỘ HỌC SINH -----------------
+# --- TAB 3: TIẾN ĐỘ ---
 with tab_tracking:
-    st.subheader("Danh sách bài tập học sinh đã hoàn thành")
-    st.write("Tại đây giáo viên có thể theo dõi xem học sinh nào đã làm bài và đạt bao nhiêu điểm.")
-    
-    # Lấy dữ liệu thật từ database kết quả bài làm
+    st.subheader("Tiến độ học sinh hoàn thành")
     results = get_completed_tasks()
-    
     if not results:
-        # Mock data mẫu nếu DB chưa có dữ liệu kết quả
-        results = [
-            {"student_name": "Nguyễn Văn An", "quiz_title": "Thì hiện tại đơn", "score": "9/10", "date": "12/05/2026"},
-            {"student_name": "Trần Thị Bình", "quiz_title": "Từ vựng Con Vật", "score": "10/10", "date": "13/05/2026"},
-        ]
-
-    # Hiển thị dạng bảng
+        results = [{"Học sinh": "An", "Bài tập": "Toán", "Điểm": "9/10", "Ngày": "12/05/2026"}]
     df = pd.DataFrame(results)
-    df.columns = ["Học sinh", "Tên bài tập", "Điểm số", "Ngày nộp"]
     st.table(df)
-
-    st.download_button(
-        label="📥 Xuất báo cáo kết quả (Excel/CSV)",
-        data=df.to_csv(index=False).encode('utf-8-sig'),
-        file_name='ket_qua_hoc_tap.csv',
-        mime='text/csv',
-    )
+    st.download_button("📥 Xuất báo cáo", data=df.to_csv(index=False).encode('utf-8-sig'), file_name='ket_qua.csv', mime='text/csv')

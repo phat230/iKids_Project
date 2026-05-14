@@ -1,0 +1,40 @@
+/* Tổng thể trang giao bài */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Định dạng tiêu đề */
+h1 {
+    color: #1e293b;
+    font-weight: 800;
+}
+
+/* Làm đẹp khung cấu hình giao bài */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 30px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Tùy chỉnh các tiêu đề phụ */
+h3 {
+    color: #4f46e5;
+    margin-bottom: 20px !important;
+}
+
+/* Nút Xác nhận giao bài (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #4f46e5 !important;
+    color: white !important;
+    height: 3.5rem;
+    font-weight: bold !important;
+    border-radius: 10px !important;
+    margin-top: 10px;
+}
+
+/* Định dạng thông báo Warning/Info */
+.stAlert {
+    border-radius: 10px !important;
+}

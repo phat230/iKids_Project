@@ -1,0 +1,48 @@
+/* Khoảng cách tổng thể của trang */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Định dạng tiêu đề trang (Màu xanh lá đậm tạo cảm giác an toàn tài chính) */
+h1 {
+    color: #047857;
+    font-weight: bold;
+}
+
+/* Làm nổi bật số tiền trong phần Metric (Số dư ví hiện tại) */
+[data-testid="stMetricValue"] {
+    color: #10b981 !important;
+    font-size: 2.5rem !important;
+    font-weight: 800 !important;
+}
+
+/* Bo góc và tạo bóng cho hình ảnh mã QR */
+img {
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin: 10px auto;
+    display: block;
+}
+
+/* Làm đẹp cho các nút bấm (Nút xác nhận chuyển khoản) */
+.stButton > button[kind="primary"] {
+    background-color: #059669 !important;
+    color: white !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    transition: all 0.2s ease;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background-color: #047857 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
+
+/* Khung Expander Hỗ trợ sự cố */
+.st-expander {
+    border: 1px solid #fecaca !important;
+    border-radius: 8px !important;
+    background-color: #fff1f2 !important;
+}

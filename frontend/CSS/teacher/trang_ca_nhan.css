@@ -1,0 +1,46 @@
+/* Tổng thể trang hồ sơ */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* Định dạng tiêu đề chính */
+h1 {
+    color: #1e293b;
+    font-weight: 800;
+}
+
+/* Làm đẹp khung chứa ảnh đại diện */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border-radius: 15px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 20px !important;
+    text-align: center;
+}
+
+/* Tùy chỉnh Form thông tin */
+[data-testid="stForm"] {
+    border-radius: 15px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 30px !important;
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Nút Lưu Thay Đổi (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #2563eb !important;
+    color: white !important;
+    height: 3.5rem;
+    font-weight: bold !important;
+    border-radius: 10px !important;
+    letter-spacing: 1px;
+}
+
+/* Định dạng các thẻ tiêu đề phụ trong Form */
+h5 {
+    color: #475569;
+    border-left: 4px solid #2563eb;
+    padding-left: 10px;
+    margin-bottom: 15px !important;
+}

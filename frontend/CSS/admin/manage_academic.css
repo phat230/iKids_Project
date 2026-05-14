@@ -1,0 +1,39 @@
+/* Khoảng cách tổng thể của trang */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Định dạng tiêu đề Quản trị (Màu tối chuyên nghiệp) */
+h1 {
+    color: #0f172a;
+    font-weight: bold;
+}
+
+/* Định dạng tiêu đề phụ */
+h3 {
+    color: #334155;
+    font-weight: 600;
+}
+
+/* Làm nổi bật khung thông tin Info */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+    border-left: 5px solid #3b82f6 !important;
+}
+
+/* Tùy chỉnh Nút (Primary) */
+.stButton > button[kind="primary"] {
+    background-color: #0f172a !important;
+    color: white !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: bold !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background-color: #1e293b !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}

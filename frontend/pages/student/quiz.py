@@ -2,21 +2,30 @@ import streamlit as st
 import requests
 import time
 import urllib.parse
-
+import os
 st.set_page_config(page_title="Trạm Quiz AI", page_icon="📝", layout="wide")
 
-# CSS Trang trí cho thẻ Quiz đẹp mắt
-st.markdown("""
-    <style>
-    .quiz-card {
-        background: #ffffff; border-radius: 10px; padding: 15px 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px;
-        border-left: 5px solid #4F46E5; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;
-    }
-    .quiz-title { font-size: 1.2rem; font-weight: bold; color: #1e293b; margin-bottom: 5px; }
-    .quiz-meta { color: #64748b; font-size: 0.9rem; }
-    </style>
-""", unsafe_allow_html=True)
+# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+def load_css(file_name):
+    """
+    Tự động tìm file CSS trong thư mục frontend/CSS/
+    file_name: tên file kèm thư mục con, ví dụ 'student/quiz.css'
+    """
+    # Lấy đường dẫn tuyệt đối đến thư mục chứa file quiz.py hiện tại
+    current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
+    
+    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+
+# Tải CSS (Chỉ truyền phần tên thư mục con và file)
+load_css("student/quiz.css")
 
 # ================= HÀM LẤY TÊN USER =================
 def get_current_username():
@@ -28,7 +37,6 @@ def get_current_username():
     return "Học sinh"
 
 real_name = get_current_username()
-# MÃ HÓA TÊN AN TOÀN ĐỂ KHÔNG BỊ LỖI KHI GỌI API (Khắc phục lỗi khoảng trắng)
 encoded_name = urllib.parse.quote(real_name)
 
 # ================= ĐỒNG BỘ PROFILE TỪ DATABASE =================
@@ -62,13 +70,13 @@ if "selected_quiz" not in st.session_state:
 # MÀN HÌNH 1: DANH SÁCH BỘ ĐỀ
 # -------------------------------------------------------------------------
 if st.session_state.selected_quiz is None:
-    st.title("📝 Trạm Quiz AI")
+    st.title("🧩 Trạm Quiz AI")
     st.write("Hoàn thành các bài tập dưới đây để tích lũy EXP thăng hạng nhé!")
     
     st.markdown(f"🌟 **Tổng EXP của bạn:** `{st.session_state.student_profile.get('exp', 0)} EXP`")
 
     if not saved_quizzes:
-        st.info("🎉 Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!")
+        st.info("🛌 Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!")
     else:
         for i, q in enumerate(saved_quizzes):
             quiz_id = q.get('id', f"quiz_backup_id_{i}")
@@ -79,7 +87,7 @@ if st.session_state.selected_quiz is None:
                 with col_info:
                     st.markdown(f"""
                     <div class="quiz-card">
-                        <div class="quiz-title">📜 {q.get('title', 'Bài tập chưa có tên')}</div>
+                        <div class="quiz-title">📌 {q.get('title', 'Bài tập chưa có tên')}</div>
                         <div class="quiz-meta">Số câu: {len(q.get('questions', []))} | Phần thưởng: +50 EXP</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -127,7 +135,7 @@ else:
             )
             st.write("---")
         
-        submit_btn = st.form_submit_button("🚀 Nộp Bài & Nhận Thưởng", type="primary", use_container_width=True)
+        submit_btn = st.form_submit_button("🏆 Nộp Bài & Nhận Thưởng", type="primary", use_container_width=True)
         
         if submit_btn:
             if None in user_answers.values():
@@ -151,7 +159,7 @@ else:
                 st.session_state.student_profile['exp'] += earned_exp
                 st.session_state.student_profile['completed_tasks'].append(quiz_id)
                 
-                st.success(f"🎉 Chấm xong! Bạn làm đúng {correct_count}/{num_questions} câu. **Điểm: {score}/10**")
+                st.success(f"💯 Chấm xong! Bạn làm đúng {correct_count}/{num_questions} câu. **Điểm: {score}/10**")
                 st.balloons()
                 st.info(f"✨ Chúc mừng! Bạn nhận được +{earned_exp} EXP! Đang quay lại trang chủ...")
                 

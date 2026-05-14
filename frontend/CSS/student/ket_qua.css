@@ -1,0 +1,24 @@
+/* Khoảng cách tổng thể của trang */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Định dạng màu sắc cho tiêu đề trang (Màu xanh dương học thuật) */
+h1 {
+    color: #2563eb;
+    font-weight: bold;
+}
+
+/* Định dạng cho phần Subheader AI (Màu xanh lá) */
+h3 {
+    color: #059669;
+    font-weight: bold;
+}
+
+/* Làm nổi bật khung thông báo (nhận xét của AI) */
+div[data-testid="stAlert"] {
+    border-radius: 10px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+    border-left: 5px solid #10b981 !important;
+}
