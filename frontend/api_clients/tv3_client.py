@@ -45,10 +45,9 @@ def deposit_money(user_id, amount):
         return False, res.json().get("detail", "Giao dịch thất bại.")
     except Exception as e:
         return False, str(e)
-
 @st.cache_data(ttl=300) 
 def get_store_products():
-    """Lấy danh sách sản phẩm (có cache để load nhanh hơn)."""
+    """Lấy danh sách sản phẩm."""
     try:
         res = requests.get(f"{API_URL}/products")
         return res.json() if res.status_code == 200 else []
@@ -57,10 +56,13 @@ def get_store_products():
 
 def purchase_product(user_id, product_id):
     """
-    XỬ LÝ MUA TRỰC TIẾP: Trừ tiền thẳng vào ví của người dùng.
-    Dùng khi học sinh đã có đủ tiền trong ví.
+    XỬ LÝ MUA TRỰC TIẾP
+    ĐÃ SỬA: Bỏ int(product_id) vì ID MongoDB là String
     """
-    payload = {"user_id": str(user_id), "product_id": int(product_id)}
+    payload = {
+        "user_id": str(user_id), 
+        "product_id": str(product_id)
+    }
     try:
         res = requests.post(f"{API_URL}/products/purchase", json=payload)
         if res.status_code == 200:
@@ -71,15 +73,15 @@ def purchase_product(user_id, product_id):
 
 def request_purchase(student_id, product_id, product_name, price):
     """
-    XỬ LÝ XIN PHÉP: Gửi yêu cầu chờ phụ huynh duyệt.
-    Dùng khi học sinh không đủ tiền hoặc hệ thống yêu cầu xin phép.
+    XỬ LÝ XIN PHÉP BA MẸ
+    ĐÃ SỬA: Bỏ int(product_id) tại đây
     """
     payload = {
         "student_id": str(student_id),
-        "product_id": int(product_id),
+        "product_id": str(product_id), 
         "product_name": product_name,
         "price": float(price),
-        "parent_id": None # Backend sẽ tự tìm parent_id dựa trên student_id
+        "parent_id": None 
     }
     try:
         res = requests.post(f"{API_URL}/store/request-purchase", json=payload)
@@ -144,4 +146,21 @@ def like_memory(memory_id):
         res = requests.post(f"{API_URL}/memories/{memory_id}/like")
         return res.status_code == 200
     except Exception:
+        return False
+    
+def manage_product_api(method, prod_id=None, payload=None):
+    """Hàm dùng chung cho CRUD sản phẩm"""
+    try:
+        url = f"{API_URL}/products"
+        if prod_id: url += f"/{prod_id}"
+        
+        if method == "POST":
+            res = requests.post(url, json=payload)
+        elif method == "PUT":
+            res = requests.put(url, json=payload)
+        elif method == "DELETE":
+            res = requests.delete(url)
+            
+        return res.status_code == 200
+    except:
         return False

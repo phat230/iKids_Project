@@ -1,3 +1,4 @@
+# backend/modules/tv3_community/schemas.py
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -15,13 +16,16 @@ class DepositRequest(BaseModel):
     amount: float = Field(..., gt=0) 
 
 class PurchaseRequest(BaseModel):
-    """Yêu cầu mua sản phẩm học liệu"""
+    """
+    Yêu cầu mua sản phẩm học liệu
+    QUAN TRỌNG: product_id chuyển sang kiểu str để khớp với ID MongoDB
+    """
     user_id: str  
-    product_id: int
+    product_id: str # Đã đổi từ int sang str
 
 # --- 2. GÓC KỶ NIỆM (Phụ huynh & Học sinh) ---
 class MemoryRecord(BaseModel):
-    class_id: int
+    class_id: str # Đổi sang str để đồng bộ MongoDB
     teacher_name: str 
     media_url: str
     description: str
@@ -30,7 +34,7 @@ class MemoryRecord(BaseModel):
 
 # --- 3. ĐĂNG KÝ KHÓA HỌC & KHUYẾN MÃI ---
 class CoursePackage(BaseModel):
-    package_id: int
+    package_id: str # Đổi sang str
     package_name: str
     description: str
     price: float
@@ -40,17 +44,16 @@ class CoursePackage(BaseModel):
 class CourseRegistration(BaseModel):
     parent_id: str
     student_id: str
-    package_id: int
+    package_id: str # Đổi sang str
     status: str = "pending" 
     created_at: datetime = Field(default_factory=datetime.now)
 
-# --- 4. CỔNG LIÊN HỆ & REQUEST (CẬP NHẬT TRƯỜNG AMOUNT) ---
+# --- 4. CỔNG LIÊN HỆ & REQUEST ---
 class ContactMessageCreate(BaseModel):
     sender_id: str
     receiver_id: str 
     subject: str     
     content: str
-    # QUAN TRỌNG: Thêm trường này để nhận số tiền báo cáo từ Phụ huynh
     amount: Optional[float] = 0.0 
 
 class ContactMessage(ContactMessageCreate):
