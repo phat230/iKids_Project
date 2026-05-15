@@ -308,3 +308,93 @@ async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db
         await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "approved"}})
         
         return {"status": "success", "message": "Đã duyệt mua đồ cho con!"}
+  # --- 10. QUẢN LÝ BÀI VIẾT TRANG CHỦ (CMS) ---
+
+@router.get("/posts")
+async def get_all_posts(status: str = None, db = Depends(get_db)):
+    """Lấy danh sách bài viết, có thể lọc theo status (published/archived)"""
+    query = {}
+    if status:
+        query["status"] = status
+    
+    # Sắp xếp bài viết mới nhất lên đầu
+    cursor = db.posts.find(query).sort("date", -1)
+    posts = []
+    async for doc in cursor:
+        doc["id"] = str(doc["_id"])
+        del doc["_id"]
+        posts.append(doc)
+    return posts
+
+@router.post("/posts")
+async def create_new_post(payload: dict = Body(...), db = Depends(get_db)):
+    """Tạo bài viết mới từ Operator"""
+    # Đảm bảo bài viết mới luôn có status mặc định nếu frontend không gửi
+    if "status" not in payload:
+        payload["status"] = "published"
+    
+    result = await db.posts.insert_one(payload)
+    return {"status": "success", "id": str(result.inserted_id)}
+
+@router.put("/posts/{post_id}")
+async def update_post(post_id: str, payload: dict = Body(...), db = Depends(get_db)):
+    """Cập nhật nội dung bài viết"""
+    result = await db.posts.update_one(
+        {"_id": ObjectId(post_id)},
+        {"$set": payload}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết")
+    return {"status": "success"}
+
+@router.patch("/posts/{post_id}")
+async def patch_post_status(post_id: str, payload: dict = Body(...), db = Depends(get_db)):
+    """Cập nhật nhanh trạng thái (Ví dụ: Chuyển sang archived hoặc published)"""
+    result = await db.posts.update_one(
+        {"_id": ObjectId(post_id)},
+        {"$set": {"status": payload.get("status")}}
+    )
+    return {"status": "success"}
+
+@router.delete("/posts/{post_id}")
+async def delete_post(post_id: str, db = Depends(get_db)):
+    """Xóa vĩnh viễn bài viết"""
+    result = await db.posts.delete_one({"_id": ObjectId(post_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết để xóa")
+    return {"status": "success"}
+
+
+# ================= ĐÃ SỬA LỖI OBJECT_ID TẠI ĐÂY =================
+
+@router.get("/about")
+async def get_about(db = Depends(get_db)):
+    data = await db.config.find_one({"type": "about"})
+    if not data:
+        return {} # Trả về dict rỗng nếu chưa có dữ liệu để Frontend không bị lỗi NoneType
+    
+    # Ép kiểu ObjectId thành String để tránh lỗi 500
+    data["id"] = str(data["_id"])
+    del data["_id"]
+    return data
+
+@router.put("/about")
+async def update_about(payload: dict, db = Depends(get_db)):
+    await db.config.update_one({"type": "about"}, {"$set": payload}, upsert=True)
+    return {"status": "success"}
+
+@router.get("/contact")
+async def get_contact(db = Depends(get_db)):
+    data = await db.config.find_one({"type": "contact"})
+    if not data:
+        return {}
+    
+    # Ép kiểu ObjectId thành String để tránh lỗi 500
+    data["id"] = str(data["_id"])
+    del data["_id"]
+    return data
+
+@router.put("/contact")
+async def update_contact(payload: dict, db = Depends(get_db)):
+    await db.config.update_one({"type": "contact"}, {"$set": payload}, upsert=True)
+    return {"status": "success"}

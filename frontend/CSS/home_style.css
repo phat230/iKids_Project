@@ -1,0 +1,43 @@
+/* Header & Logo */
+.header-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 0;
+}
+.logo-img {
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #4F46E5;
+}
+
+/* Tin tức lướt ngang */
+.scroll-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 20px;
+    padding: 10px 5px;
+    scrollbar-width: thin;
+}
+.news-card {
+    min-width: 300px;
+    max-width: 300px;
+    background: white;
+    border-radius: 15px;
+    border: 1px solid #e2e8f0;
+    padding: 15px;
+    transition: 0.3s;
+}
+.news-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer Liên hệ */
+.contact-footer {
+    background-color: #1e293b;
+    color: white;
+    padding: 40px;
+    border-radius: 20px;
+    margin-top: 50px;
+}

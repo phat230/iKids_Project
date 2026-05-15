@@ -9,13 +9,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Khởi tạo các state mặc định nếu chưa có để tránh lỗi ở các trang con
+if "view_mode" not in st.session_state:
+    st.session_state.view_mode = "week"
+
 # 2. ĐỊNH NGHĨA CÁC TRANG CƠ BẢN
 home_page = st.Page("home.py", title="Trang Chủ", icon="🏠", default=True)
 login_page = st.Page("auth/login.py", title="Đăng Nhập", icon="🔐")
 register_page = st.Page("auth/register.py", title="Đăng Ký", icon="📝")
 forgot_page = st.Page("auth/forgot_password.py", title="Quên Mật Khẩu", icon="🔑")
-
-# TRANG THÔNG BÁO DÙNG CHUNG (Mới thêm)
 notification_page = st.Page("pages/shared/thong_bao.py", title="Hộp Thư & Thông Báo", icon="🔔")
 
 # 3. XỬ LÝ ĐIỀU HƯỚNG
@@ -26,7 +28,7 @@ if "token" not in st.session_state or st.session_state.token is None:
         "Tài khoản": [login_page, register_page, forgot_page]
     })
     
-    # CSS ẩn trang Quên mật khẩu khỏi menu chính
+    # CSS ẩn trang Quên mật khẩu khỏi menu chính để sidebar đẹp hơn
     st.markdown("""
         <style>
             [data-testid="stSidebarNav"] ul li:has(span:contains("Quên Mật Khẩu")) {
@@ -51,6 +53,7 @@ else:
         menu_pages.extend([
             st.Page("pages/admin/dashboard.py", title="Bảng Điều Khiển Admin", icon="🛡️"),
             st.Page("pages/admin/quan_ly_nhan_su.py", title="Quản Lý Nhân Sự", icon="👥"),
+            st.Page("pages/admin/manage_users.py", title="Quản Lý Tài Khoản", icon="👤"),
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Hệ Thống", icon="⚙️")
         ])
 
@@ -58,6 +61,7 @@ else:
     elif role == "operator":
         menu_pages.extend([
             st.Page("pages/operator/dashboard.py", title="Bảng Vận Hành", icon="🕹️"),
+            # --- TRANG MỚI: QUẢN LÝ TIN TỨC TRANG CHỦ ---
             st.Page("pages/operator/xep_lich.py", title="Xếp Lịch Dạy", icon="📅"),
             st.Page("pages/operator/quan_ly_lop.py", title="Quản Lý Lớp Học", icon="🏫"), 
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="👤")
@@ -82,9 +86,8 @@ else:
             st.Page("pages/student/lich_hoc.py", title="Lịch Học", icon="📅"),
             st.Page("pages/student/quiz.py", title="Trạm Quiz AI", icon="📝"),
             st.Page("pages/student/cua_hang.py", title="Cửa Hàng iKids", icon="🛒"),
-            st.Page("pages/student/ky_niem.py", title="Góc Kỷ Niệm", icon="📸"),
-            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="🧑‍🎤"),
-            st.Page("pages/student/video.py", title="Rạp Chiếu Video AI", icon="📺")
+            st.Page("pages/student/video.py", title="Rạp Chiếu Video AI", icon="📺"),
+            st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân", icon="🧑‍🎤")
         ])
 
     # 5. Role: Parent (Phụ huynh)
@@ -95,7 +98,6 @@ else:
             st.Page("pages/parent/ket_qua.py", title="Báo Cáo Học Tập", icon="📊"),
             st.Page("pages/parent/nap_tien.py", title="Nạp Tiền & Ví", icon="💳"),
             st.Page("pages/parent/cua_hang.py", title="Mua Đồ Cho Con", icon="🛒"),
-            st.Page("pages/parent/ky_niem.py", title="Kỷ Niệm Của Con", icon="📸"),
             st.Page("pages/parent/lien_he.py", title="Liên Hệ & Xin Nghỉ", icon="📞"),
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Tài Khoản", icon="⚙️")
         ])
@@ -105,21 +107,24 @@ else:
     
     # Hiển thị thông tin định danh ở Sidebar
     with st.sidebar:
-        st.write(f"### Chào, {user.get('full_name', 'Thành viên')}! 👋")
+        st.write(f"### Chào, {user.get('full_name', user.get('name', 'Thành viên'))}! 👋")
         
-        # Xử lý Avatar chuyên nghiệp
+        # Xử lý Avatar
         avatar_url = user.get("avatar_url")
         if avatar_url:
-            st.image(f"http://localhost:8000{avatar_url}", width=100)
+            # Nếu link avatar là nội bộ server
+            if avatar_url.startswith("/"):
+                st.image(f"http://localhost:8000{avatar_url}", width=100)
+            else:
+                st.image(avatar_url, width=100)
         else:
-            st.image("https://www.w3schools.com/howto/img_avatar.png", width=100)
+            st.image("https://api.dicebear.com/7.x/avataaars/svg?seed=" + user.get('email', 'ikids'), width=100)
             
         st.caption(f"Quyền truy cập: {role.upper()}")
         
-        # Hiển thị thông báo chấm đỏ nếu có tin nhắn mới (Tùy chọn thêm)
         st.divider()
         
-        if st.button("🚪 Đăng Xuất", key="logout_sidebar", use_container_width=True, type="primary"):
+        if st.button("門 Đăng Xuất", key="logout_sidebar", use_container_width=True, type="primary"):
             logout_user()
             st.rerun()
             
