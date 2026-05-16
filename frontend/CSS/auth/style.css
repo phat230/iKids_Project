@@ -1,0 +1,45 @@
+/* Căn giữa và làm đẹp phần Header */
+.auth-header {
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: 40px;
+}
+
+.auth-title {
+    color: #1e293b;
+    font-weight: 800;
+    font-size: 28px;
+    margin-bottom: 5px;
+    padding-bottom: 0;
+}
+
+.auth-subtitle {
+    color: #64748b;
+    font-size: 15px;
+    margin-bottom: 20px;
+}
+
+/* Nâng cấp Nút bấm (Button) */
+.stButton > button {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Nút phụ (Chuyển trang) mờ hơn để nhường chỗ cho nút chính */
+.btn-outline .stButton > button {
+    background-color: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+}
+.btn-outline .stButton > button:hover {
+    border-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+    background-color: #eff6ff !important;
+}
+
+/* Làm đẹp ô nhập liệu (Input) */
+.stTextInput > div > div > input {
+    border-radius: 8px;
+    padding: 12px 14px;
+}
