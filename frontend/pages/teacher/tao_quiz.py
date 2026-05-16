@@ -7,7 +7,7 @@ import pandas as pd
 
 st.set_page_config(page_title="Quản Lý Bài Tập AI", page_icon="🤖", layout="wide")
 
-# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
+# ================= HÀM ĐỌC FILE CSS (ĐƯỜNG DẪN TUYỆT ĐỐI) =================
 def load_css(file_name):
     """Tự động tìm file CSS trong thư mục frontend/CSS/"""
     current_dir = os.path.dirname(os.path.abspath(__file__)) # pages/teacher
@@ -41,6 +41,24 @@ teacher_email, teacher_name = get_teacher_info()
 API_URL = "http://127.0.0.1:8000"
 API_URL_QUIZZES = f"{API_URL}/api/tv2/quizzes"
 API_GENERATE_QUIZ = f"{API_URL}/api/tv2/generate-quiz"
+API_GENERATE_QUIZ_FILE = f"{API_URL}/api/tv2/generate-quiz-from-file"
+
+# Hàm format lại định dạng A, B, C, D cho câu trả lời từ AI
+def format_ai_questions(raw_questions):
+    prefixes = ["A", "B", "C", "D"]
+    for q in raw_questions:
+        formatted_options = []
+        correct_idx = 0
+        for idx, opt in enumerate(q.get("options", [])):
+            clean_opt = str(opt).replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
+            clean_correct = str(q.get("correct_answer", "")).replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
+            if clean_opt == clean_correct:
+                correct_idx = idx
+            formatted_options.append(f"{prefixes[idx]}. {clean_opt}")
+        q["options"] = formatted_options
+        if formatted_options and correct_idx < len(formatted_options):
+            q["correct_answer"] = formatted_options[correct_idx]
+    return raw_questions
 
 def generate_real_ai_quiz(topic, num_q):
     try:
@@ -50,20 +68,7 @@ def generate_real_ai_quiz(topic, num_q):
         if response.status_code == 200:
             data = response.json()
             raw_questions = data.get("questions", [])
-            prefixes = ["A", "B", "C", "D"]
-            for q in raw_questions:
-                formatted_options = []
-                correct_idx = 0
-                for idx, opt in enumerate(q.get("options", [])):
-                    clean_opt = opt.replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
-                    clean_correct = str(q.get("correct_answer", "")).replace("A. ", "").replace("B. ", "").replace("C. ", "").replace("D. ", "").strip()
-                    if clean_opt == clean_correct:
-                        correct_idx = idx
-                    formatted_options.append(f"{prefixes[idx]}. {clean_opt}")
-                q["options"] = formatted_options
-                if formatted_options:
-                    q["correct_answer"] = formatted_options[correct_idx]
-            return raw_questions
+            return format_ai_questions(raw_questions)
         return []
     except Exception as e:
         st.error(f"🔥 Lỗi hệ thống: {e}")
@@ -87,18 +92,55 @@ tab_create, tab_preview, tab_tracking = st.tabs([
 # --- TAB 1: SOẠN BÀI TẬP ---
 with tab_create:
     col_ai, col_manual = st.columns(2, gap="large")
+    
     with col_ai:
         st.subheader("Sinh đề bằng AI")
-        topic = st.text_input("Chủ đề học tập", placeholder="Ví dụ: Động vật hoang dã")
-        num_q = st.slider("Số lượng câu", 1, 10, 5)
-        if st.button("🚀 AI Bắt đầu soạn đề", type="primary", use_container_width=True):
-            if not topic: st.warning("⚠️ Vui lòng nhập chủ đề!")
-            else:
-                with st.spinner(f"AI đang soạn {num_q} câu về '{topic}'..."):
-                    qs = generate_real_ai_quiz(topic, num_q)
-                    if qs:
-                        st.session_state.quiz_questions.extend(qs)
-                        st.success("✅ AI soạn xong! Hãy sang tab Xem trước.")
+        
+        # Công tắc chọn cách thức tạo đề
+        ai_mode = st.radio("Cách thức tạo đề:", ["Tự nhập chủ đề", "Tải tài liệu Word (.docx) lên"], horizontal=True)
+
+        if ai_mode == "Tự nhập chủ đề":
+            topic = st.text_input("Chủ đề học tập", placeholder="Ví dụ: Động vật hoang dã")
+            num_q = st.slider("Số lượng câu", 1, 20, 5)
+            
+            if st.button("🚀 AI Bắt đầu soạn đề", type="primary", use_container_width=True):
+                if not topic: 
+                    st.warning("⚠️ Vui lòng nhập chủ đề!")
+                else:
+                    with st.spinner(f"AI đang soạn {num_q} câu về '{topic}'..."):
+                        qs = generate_real_ai_quiz(topic, num_q)
+                        if qs:
+                            st.session_state.quiz_questions.extend(qs)
+                            st.success("✅ AI soạn xong! Hãy sang tab Xem trước.")
+                            
+        else: # Chế độ tải file Word
+            uploaded_file = st.file_uploader("Kéo thả hoặc chọn file Word (.docx)", type=["docx"])
+            num_q_file = st.slider("Số lượng câu cần trích xuất", 1, 20, 5, key="file_slider")
+
+            if st.button("🚀 AI Đọc File & Soạn Đề", type="primary", use_container_width=True):
+                if uploaded_file is None:
+                    st.warning("⚠️ Vui lòng tải file Word lên trước!")
+                else:
+                    with st.spinner("AI đang đọc tài liệu và phân tích câu hỏi..."):
+                        try:
+                            # Đóng gói file gửi qua API Backend
+                            files = {
+                                "file": (uploaded_file.name, uploaded_file.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                            }
+                            data = {"num_questions": num_q_file}
+                            
+                            res = requests.post(API_GENERATE_QUIZ_FILE, files=files, data=data)
+                            if res.status_code == 200:
+                                raw_questions = res.json().get("questions", [])
+                                # Tái sử dụng hàm format đáp án A, B, C, D
+                                formatted_qs = format_ai_questions(raw_questions)
+                                
+                                st.session_state.quiz_questions.extend(formatted_qs)
+                                st.success("✅ AI đã trích xuất xong! Hãy sang tab Xem trước.")
+                            else:
+                                st.error(f"❌ Lỗi: {res.json().get('detail', res.text)}")
+                        except Exception as e:
+                            st.error(f"❌ Lỗi kết nối API: {e}")
 
     with col_manual:
         st.subheader("Nhập câu hỏi thủ công")
@@ -118,10 +160,10 @@ with tab_create:
 # --- TAB 2: XEM TRƯỚC ---
 with tab_preview:
     if not st.session_state.quiz_questions:
-        st.info("💡 Chưa có câu hỏi nào.")
+        st.info("💡 Chưa có câu hỏi nào. Bạn hãy soạn đề ở Tab đầu tiên nhé!")
     else:
         st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu)")
-        quiz_title = st.text_input("Tên bộ Quiz", placeholder="Nhập tên để lưu...")
+        quiz_title = st.text_input("Tên bộ Quiz", placeholder="Nhập tên để lưu (Ví dụ: Kiểm tra 15 phút bài Word)...")
         
         for i, q in enumerate(st.session_state.quiz_questions):
             with st.container(border=True):
@@ -133,15 +175,18 @@ with tab_preview:
                     st.session_state.quiz_questions.pop(i); st.rerun()
         
         if st.button("💾 LƯU BỘ ĐỀ VÀO KHO", type="primary", use_container_width=True):
-            if not quiz_title: st.error("⚠️ Hãy đặt tên bộ đề!")
+            if not quiz_title: 
+                st.error("⚠️ Hãy đặt tên bộ đề trước khi lưu!")
             else:
                 payload = {
                     "title": quiz_title, "questions": st.session_state.quiz_questions,
                     "author_email": teacher_email, "author": teacher_name
                 }
                 if requests.post(API_URL_QUIZZES, json=payload).status_code in [200, 201]:
-                    st.success("🎉 Đã lưu thành công!"); st.session_state.quiz_questions = []
-                    time.sleep(1); st.switch_page("pages/teacher/kho_hoc_lieu.py")
+                    st.success("🎉 Đã lưu bộ đề vào kho học liệu thành công!")
+                    st.session_state.quiz_questions = []
+                    time.sleep(1)
+                    st.switch_page("pages/teacher/kho_hoc_lieu.py")
 
 # --- TAB 3: TIẾN ĐỘ ---
 with tab_tracking:
@@ -151,4 +196,4 @@ with tab_tracking:
         results = [{"Học sinh": "An", "Bài tập": "Toán", "Điểm": "9/10", "Ngày": "12/05/2026"}]
     df = pd.DataFrame(results)
     st.table(df)
-    st.download_button("📥 Xuất báo cáo", data=df.to_csv(index=False).encode('utf-8-sig'), file_name='ket_qua.csv', mime='text/csv')
+    st.download_button("📥 Xuất báo cáo CSV", data=df.to_csv(index=False).encode('utf-8-sig'), file_name='ket_qua_lam_bai.csv', mime='text/csv')

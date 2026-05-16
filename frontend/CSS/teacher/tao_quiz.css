@@ -1,19 +1,31 @@
-/* Tổng thể trang soạn bài tập */
+/* ================= TỔNG THỂ TRANG ================= */
 .block-container {
     padding-top: 2rem;
 }
 
-/* Định dạng các Tab */
+/* ================= ĐỊNH DẠNG TAB ================= */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 10px;
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
 .stTabs [data-baseweb="tab"] {
+    padding: 10px 20px;
+    background-color: #f1f5f9;
+    border-radius: 8px 8px 0 0;
     font-weight: 700;
     color: #475569;
+    border: 1px solid transparent;
 }
 
-/* Khung soạn bài AI và Thủ công */
+/* Tab đang được chọn sẽ nổi bật màu xanh */
+.stTabs [aria-selected="true"] {
+    background-color: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-bottom: 3px solid #0284c7 !important;
+}
+
+/* ================= KHUNG SOẠN BÀI (AI & THỦ CÔNG) ================= */
 [data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #ffffff;
     border-radius: 12px !important;
@@ -22,23 +34,53 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-/* Nút bấm AI Bắt đầu (Primary) */
+/* Khung hiển thị từng câu hỏi ở Tab Xem trước (Có hiệu ứng hover mượt mà) */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: #bae6fd !important;
+}
+
+/* Container câu hỏi trong tab Preview (Thêm vạch màu tím bên trái) */
+div[key^="preview_q_"] {
+    background-color: #f8fafc;
+    border-left: 5px solid #8b5cf6 !important;
+}
+
+/* ================= ĐỊNH DẠNG NÚT BẤM ================= */
+/* Nút bấm AI Bắt đầu (Primary) - Giữ nguyên màu Tím AI của ông */
 .stButton > button[kind="primary"] {
-    background-color: #8b5cf6 !important; /* Màu tím AI */
+    background-color: #8b5cf6 !important; 
     border: none !important;
     height: 3rem;
     font-weight: bold !important;
     border-radius: 8px !important;
 }
+.stButton > button[kind="primary"]:hover {
+    background-color: #7c3aed !important; 
+}
 
-/* Định dạng bảng điểm học sinh */
+/* Nút xóa câu hỏi màu đỏ nhạt (Hình thùng rác) */
+button[key^="del_"] {
+    color: #ef4444 !important;
+    border: 1px solid #fecaca !important;
+    background-color: #fef2f2 !important;
+    border-radius: 50% !important;
+    padding: 5px !important;
+}
+button[key^="del_"]:hover {
+    background-color: #fca5a5 !important;
+    color: white !important;
+    border-color: #f87171 !important;
+}
+
+/* ================= ĐỊNH DẠNG BẢNG ĐIỂM ================= */
 .stTable {
     border-radius: 10px;
     overflow: hidden;
-}
-
-/* Container câu hỏi trong tab Preview */
-div[key^="preview_q_"] {
-    background-color: #f8fafc;
-    border-left: 5px solid #8b5cf6 !important;
+    border: 1px solid #e2e8f0;
 }
