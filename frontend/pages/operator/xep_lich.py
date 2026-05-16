@@ -8,7 +8,7 @@ TV1_API = API
 
 st.set_page_config(
     page_title="iKids - Xếp lịch học",
-    page_icon="📅",
+    
     layout="wide"
 )
 
@@ -41,7 +41,7 @@ if st.session_state.get("role") not in ["operator", "admin"]:
 
 headers = {"Authorization": f"Bearer {st.session_state['token']}"}
 
-st.title("📅 Xếp lịch học & Gửi thông báo")
+st.title(" Xếp lịch học & Gửi thông báo")
 st.write("Chọn lớp học để lên lịch và tự động gửi thông báo thay đổi cho phụ huynh/học sinh.")
 
 # =========================
@@ -107,7 +107,7 @@ class_options = {f"{c.get('class_name', 'N/A')} - {c.get('subject', '')}": c for
 DAY_CHOICES = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
 
 # --- FORM TẠO LỊCH ---
-st.subheader("➕ Tạo lịch học mới")
+st.subheader(" Tạo Lịch Học Mới")
 with st.form("create_schedule_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
@@ -118,7 +118,7 @@ with st.form("create_schedule_form", clear_on_submit=True):
             selected_class_label = st.selectbox("Chọn lớp học (*)", options=list(class_options.keys()))
             if selected_class_label:
                 cls_data = class_options[selected_class_label]
-                st.info(f"👨‍🏫 Giáo viên: **{cls_data.get('teacher_name', 'Chưa xếp')}**")
+                st.info(f" Giáo viên: **{cls_data.get('teacher_name', 'Chưa xếp')}**")
         selected_days = st.multiselect("Lịch học trong tuần (*)", options=DAY_CHOICES, default=["Thứ 7", "Chủ nhật"])
         room = st.text_input("Phòng học / Hình thức", value="Online")
     with col2:
@@ -129,7 +129,7 @@ with st.form("create_schedule_form", clear_on_submit=True):
         with c_time1: start_time = st.time_input("Giờ bắt đầu")
         with c_time2: end_time = st.time_input("Giờ kết thúc")
     
-    if st.form_submit_button("✅ Tạo lịch học"):
+    if st.form_submit_button("TẠO LỊCH HỌC"):
         if not selected_class_label or not selected_days or start_date > end_date:
             st.error("Vui lòng kiểm tra lại thông tin nhập liệu")
         else:
@@ -154,7 +154,7 @@ with st.form("create_schedule_form", clear_on_submit=True):
 st.divider()
 
 # --- DANH SÁCH & SỬA GỬI THÔNG BÁO ---
-st.subheader("📋 Danh sách lịch học")
+st.subheader(" Danh Sách Lịch Học")
 if not schedules:
     st.info("Chưa có lịch học nào")
 else:
@@ -162,23 +162,23 @@ else:
         with st.container(border=True):
             col1, col2, col3 = st.columns([3, 4, 2])
             with col1:
-                st.markdown(f"### 🏫 {item.get('class_name', '')}")
+                st.markdown(f"###  {item.get('class_name', '')}")
                 st.write(f"**Môn:** {item.get('subject', '')}")
-                st.caption(f"📍 Phòng: {item.get('room', '')}")
+                st.caption(f" Phòng: {item.get('room', '')}")
             with col2:
-                st.write(f"📅 **Thứ:** {', '.join(item.get('days_of_week', []))}")
-                st.write(f"🗓️ **Khóa:** {item.get('study_date', '')}")
-                st.write(f"⏰ **Giờ:** {item.get('start_time')} - {item.get('end_time')}")
+                st.write(f" **Thứ:** {', '.join(item.get('days_of_week', []))}")
+                st.write(f" **Khóa:** {item.get('study_date', '')}")
+                st.write(f" **Giờ:** {item.get('start_time')} - {item.get('end_time')}")
             with col3:
                 sid = item.get("id", item.get("_id"))
-                if st.button("✏️ Sửa & Gửi Tin", key=f"edit_{sid}"):
+                if st.button(" Sửa & Gửi Tin", key=f"edit_{sid}"):
                     st.session_state["editing_schedule"] = sid
-                if st.button("🗑️ Xóa", key=f"del_{sid}"):
+                if st.button(" Xóa", key=f"del_{sid}"):
                     if delete_schedule(sid).status_code == 200: st.rerun()
 
             if st.session_state.get("editing_schedule") == sid:
                 with st.form(f"edit_form_{sid}"):
-                    st.warning("💡 Hệ thống sẽ tự động nhắn tin cho Phụ huynh & Học sinh khi bạn nhấn Lưu.")
+                    st.warning(" Hệ thống sẽ tự động nhắn tin cho Phụ huynh & Học sinh khi bạn nhấn Lưu.")
                     c1, c2 = st.columns(2)
                     with c1:
                         n_days = st.multiselect("Thứ trong tuần", options=DAY_CHOICES, default=item.get("days_of_week", []))
@@ -187,14 +187,14 @@ else:
                         n_start = st.time_input("Giờ bắt đầu", value=datetime.strptime(item.get("start_time"), "%H:%M").time())
                         n_end = st.time_input("Giờ kết thúc", value=datetime.strptime(item.get("end_time"), "%H:%M").time())
                     
-                    if st.form_submit_button("💾 Lưu & Gửi Thông Báo", type="primary"):
+                    if st.form_submit_button(" Lưu & Gửi Thông Báo", type="primary"):
                         payload = item.copy()
                         payload.update({
                             "days_of_week": n_days, "room": n_room,
                             "start_time": n_start.strftime("%H:%M"), "end_time": n_end.strftime("%H:%M")
                         })
                         if update_schedule(sid, payload).status_code == 200:
-                            msg_title = f"🔔 Thay đổi lịch học lớp {item.get('class_name')}"
+                            msg_title = f" Thay đổi lịch học lớp {item.get('class_name')}"
                             msg_content = f"Thông báo: Lớp {item.get('class_name')} đổi lịch sang {', '.join(n_days)} lúc {n_start.strftime('%H:%M')}. Phòng: {n_room}."
                             send_auto_notification(item.get("class_id"), item.get("class_name"), msg_title, msg_content)
                             st.success("Cập nhật thành công!"); st.session_state["editing_schedule"] = None; st.rerun()

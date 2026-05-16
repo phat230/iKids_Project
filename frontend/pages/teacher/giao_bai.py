@@ -49,7 +49,7 @@ def fetch_quizzes_from_db():
     except:
         return []
 
-st.title("📤 Giao Bài Tập Cho Lớp")
+st.title("Giao Bài Tập Cho Lớp")
 st.write(f"Đang đăng nhập: **{teacher_name}**")
 
 # Lấy dữ liệu từ DB
@@ -65,7 +65,7 @@ if not my_quizzes:
 
 else:
     with st.container(border=True):
-        st.subheader("⚙️ Cấu hình giao bài")
+        st.subheader(" Giao Bài Tập Hôm Nay")
         
         quiz_dict = {q['title']: q.get('id') for q in my_quizzes}
         danh_sach_de = list(quiz_dict.keys())
@@ -76,20 +76,20 @@ else:
             if st.session_state.selected_quiz_to_assign in danh_sach_de:
                 default_index = danh_sach_de.index(st.session_state.selected_quiz_to_assign)
         
-        selected_quiz_title = st.selectbox("📝 Chọn bộ đề từ kho của bạn:", options=danh_sach_de, index=default_index)
+        selected_quiz_title = st.selectbox(" Chọn Bài Tập Giao Cho Lớp:", options=danh_sach_de, index=default_index)
         
         # Danh sách lớp (Giả lập do DB TV1 đang hoàn thiện)
-        selected_classes = st.multiselect("👥 Chọn lớp nhận bài:", ["Lớp Tiếng Anh T6", "Lớp Toán Tư Duy T7", "Lớp Năng khiếu M1"])
+        selected_classes = st.multiselect(" Chọn Lớp Nhận Bài:", ["Lớp Tiếng Anh T6", "Lớp Toán Tư Duy T7", "Lớp Năng khiếu M1"])
         
         col1, col2 = st.columns(2)
         with col1:
-            deadline_date = st.date_input("📅 Hạn chót:", datetime.now() + timedelta(days=3))
+            deadline_date = st.date_input(" Hạn chót:", datetime.now() + timedelta(days=3))
         with col2:
-            deadline_time = st.time_input("⏰ Giờ khóa đề:", datetime.strptime("23:59", "%H:%M").time())
+            deadline_time = st.time_input(" Giờ khóa đề:", datetime.strptime("23:59", "%H:%M").time())
             
-        note = st.text_area("💬 Lời nhắn cho học sinh:", placeholder="Ví dụ: Các con nhớ xem kỹ bài trước khi làm nhé!")
+        note = st.text_area(" Lời Nhắn Cho Lớp:", placeholder="Ví dụ: Các con nhớ xem kỹ bài trước khi làm nhé!")
 
-        if st.button("🚀 XÁC NHẬN GIAO BÀI", type="primary", use_container_width=True):
+        if st.button(" XÁC NHẬN GIAO BÀI", type="primary", use_container_width=True):
             if not selected_classes:
                 st.error("❌ Vui lòng chọn ít nhất 1 lớp để nhận bài!")
             else:

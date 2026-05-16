@@ -50,10 +50,10 @@ saved_quizzes = fetch_data(API_URL_QUIZZES)
 if "selected_quiz" not in st.session_state: st.session_state.selected_quiz = None
 if "is_editing" not in st.session_state: st.session_state.is_editing = False
 
-st.title("📚 Kho Học Liệu & AI-Video Hub")
+st.title("Kho Bài Tập và Video")
 st.write(f"Đang đăng nhập: **{teacher_name}** ({teacher_email})")
 
-tab_quiz, tab_video = st.tabs(["📝 Bộ Đề Quiz", "🎬 AI-Video Hub"])
+tab_quiz, tab_video = st.tabs(["Danh Sách Bộ Đề", "Thêm Video Bài Tập"])
 
 # ----------------- TAB 1: QUẢN LÝ BỘ ĐỀ QUIZ -----------------
 with tab_quiz:
@@ -63,20 +63,20 @@ with tab_quiz:
         col_list, col_detail = st.columns([1, 2])
         
         with col_list:
-            st.subheader("Danh sách bộ đề")
+            st.subheader("Danh Sách Đề")
             for i, q in enumerate(saved_quizzes):
                 qid = q.get('id', str(i))
                 author_name = q.get("author", q.get("author_email", "Hệ thống"))
                 with st.container(border=True):
                     st.markdown(f"**{q.get('title', 'Chưa có tên')}**")
-                    st.caption(f"👤 Tác giả: {author_name} | 🔢 Số câu: {len(q.get('questions', []))}")
-                    if st.button("👉 Xem chi tiết", key=f"view_{qid}", use_container_width=True):
+                    st.caption(f"👤 Tác giả: {author_name} | Số câu hỏi: {len(q.get('questions', []))}")
+                    if st.button("Xem chi tiết", key=f"view_{qid}", use_container_width=True):
                         st.session_state.selected_quiz, st.session_state.is_editing = q, False
                         st.rerun()
 
         with col_detail:
             if st.session_state.selected_quiz is None:
-                st.info("👈 Vui lòng chọn một bộ đề ở danh sách bên trái để xem chi tiết.")
+                st.info(" Vui lòng chọn một bộ đề ở danh sách bên trái để xem chi tiết.")
             else:
                 qd = st.session_state.selected_quiz
                 qid = qd.get('id')
@@ -84,20 +84,20 @@ with tab_quiz:
 
                 with st.container(border=True):
                     if not st.session_state.is_editing:
-                        st.markdown(f"### 📖 {qd.get('title')}")
-                        st.caption(f"👤 Người ra đề: **{qd.get('author')}** | 📅 Tạo ngày: {qd.get('created_at', 'N/A')}")
+                        st.markdown(f"###  {qd.get('title')}")
+                        st.caption(f"👤 Người soạn đề: **{qd.get('author')}** | Ngày tạo: {qd.get('created_at', 'N/A')}")
                         
                         c1, c2, c3 = st.columns(3)
                         with c1:
-                            if st.button("🚀 Giao Đề Này", type="primary", use_container_width=True):
+                            if st.button(" Giao Bài Tập Này", type="primary", use_container_width=True):
                                 st.session_state.selected_quiz_to_assign = qd.get('title')
                                 st.switch_page("pages/teacher/giao_bai.py")
                         with c2:
-                            if st.button("📝 Sửa Đề", disabled=not is_owner, use_container_width=True):
+                            if st.button(" Chỉnh Sửa", disabled=not is_owner, use_container_width=True):
                                 st.session_state.is_editing = True
                                 st.rerun()
                         with c3:
-                            if st.button("🗑️ Xóa", disabled=not is_owner, use_container_width=True):
+                            if st.button(" Xóa Bài Tập ", disabled=not is_owner, use_container_width=True):
                                 if requests.delete(f"{API_URL_QUIZZES}/{qid}?author={teacher_email}").status_code == 200:
                                     st.success("Đã xóa!"); st.session_state.selected_quiz = None
                                     time.sleep(1); st.rerun()
@@ -110,7 +110,7 @@ with tab_quiz:
                                 else: st.write(opt)
                             st.write("---")
                     else:
-                        st.markdown("### 🛠️ Chỉnh Sửa Bộ Đề")
+                        st.markdown("###  Chỉnh Sửa Bài Tập")
                         new_title = st.text_input("Tên bộ đề", value=qd.get('title'))
                         new_qs = copy.deepcopy(qd.get("questions", []))
                         
@@ -133,17 +133,17 @@ with tab_quiz:
                             st.markdown("</div>", unsafe_allow_html=True)
                         
                         cs, cc = st.columns(2)
-                        if cs.button("💾 Lưu Thay Đổi", type="primary", use_container_width=True):
+                        if cs.button(" LƯU THAY ĐỔI", type="primary", use_container_width=True):
                             if requests.put(f"{API_URL_QUIZZES}/{qid}?author={teacher_email}", json={"title": new_title, "questions": new_qs}).status_code == 200:
                                 st.success("Lưu thành công!"); st.session_state.is_editing = False
                                 time.sleep(1); st.rerun()
-                        if cc.button("❌ Hủy Bỏ", use_container_width=True):
+                        if cc.button("HỦY BỎ", use_container_width=True):
                             st.session_state.is_editing = False; st.rerun()
 
 # ----------------- TAB 2: KHO VIDEO AI -----------------
 with tab_video:
-    st.markdown("### 🎬 Hệ thống Video do AI nội bộ sản xuất")
-    with st.expander("🛠️ [Góc Mô Phỏng] Cổng Upload Video"):
+    st.markdown("### Thêm Videp BÀi Tập Thủ Công")
+    with st.expander(" Cổng Upload Video"):
         with st.form("up_vid"):
             vt, vu = st.text_input("Tên video:"), st.text_input("Youtube URL:")
             c1, c2 = st.columns(2)
@@ -171,8 +171,8 @@ with tab_video:
                 except: st.error("Link lỗi")
             with v_c2:
                 st.write(f"**❤️ {vid.get('likes', 0)} Lượt thích**")
-                if st.button("👍 Thích", key=f"lk_{i}", use_container_width=True): st.info("API Like đang bảo trì")
-                if st.button("📤 Gán vào lớp học", key=f"as_{i}", type="primary", use_container_width=True): st.success("Đã gán!")
+                if st.button("👍 Thích Video Này", key=f"lk_{i}", use_container_width=True): st.info("API Like đang bảo trì")
+                if st.button("Gán Vào Lớp Học", key=f"as_{i}", type="primary", use_container_width=True): st.success("Đã gán!")
                 st.write("---")
                 st.write("**💬 Bình luận:**")
                 for c in vid.get('comments', []): st.caption(f"- {c}")

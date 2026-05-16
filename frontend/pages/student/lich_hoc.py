@@ -34,7 +34,7 @@ load_css("student/lich_hoc.css")
 
 API_URL = "http://localhost:8000"
 
-st.title("📅 Thời Khóa Biểu Của Tôi")
+st.title(" Thời Khóa Biểu Của Tôi")
 st.write("Theo dõi lịch học để không bỏ lỡ buổi học nào nhé!")
 st.divider()
 
@@ -117,9 +117,9 @@ else:
             if now > end_datetime:
                 status = "Đã kết thúc"
             else:
-                status = "🟢 Đang diễn ra"
+                status = " Đang diễn ra"
         except:
-            status = "🟢 Đang diễn ra"
+            status = " Đang diễn ra"
 
         table_data.append({
             "Môn học": s.get("subject", "Chưa rõ"),

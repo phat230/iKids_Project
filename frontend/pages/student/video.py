@@ -80,8 +80,8 @@ except:
 # VIEW 1: TRANG CHỦ (GRID 4 CỘT)
 # -------------------------------------------------------------------------
 if st.session_state.selected_video is None:
-    st.title("🍿 Rạp Chiếu Video Bài Giảng")
-    search_term = st.text_input("🔍 Tìm kiếm bài học...", placeholder="Nhập tên video...")
+    st.title("Rạp Chiếu Video Bài Giảng")
+    search_term = st.text_input(" Tìm Kiếm Bài Học...", placeholder="Nhập tên video...")
     filtered = [v for v in ai_videos if search_term.lower() in v.get('title','').lower()]
 
     if not filtered:
@@ -106,7 +106,7 @@ if st.session_state.selected_video is None:
                             st.session_state.selected_video = v
                             st.rerun()
     st.divider()
-    if st.button("⬅️ Quay lại Bảng Điều Khiển"):
+    if st.button("⬅ Quay lại Bảng Điều Khiển"):
         st.switch_page("pages/student/dashboard.py")
 
 # -------------------------------------------------------------------------
@@ -123,11 +123,11 @@ else:
 
     nav_c1, nav_c2, _ = st.columns([2, 2, 6])
     with nav_c1:
-        if st.button("⬅️ Danh sách Video", use_container_width=True):
+        if st.button("Quay lại danh sách Video", use_container_width=True):
             st.session_state.selected_video = None
             st.rerun()
     with nav_c2:
-        if st.button("🏠 Về Góc Học Tập", use_container_width=True):
+        if st.button(" Về Góc Học Tập", use_container_width=True):
             st.switch_page("pages/student/dashboard.py")
 
     col_video, col_playlist = st.columns([7, 3], gap="large")
@@ -138,7 +138,7 @@ else:
         
         safe_title = html.escape(current_v.get('title', ''))
         st.markdown(f"<div class='yt-title'>{safe_title}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='yt-stats'>📌 Chủ đề: {html.escape(current_v.get('topic',''))} • 📊 Trình độ: {html.escape(current_v.get('level',''))} • 🎁 Phần thưởng: +30 EXP</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='yt-stats'> Chủ đề: {html.escape(current_v.get('topic',''))} •  Trình độ: {html.escape(current_v.get('level',''))} • 🎁 Phần thưởng: +30 EXP</div>", unsafe_allow_html=True)
         
         liked_by_list = current_v.get("liked_by", [])
         total_likes = current_v.get("likes", 0)
@@ -166,11 +166,11 @@ else:
 
                     st.session_state.student_profile['completed_tasks'].append(vid_id)
                     st.session_state.student_profile['exp'] += 30
-                    st.toast("🎉 Đã hoàn thành! Nhận +30 EXP")
+                    st.toast(" Đã hoàn thành! Nhận +30 EXP")
                     time.sleep(0.5)
                     st.rerun()
             else:
-                st.button("✨ Đã hoàn thành", disabled=True, use_container_width=True)
+                st.button(" Đã hoàn thành", disabled=True, use_container_width=True)
                 
         st.divider()
 
@@ -214,7 +214,7 @@ else:
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_playlist:
-        st.markdown("#### 🎞️ Danh sách bài học")
+        st.markdown("#### Danh Sách Bài Học")
         with st.container(height=650, border=False):
             for v in ai_videos:
                 if v['id'] == vid_id: continue 

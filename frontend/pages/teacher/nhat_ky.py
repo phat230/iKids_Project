@@ -36,7 +36,7 @@ if "token" not in st.session_state or st.session_state.get("role") not in ["teac
 headers = {"Authorization": f"Bearer {st.session_state.token}"}
 teacher_id = st.session_state.get("user_id")
 
-st.title("📓 Nhật Ký Giảng Dạy & Điểm Danh")
+st.title(" Nhật Ký Giảng Dạy & Điểm Danh")
 st.write("Ghi nhận điểm danh và đánh giá học sinh từ danh sách lớp thực tế.")
 
 # --- HÀM HỖ TRỢ LẤY DỮ LIỆU ---
@@ -73,7 +73,7 @@ class_options = {s.get('id', s.get('_id')): f"{s['class_name']} - {s['subject']}
 
 with col_class:
     if not class_options:
-        st.warning("📅 Bạn không có lịch dạy nào trong hệ thống.")
+        st.warning(" Bạn không có lịch dạy nào trong hệ thống.")
         selected_sid = None
     else:
         selected_sid = st.selectbox("Chọn ca dạy từ lịch học:", 
@@ -109,11 +109,11 @@ if selected_sid:
                     sname = stu.get('Tên Học Sinh', stu.get('name', 'Học sinh'))
 
                     c_name.markdown(f"<div style='padding-top: 5px;'>{sname}</div>", unsafe_allow_html=True)
-                    att = c_att.selectbox("Trạng thái", ["✅ Có mặt", "❌ Vắng", "⏳ Đi trễ"], 
+                    att = c_att.selectbox("Trạng thái", [" Có mặt", " Vắng", " Đi trễ"], 
                                           key=f"att_{sid}", label_visibility="collapsed")
                     
                     is_absent = (att == "❌ Vắng")
-                    emo = c_emo.selectbox("Thái độ", ["⭐ Xuất sắc", "👍 Tốt", "👌 Bình thường", "👎 Kém"], 
+                    emo = c_emo.selectbox("Thái độ", [" Xuất Sắc", " Tốt", " Bình Thường", " Kém"], 
                                           key=f"emo_{sid}", label_visibility="collapsed", disabled=is_absent)
                     cmt = c_cmt.text_input("Nhận xét", placeholder="Khen ngợi...", 
                                            key=f"cmt_{sid}", label_visibility="collapsed", disabled=is_absent)
@@ -128,9 +128,9 @@ if selected_sid:
 
     # ----------------- CỘT PHẢI: NHẬT KÝ BÀI GIẢNG -----------------
     with col_right:
-        st.markdown("### 📝 Nhật ký bài học")
+        st.markdown("###  Nhật Ký Bài Giảng")
         with st.container(border=True):
-            lesson_topic = st.text_input("🎯 Chủ đề giảng dạy:", value=current_schedule['subject'])
+            lesson_topic = st.text_input(" Chủ Đề Giảng Dạy:", value=current_schedule['subject'])
             
             try:
                 res_v = requests.get(f"{API_URL}/api/tv2/videos")
@@ -139,11 +139,11 @@ if selected_sid:
                 quizzes = res_q.json() if res_q.status_code == 200 else []
             except: vids, quizzes = [], []
             
-            used_v = st.multiselect("🎬 Video AI đã dùng:", [v['title'] for v in vids])
-            assigned_q = st.multiselect("📝 Giao bài tập về nhà:", [q['title'] for q in quizzes])
-            content = st.text_area("💬 Chi tiết nội dung giảng dạy:", height=150)
+            used_v = st.multiselect("Video Bài Tập Đã Dùng:", [v['title'] for v in vids])
+            assigned_q = st.multiselect(" Giao Bài Tập Về Nhà:", [q['title'] for q in quizzes])
+            content = st.text_area(" Chi Tiết Nội Dung Giảng Dạy:", height=150)
 
-            if st.button("💾 LƯU & GỬI BÁO CÁO", type="primary", use_container_width=True):
+            if st.button(" LƯU & GỬI BÁO CÁO", type="primary", use_container_width=True):
                 if not content.strip():
                     st.error("⚠️ Vui lòng nhập nội dung đã dạy.")
                 else:

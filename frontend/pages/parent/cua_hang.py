@@ -9,14 +9,14 @@ BACKEND_URL = "http://localhost:8000"
 API_TV3 = "http://localhost:8000/api/tv3"
 
 def render_store():
-    st.title("🎁 Cửa Hàng Quà Tặng iKids")
+    st.title(" Cửa Hàng Quà Tặng iKids")
     
     user_id = st.session_state.get("user_id")
     token = st.session_state.get("access_token")
     
     profile = get_gamification_profile(user_id)
     balance = profile.get('balance', 0.0) 
-    st.sidebar.markdown(f"### 💳 Số dư ví: {balance:,.0f} VNĐ")
+    st.sidebar.markdown(f"###  Số dư ví: {balance:,.0f} VNĐ")
     
     # Lấy danh sách con
     headers = {"Authorization": f"Bearer {token}", "parent-id": str(user_id)}

@@ -30,7 +30,7 @@ def load_css(file_name):
 # Tải CSS làm đẹp cho trang Quản lý
 load_css("parent/quan_ly_con.css")
  
-st.title("👨‍👩‍👧‍👦 Quản Lý Hồ Sơ & Phê Duyệt")
+st.title(" Quản Lý Hồ Sơ & Phê Duyệt")
 st.write("Tại đây, bạn có thể tạo tài khoản cho bé, quản lý ví tiền và phê duyệt các yêu cầu mua sắm.")
  
 # 1. KIỂM TRA XÁC THỰC
@@ -72,20 +72,20 @@ parent_balance = parent_profile.get('balance', 0.0)
 with st.container(border=True):
     col_wallet_text, col_wallet_metric = st.columns([3, 1])
     with col_wallet_text:
-        st.markdown("### 💳 Tài khoản phụ huynh")
+        st.markdown("###  Tài Khoản Phụ Huynh")
         st.write("Hệ thống sẽ khấu trừ trực tiếp vào số dư ví của bạn khi bạn thực hiện gửi tiền cho con em hoặc phê duyệt các yêu cầu mua sắm đồ dùng học tập.")
     with col_wallet_metric:
         st.metric(label="Số dư ví hiện tại", value=f"{parent_balance:,.0f} VNĐ")
         # Nút chuyển sang trang nạp tiền
-        if st.button("➕ Nạp tiền ngay", use_container_width=True, type="primary"):
+        if st.button(" Nạp tiền ngay", use_container_width=True, type="primary"):
             st.switch_page("pages/parent/nap_tien.py")
 st.write("")
 
 # --- GIAO DIỆN CÁC TÁC VỤ ---
 tab_list, tab_approve, tab_add = st.tabs([
-    "👶 Danh sách con em", 
-    "🛍️ Phê duyệt mua sắm", 
-    "➕ Tạo tài khoản mới"
+    " Danh sách con em", 
+    " Phê duyệt mua sắm", 
+    " Tạo tài khoản mới"
 ])
  
 # TAB 1: DANH SÁCH & QUẢN LÝ VÍ CON
@@ -106,7 +106,7 @@ with tab_list:
                     balance = child.get('balance', 0)
                     st.metric("Ví của con", f"{balance:,.0f} VNĐ")
                 with col3:
-                    with st.expander("💸 Giao dịch ví của con"):
+                    with st.expander(" Giao dịch ví của con"):
                         amount = st.number_input("Số tiền (VNĐ)", min_value=0, step=10000, key=f"amt_{child['id']}")
                         c_btn1, c_btn2 = st.columns(2)
                         
@@ -121,7 +121,7 @@ with tab_list:
                                                         json={"child_id": child['id'], "amount": amount}, headers=headers)
                                     if res.status_code == 200:
                                         st.success(f"Đã chuyển {amount:,.0f} VNĐ thành công!")
-                                        st.toast(f"🚀 Bé {child['name']} đã nhận được thông báo tiền về!", icon="📩")
+                                        st.toast(f" Bé {child['name']} đã nhận được thông báo tiền về!", )
                                         time.sleep(1)
                                         st.rerun()
                                     else:
@@ -136,7 +136,7 @@ with tab_list:
                                                         json={"child_id": child['id'], "amount": amount}, headers=headers)
                                     if res.status_code == 200:
                                         st.success(f"Đã rút {amount:,.0f} VNĐ về ví của bạn.")
-                                        st.toast("📩 Đã gửi thông báo rút tiền cho bé.", icon="ℹ️")
+                                        st.toast(" Đã gửi thông báo rút tiền cho bé.", icon="ℹ️")
                                         time.sleep(1)
                                         st.rerun()
                                     else:
@@ -148,7 +148,7 @@ with tab_approve:
     requests_list = fetch_purchase_requests()
     
     if not requests_list:
-        st.success("✨ Không có yêu cầu nào cần xử lý.")
+        st.success(" Không có yêu cầu nào cần xử lý.")
     else:
         for req in requests_list:
             with st.container(border=True):
@@ -159,14 +159,14 @@ with tab_approve:
                 with c_action:
                     if parent_balance < req['price']:
                         st.error("Ví của bạn không đủ số dư")
-                        st.button("✅ Duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True, disabled=True)
+                        st.button(" Duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True, disabled=True)
                     else:
-                        if st.button("✅ Duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True):
+                        if st.button(" Duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True):
                             requests.post(f"{API_TV3}/parent/approve-purchase/{req['id']}", 
                                           json={"action": "approve"}, headers=headers)
                             st.rerun()
                             
-                    if st.button("❌ Từ chối", key=f"rej_{req['id']}", use_container_width=True):
+                    if st.button(" Từ Chối", key=f"rej_{req['id']}", use_container_width=True):
                         requests.post(f"{API_TV3}/parent/approve-purchase/{req['id']}", 
                                       json={"action": "reject"}, headers=headers)
                         st.rerun()

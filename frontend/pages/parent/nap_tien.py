@@ -30,7 +30,7 @@ def show_deposit_page():
     # Tải CSS làm đẹp cho trang Nạp Tiền (Chỉ truyền phần sau thư mục CSS/)
     load_css("parent/nap_tien.css")
 
-    st.title("💰 Nạp Tiền & Quản Lý Ví")
+    st.title(" Nạp Tiền & Quản Lý Ví")
     
     user_id = st.session_state.get("user_id")
     if not user_id:
@@ -60,9 +60,9 @@ def show_deposit_page():
         st.code(memo, language="text")
         
         if st.button("Tôi đã chuyển khoản xong", type="primary", use_container_width=True):
-            with st.status("🔄 Đang xác thực giao dịch...", expanded=False):
+            with st.status(" Đang xác thực giao dịch...", expanded=False):
                 time.sleep(2)
-            st.toast("Đã ghi nhận! Hệ thống đang chờ ngân hàng xác nhận.", icon="⏳")
+            st.toast("Đã ghi nhận! Hệ thống đang chờ ngân hàng xác nhận.")
 
     with col2:
         st.subheader("2. Quét mã QR (Nhanh)")
@@ -72,13 +72,13 @@ def show_deposit_page():
 
     # --- 3. XỬ LÝ SỰ CỐ NẠP TIỀN ---
     st.divider()
-    with st.expander("❓ Bạn đã chuyển tiền nhưng số dư không cập nhật?"):
+    with st.expander(" Bạn đã chuyển tiền nhưng số dư không cập nhật?"):
         st.write("Vui lòng gửi yêu cầu để Admin kiểm tra và cộng tiền thủ công:")
         
         confirm_amount = st.number_input("Số tiền đã chuyển khoản thực tế (VNĐ)", min_value=10000, step=10000, key="confirm_amt")
         problem_desc = st.text_area("Mô tả sự cố (VD: Đã chuyển khoản nhưng 15 phút chưa thấy tiền)", height=100)
         
-        if st.button("📨 Gửi yêu cầu hỗ trợ nạp tiền", use_container_width=True):
+        if st.button(" Gửi Yêu Cầu Hỗ Trợ Nạp Tiền", use_container_width=True):
             if problem_desc:
                 class MessageData:
                     def __init__(self, sender, receiver, subject, content, amount):

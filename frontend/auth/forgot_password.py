@@ -22,7 +22,7 @@ _, col, _ = st.columns([1, 1.5, 1])
 
 with col:
     st.markdown("<div class='auth-header'>", unsafe_allow_html=True)
-    st.markdown("<h2 class='auth-title'>Khôi Phục Mật Khẩu 🔑</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='auth-title'>Khôi Phục Mật Khẩu </h2>", unsafe_allow_html=True)
     st.markdown("<p class='auth-subtitle'>Làm theo các bước dưới đây để lấy lại quyền truy cập</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -31,7 +31,7 @@ with col:
         if st.session_state.forgot_step == 1:
             st.caption("Bước 1/2: Nhập email đã đăng ký để nhận mã xác thực OTP.")
             with st.form("email_form"):
-                email = st.text_input("📧 Email của bạn")
+                email = st.text_input(" Email của bạn")
                 submit_email = st.form_submit_button("Gửi mã xác nhận OTP", use_container_width=True, type="primary")
                 
                 if submit_email:
@@ -55,9 +55,9 @@ with col:
             st.success(f"Mã OTP đã được gửi đến: **{st.session_state.reset_email}**")
             st.caption("Bước 2/2: Xác thực và tạo mật khẩu mới.")
             with st.form("otp_form"):
-                otp_code = st.text_input("🔢 Mã OTP (6 số)", max_chars=6)
-                new_pass = st.text_input("🔒 Mật khẩu mới", type="password")
-                confirm_pass = st.text_input("🔒 Xác nhận mật khẩu", type="password")
+                otp_code = st.text_input(" Mã OTP (6 số)", max_chars=6)
+                new_pass = st.text_input(" Mật khẩu mới", type="password")
+                confirm_pass = st.text_input(" Xác nhận mật khẩu", type="password")
                 
                 submit_otp = st.form_submit_button("Xác nhận đổi mật khẩu", use_container_width=True, type="primary")
                 
@@ -89,7 +89,7 @@ with col:
     if st.session_state.forgot_step in [1, 2]:
         st.write("")
         st.markdown("<div class='btn-outline'>", unsafe_allow_html=True)
-        if st.button("⬅️ Quay lại Đăng nhập", use_container_width=True):
+        if st.button(" Quay lại Đăng nhập", use_container_width=True):
             st.session_state.forgot_step = 1
             st.switch_page("auth/login.py")
         st.markdown("</div>", unsafe_allow_html=True)

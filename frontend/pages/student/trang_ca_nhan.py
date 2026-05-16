@@ -36,7 +36,7 @@ def get_image_base64(image_bytes):
 # Tải CSS từ file bên ngoài (Chỉ truyền phần tên thư mục con và file)
 load_css("student/trang_ca_nhan.css")
 
-st.title("👤 Quản Lý Hồ Sơ Cá Nhân")
+st.title(" Quản Lý Hồ Sơ Cá Nhân")
 
 # Kiểm tra Session
 user_id = st.session_state.get("user_id")
@@ -54,9 +54,9 @@ if role == "student":
     st.info(f"🏆 Cấp độ hiện tại: **{profile_data.get('rank', 'Beginner')}** | ⭐ EXP: **{profile_data.get('exp', 0)}**")
 elif role == "parent":
     balance = profile_data.get('balance', 0)
-    st.success(f"💰 Số dư ví phụ huynh: **{balance:,.0f} VNĐ**")
+    st.success(f" Số dư ví phụ huynh: **{balance:,.0f} VNĐ**")
 else:
-    st.info(f"🏢 Vai trò: **{role.upper()}**")
+    st.info(f" Vai trò: **{role.upper()}**")
 
 # Nhập tên mới
 current_name = user_info.get("full_name", user_info.get("name", "Người dùng iKids"))
@@ -65,7 +65,7 @@ new_full_name = st.text_input("Họ và Tên hiện tại:", value=current_name)
 st.divider()
 
 # PHẦN XỬ LÝ ẢNH ĐẠI DIỆN
-st.write("🖼️ **Ảnh đại diện**")
+st.write(" **Ảnh Đại Diện**")
 
 if "temp_avatar" not in st.session_state:
     st.session_state.temp_avatar = None
@@ -106,7 +106,7 @@ if st.session_state.temp_avatar == "uploading":
 st.divider()
 
 # NÚT LƯU TỔNG THỂ
-if st.button("✅ Lưu thông tin thay đổi", use_container_width=True, type="primary"):
+if st.button(" Lưu Thông Tin Thay Đổi", use_container_width=True, type="primary"):
     with st.spinner("Đang đồng bộ dữ liệu..."):
         avatar_file = None
         if st.session_state.temp_avatar == "uploading" and hasattr(st.session_state, "avatar_data"):

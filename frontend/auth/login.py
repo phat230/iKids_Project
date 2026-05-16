@@ -20,17 +20,17 @@ with col:
     st.markdown("<div class='auth-header'>", unsafe_allow_html=True)
     # Tạm dùng icon sinh ngẫu nhiên, bạn có thể thay bằng logo iKids thật
     st.image("https://api.dicebear.com/7.x/initials/svg?seed=iKids&backgroundColor=1e3a8a", width=70)
-    st.markdown("<h2 class='auth-title'>Chào mừng trở lại! 👋</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='auth-title'>Chào mừng trở lại! </h2>", unsafe_allow_html=True)
     st.markdown("<p class='auth-subtitle'>Đăng nhập để tiếp tục truy cập iKids Portal</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Phần Form nằm trong khung
     with st.container(border=True):
         with st.form("login_form"):
-            email = st.text_input("📧 Địa chỉ Email", placeholder="ví dụ: phuhuynh@gmail.com")
-            password = st.text_input("🔒 Mật khẩu", type="password", placeholder="••••••••")
+            email = st.text_input(" Địa chỉ Email", placeholder="ví dụ: phuhuynh@gmail.com")
+            password = st.text_input(" Mật khẩu", type="password", placeholder="••••••••")
             st.write("") # Tạo khoảng trống nhỏ
-            submit_login = st.form_submit_button("🚀 Đăng Nhập", use_container_width=True, type="primary")
+            submit_login = st.form_submit_button(" Đăng Nhập", use_container_width=True, type="primary")
             
             if submit_login:
                 success, msg = login_user(email, password)
@@ -45,9 +45,9 @@ with col:
     st.markdown("<div class='btn-outline'>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("❓ Quên mật khẩu", use_container_width=True):
+        if st.button(" Quên mật khẩu", use_container_width=True):
             st.switch_page("auth/forgot_password.py")
     with c2:
-        if st.button("✨ Đăng ký ngay", use_container_width=True):
+        if st.button(" Đăng ký ngay", use_container_width=True):
             st.switch_page("auth/register.py")
     st.markdown("</div>", unsafe_allow_html=True)

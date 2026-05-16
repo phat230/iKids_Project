@@ -6,7 +6,7 @@ import os
 # Cấu hình API
 API_TV3 = "http://localhost:8000/api/tv3"
 
-st.set_page_config(page_title="Báo Cáo Học Tập - iKids", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Báo Cáo Học Tập - iKids", layout="wide")
 
 # ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
 def load_css(file_name):
@@ -63,7 +63,7 @@ def get_learning_stats(child_id):
     return stats
 
 # --- GIAO DIỆN CHÍNH ---
-st.title("📊 Báo Cáo Chuyên Sâu Hành Trình Lớn Khôn")
+st.title(" Báo Cáo Chuyên Sâu Hành Trình Lớn Khôn")
 
 # 2. CHỌN CON ĐỂ XEM BÁO CÁO
 children = get_my_children()
@@ -74,7 +74,7 @@ if not children:
 
 child_options = {c["id"]: c["name"] for c in children}
 selected_child_id = st.selectbox(
-    "👦👧 Chọn con để xem báo cáo:", 
+    " Chọn con để xem báo cáo:", 
     options=list(child_options.keys()), 
     format_func=lambda x: child_options[x]
 )
@@ -94,13 +94,13 @@ col4.metric(label="Hạng hiện tại", value=child_stats["rank"], delta="Xuấ
 st.divider()
 
 # 4. BIỂU ĐỒ TIẾN ĐỘ
-st.subheader("📈 Biểu đồ điểm số các bài Quiz gần đây")
+st.subheader(" Biểu đồ điểm số các bài tập Quiz gần đây")
 data_points = [7, 8, 9, 8, 10] if int(selected_child_id[-1], 16) % 2 == 0 else [6, 9, 8, 7, 9]
 chart_data = pd.DataFrame(data_points, columns=["Điểm số"])
 st.line_chart(chart_data)
 
 # 5. NHẬN XÉT CỦA GIÁO VIÊN
-st.subheader("👨‍🏫 Nhận xét định kỳ từ Giáo viên")
+st.subheader(" Nhận xét định kỳ từ Giáo viên")
 
 comments = [
     {
@@ -119,7 +119,7 @@ comments = [
 
 for comment in comments:
     with st.container(border=True):
-        st.markdown(f"### 📘 {comment['subject']}")
+        st.markdown(f"###  {comment['subject']}")
         st.caption(f"Giáo viên: {comment['teacher']} | Ngày: {comment['date']}")
         st.markdown(f"**Nhận xét:**")
         st.markdown(f"> {comment['content']}")

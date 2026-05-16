@@ -65,7 +65,7 @@ def get_rank_info(current_exp):
         (1500, "Scholar"),
         (3000, "Expert"),
         (6000, "Master"),
-        (10000, "Legend 👑")
+        (10000, "Legend ")
     ]
     
     current_rank = ranks[0][1]
@@ -95,29 +95,29 @@ current_rank, next_rank, exp_needed, progress = get_rank_info(exp)
 exp_remaining = exp_needed - exp if next_rank != "Tối Đa" else 0
 
 # ================= GIAO DIỆN CHÍNH =================
-st.title("🏠 Bảng Điều Khiển Học Sinh")
+st.title(" Bảng Điều Khiển Học Sinh")
 
 # 1. Hiển thị Thông số
 col1, col2, col3 = st.columns(3)
-col1.metric("Điểm EXP", f"{exp} ⭐")
+col1.metric("Điểm EXP", f"{exp} ")
 col2.metric("Hạng hiện tại", current_rank)
 col3.metric("Số dư ví", "0.0 VNĐ")
 
 st.success(f"Chào mừng trở lại, {real_name}!")
 
 # 2. Thanh Tiến trình Thăng hạng
-st.markdown("### 🚀 Tiến trình thăng hạng")
+st.markdown("###  Tiến Trình Thăng Hạng")
 if next_rank != "Tối Đa":
     st.write(f"Còn **{exp_remaining} EXP** nữa để đạt hạng **{next_rank}**")
     st.progress(progress)
 else:
-    st.write("🎉 Chúc mừng! Bạn đã đạt mức hạng cao nhất là Legend 👑!")
+    st.write("🎉 Chúc mừng! Bạn đã đạt mức hạng cao nhất là Legend !")
     st.progress(1.0)
 
 st.divider()
 
 # 3. Nhiệm vụ hôm nay
-st.markdown("### 🎯 Nhiệm vụ hôm nay")
+st.markdown("###  Nhiệm Vụ Hôm Nay")
 
 # Quét xem đã làm bài nào chưa
 has_completed_video = any(str(task).startswith("vid_") for task in completed_tasks)
@@ -127,9 +127,9 @@ has_completed_quiz = any(str(task).startswith("quiz_") for task in completed_tas
 c1, c2, c3 = st.columns([6, 2, 2])
 with c1:
     if has_completed_video:
-        st.markdown("<div class='task-text'>✅ ~~Xem 1 video bài giảng AI~~</div>", unsafe_allow_html=True)
+        st.markdown("<div class='task-text'> ~~Xem 1 video bài giảng AI~~</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div class='task-text'>🎬 Xem 1 video bài giảng AI</div>", unsafe_allow_html=True)
+        st.markdown("<div class='task-text'> Xem 1 video bài giảng AI</div>", unsafe_allow_html=True)
 with c2:
     st.button("+30 EXP", disabled=True, key="btn_exp_vid", use_container_width=True)
 with c3:
@@ -143,9 +143,9 @@ with c3:
 c4, c5, c6 = st.columns([6, 2, 2])
 with c4:
     if has_completed_quiz:
-        st.markdown("<div class='task-text'>✅ ~~Hoàn thành 1 bài Quiz học tập~~</div>", unsafe_allow_html=True)
+        st.markdown("<div class='task-text'> ~~Hoàn thành 1 bài Quiz học tập~~</div>", unsafe_allow_html=True)
     else:
-        st.markdown("<div class='task-text'>🧩 Hoàn thành 1 bài Quiz học tập</div>", unsafe_allow_html=True)
+        st.markdown("<div class='task-text'> Hoàn thành 1 bài Quiz học tập</div>", unsafe_allow_html=True)
 with c5:
     st.button("+50 EXP", disabled=True, key="btn_exp_quiz", use_container_width=True)
 with c6:
@@ -158,7 +158,7 @@ with c6:
 # Task 3: Điểm danh
 c7, c8, c9 = st.columns([6, 2, 2])
 with c7:
-    st.markdown("<div class='task-text'>✅ ~~Điểm danh chuyên cần~~</div>", unsafe_allow_html=True)
+    st.markdown("<div class='task-text'> ~~Điểm danh chuyên cần~~</div>", unsafe_allow_html=True)
 with c8:
     st.button("+20 EXP", disabled=True, key="btn_exp_att", use_container_width=True)
 with c9:

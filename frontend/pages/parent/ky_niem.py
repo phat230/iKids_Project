@@ -27,7 +27,7 @@ def load_css(file_name):
 load_css("parent/ky_niem.css")
 
 # ================= GIAO DIỆN CHÍNH =================
-st.title("📸 Góc Kỷ Niệm")
+st.title(" Góc Kỷ Niệm")
 st.write("Nơi lưu giữ những khoảnh khắc học tập và vui chơi tuyệt vời của các bé!")
 st.divider()
 
@@ -46,10 +46,10 @@ else:
             # Phần tiêu đề bài đăng (Avatar giả lập & Tên giáo viên)
             col_head1, col_head2 = st.columns([1, 10])
             with col_head1:
-                st.write("👤") # Có thể thay bằng ảnh đại diện nếu có
+                st.write("") # Có thể thay bằng ảnh đại diện nếu có
             with col_head2:
                 st.markdown(f"**{item.get('teacher_name', 'Giáo viên iKids')}**")
-                st.caption(f"🗓️ {item['created_at'][:16].replace('T', ' ')}")
+                st.caption(f" {item['created_at'][:16].replace('T', ' ')}")
             
             # Hiển thị ảnh kỷ niệm
             st.image(item["media_url"], use_container_width=True)

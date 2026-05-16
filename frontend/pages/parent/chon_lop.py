@@ -30,7 +30,7 @@ def load_css(file_name):
 # Tải CSS (Chỉ truyền phần sau thư mục CSS/)
 load_css("parent/chon_lop.css")
 
-st.title("🏫 Đăng Ký Lớp Học Cho Con")
+st.title(" Đăng Ký Lớp Học Cho Con")
 st.write("Dưới đây là danh sách các lớp học đang mở. Phụ huynh có thể chọn lớp phù hợp cho con em mình.")
 
 # 1. KIỂM TRA ĐĂNG NHẬP
@@ -82,19 +82,19 @@ else:
             class_id = cls.get('id', cls.get('_id', ''))
             
             with col1:
-                st.markdown(f"#### 🏫 {cls.get('class_name', 'Tên lớp chưa rõ')}")
-                st.write(f"**📚 Môn học:** {cls.get('subject', 'Chưa cập nhật')}")
-                st.caption(f"👨‍🏫 Giáo viên phụ trách: {cls.get('teacher_name', 'Đang xếp')}")
+                st.markdown(f"####  {cls.get('class_name', 'Tên lớp chưa rõ')}")
+                st.write(f"** Môn học:** {cls.get('subject', 'Chưa cập nhật')}")
+                st.caption(f" Giáo viên phụ trách: {cls.get('teacher_name', 'Đang xếp')}")
             
             with col2:
                 selected_child_id = st.selectbox(
-                    "👦👧 Chọn bé tham gia lớp này:",
+                    " Chọn bé tham gia lớp này:",
                     options=list(child_options.keys()),
                     format_func=lambda x: child_options[x],
                     key=f"child_select_{class_id}"
                 )
                 
-                if st.button("✅ Đăng ký học ngay", key=f"btn_{class_id}", type="primary", use_container_width=True):
+                if st.button(" Đăng Ký Học Ngay", key=f"btn_{class_id}", type="primary", use_container_width=True):
                     current_students = cls.get("student_ids", [])
                     
                     if selected_child_id in current_students:
@@ -105,7 +105,7 @@ else:
                             register_res = requests.post(f"{API_URL}/classes/register", json=payload)
                             
                             if register_res.status_code in [200, 201]:
-                                st.success(f"🎉 Đã đăng ký thành công bé **{child_options[selected_child_id]}**!")
+                                st.success(f" Đã đăng ký thành công bé **{child_options[selected_child_id]}**!")
                                 st.balloons()
                             else:
                                 st.error("❌ Đăng ký thất bại. Lớp có thể đã đầy.")

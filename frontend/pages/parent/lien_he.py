@@ -6,7 +6,7 @@ from datetime import date
 
 API_URL = "http://localhost:8000"
 
-st.set_page_config(page_title="Liên Hệ & Xin Nghỉ", page_icon="✉️")
+st.set_page_config(page_title="Liên Hệ & Xin Nghỉ")
 
 # ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
 def load_css(file_name):
@@ -30,14 +30,14 @@ def load_css(file_name):
 # Tải CSS làm đẹp cho trang Liên hệ (Chỉ truyền phần sau thư mục CSS/)
 load_css("parent/lien_he.css")
 
-st.title("✉️ Liên Hệ & Xin Nghỉ Phép")
+st.title(" Liên Hệ & Xin Nghỉ Phép")
 
 # Kiểm tra đăng nhập
 if "token" not in st.session_state:
     st.warning("⚠️ Vui lòng đăng nhập để sử dụng chức năng này.")
     st.stop()
 
-tab1, tab2 = st.tabs(["📝 Gửi yêu cầu mới", "🕒 Lịch sử yêu cầu"])
+tab1, tab2 = st.tabs([" Gửi Yêu Cầu Mới", " Lịch Sử Yêu Cầu"])
 
 with tab1:
     with st.form("contact_form"):
@@ -45,7 +45,7 @@ with tab1:
         ngay_ap_dung = st.date_input("Ngày áp dụng (nếu xin nghỉ):", date.today())
         noi_dung = st.text_area("Nội dung chi tiết (*):", placeholder="Vui lòng nhập chi tiết yêu cầu, ví dụ: Xin cho cháu nghỉ ốm...")
         
-        submit_btn = st.form_submit_button("📤 Gửi Yêu Cầu", type="primary", use_container_width=True)
+        submit_btn = st.form_submit_button(" Gửi Yêu Cầu", type="primary", use_container_width=True)
         
         if submit_btn:
             if not noi_dung.strip():
@@ -70,7 +70,7 @@ with tab1:
                     st.error("❌ Mất kết nối đến Backend Database.")
 
 with tab2:
-    st.subheader("🕒 Lịch sử yêu cầu đã gửi")
+    st.subheader(" Lịch Sử Yêu Cầu Đã Gửi")
     
     try:
         parent_id = st.session_state.get("user_id", "unknown")
@@ -85,11 +85,11 @@ with tab2:
                     # Hiển thị trạng thái màu sắc
                     status = item.get('status', 'pending')
                     if status == "pending":
-                        st.info("Trạng thái: ⏳ Đang xử lý")
+                        st.info("Trạng thái:  Đang xử lý")
                     elif status == "approved":
-                        st.success("Trạng thái: ✅ Đã duyệt")
+                        st.success("Trạng thái:  Đã duyệt")
                     else:
-                        st.error("Trạng thái: ❌ Từ chối")
+                        st.error("Trạng thái:  Từ chối")
         else:
             st.info("Chưa có yêu cầu nào được ghi nhận.")
     except:

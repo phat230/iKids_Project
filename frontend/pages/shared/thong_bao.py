@@ -40,7 +40,7 @@ user_id = st.session_state.get("user_id")
 user_role = st.session_state.get("role", "").lower()
 user_name = st.session_state.get("user_info", {}).get("name", "Người dùng")
 
-st.title("📨 Trung Tâm Thông Báo & Hộp Thư")
+st.title(" Trung Tâm Thông Báo & Hộp Thư")
 
 # =========================
 # 2. CẤU HÌNH PHÂN QUYỀN GỬI
@@ -54,11 +54,11 @@ ROLE_TARGETS = {
 }
 
 NOTI_TYPES = {
-    "message": "💬 Tin nhắn trao đổi",
-    "schedule": "📅 Lịch học",
-    "finance": "💰 Tài chính & Học phí",
-    "request": "📄 Đơn từ & Yêu cầu",
-    "system": "⚙️ Hệ thống"
+    "message": " Tin nhắn trao đổi",
+    "schedule": " Lịch học",
+    "finance": " Tài chính & Học phí",
+    "request": " Đơn từ & Yêu cầu",
+    "system": " Hệ thống"
 }
 
 # =========================
@@ -83,7 +83,7 @@ def mark_read(noti_id):
 # =========================
 # 4. GIAO DIỆN CHÍNH
 # =========================
-tab_inbox, tab_compose, tab_sent = st.tabs(["📥 Hộp thư đến", "✍️ Soạn thông báo", "🕒 Lịch sử đã gửi"])
+tab_inbox, tab_compose, tab_sent = st.tabs([" Hộp Thư Đến", " Soạn Thông Báo", " Lịch Sử Đã Gửi"])
 
 # --- TAB 1: HỘP THƯ ĐẾN ---
 with tab_inbox:
@@ -95,7 +95,7 @@ with tab_inbox:
                                      format_func=lambda x: NOTI_TYPES[x], default=list(NOTI_TYPES.keys()))
     with col_f2:
         st.write("##")
-        if st.button("🔄 Làm mới", use_container_width=True): st.rerun()
+        if st.button(" Làm Mới", use_container_width=True): st.rerun()
 
     filtered_data = [n for n in inbox_data if n.get("type") in filter_type]
 
@@ -114,11 +114,11 @@ with tab_inbox:
                 with c1:
                     type_label = NOTI_TYPES.get(noti.get('type'), '📨')
                     # Đánh dấu in đậm tiêu đề nếu chưa đọc
-                    title_prefix = "🔵 " if not is_read else ""
+                    title_prefix = " " if not is_read else ""
                     st.markdown(f"**{title_prefix}{type_label} | {noti.get('title')}**")
                     st.caption(f"Từ: {noti.get('sender_name')} ({noti.get('sender_role').upper()})")
                 with c2:
-                    st.caption(f"📅 {noti.get('created_at', '')[:16].replace('T', ' ')}")
+                    st.caption(f" {noti.get('created_at', '')[:16].replace('T', ' ')}")
                 
                 with st.expander("Xem chi tiết nội dung"):
                     st.markdown(f"<div class='noti-content'>{noti.get('content')}</div>", unsafe_allow_html=True)
@@ -152,7 +152,7 @@ with tab_compose:
             
             content = st.text_area("Nội dung chi tiết (*):", height=150)
             
-            if st.form_submit_button("🚀 Gửi ngay", type="primary", use_container_width=True):
+            if st.form_submit_button(" Gửi Ngay", type="primary", use_container_width=True):
                 if not title or not content:
                     st.error("Vui lòng điền đầy đủ tiêu đề và nội dung.")
                 else:

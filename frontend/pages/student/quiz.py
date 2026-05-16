@@ -70,13 +70,13 @@ if "selected_quiz" not in st.session_state:
 # MÀN HÌNH 1: DANH SÁCH BỘ ĐỀ
 # -------------------------------------------------------------------------
 if st.session_state.selected_quiz is None:
-    st.title("🧩 Trạm Quiz AI")
+    st.title("Trạm Quiz AI")
     st.write("Hoàn thành các bài tập dưới đây để tích lũy EXP thăng hạng nhé!")
     
-    st.markdown(f"🌟 **Tổng EXP của bạn:** `{st.session_state.student_profile.get('exp', 0)} EXP`")
+    st.markdown(f" **Tổng EXP của bạn:** `{st.session_state.student_profile.get('exp', 0)} EXP`")
 
     if not saved_quizzes:
-        st.info("🛌 Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!")
+        st.info("Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!")
     else:
         for i, q in enumerate(saved_quizzes):
             quiz_id = q.get('id', f"quiz_backup_id_{i}")
@@ -87,7 +87,7 @@ if st.session_state.selected_quiz is None:
                 with col_info:
                     st.markdown(f"""
                     <div class="quiz-card">
-                        <div class="quiz-title">📌 {q.get('title', 'Bài tập chưa có tên')}</div>
+                        <div class="quiz-title"> {q.get('title', 'Bài tập chưa có tên')}</div>
                         <div class="quiz-meta">Số câu: {len(q.get('questions', []))} | Phần thưởng: +50 EXP</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -114,11 +114,11 @@ else:
     questions = q.get('questions', [])
     num_questions = len(questions)
 
-    if st.button("⬅️ Trở về danh sách bộ đề"):
+    if st.button("⬅ Trở về danh sách bộ đề"):
         st.session_state.selected_quiz = None
         st.rerun()
 
-    st.markdown(f"## 📝 Đề thi: {q.get('title')}")
+    st.markdown(f"##  Đề Bài: {q.get('title')}")
     st.info("Hãy đọc kỹ câu hỏi và chọn đáp án chính xác nhất. Cần tích đủ tất cả các câu mới có thể nộp bài.")
 
     with st.form(key=f"full_quiz_form_{quiz_id}"):
@@ -159,9 +159,9 @@ else:
                 st.session_state.student_profile['exp'] += earned_exp
                 st.session_state.student_profile['completed_tasks'].append(quiz_id)
                 
-                st.success(f"💯 Chấm xong! Bạn làm đúng {correct_count}/{num_questions} câu. **Điểm: {score}/10**")
+                st.success(f" Chấm xong! Bạn làm đúng {correct_count}/{num_questions} câu. **Điểm: {score}/10**")
                 st.balloons()
-                st.info(f"✨ Chúc mừng! Bạn nhận được +{earned_exp} EXP! Đang quay lại trang chủ...")
+                st.info(f" Chúc mừng! Bạn nhận được +{earned_exp} EXP! Đang quay lại trang chủ...")
                 
                 time.sleep(3)
                 st.session_state.selected_quiz = None

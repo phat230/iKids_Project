@@ -81,12 +81,12 @@ def get_completed_tasks():
     except: return []
 
 # ================= GIAO DIỆN CHÍNH =================
-st.title("🤖 Quản Lý Bài Tập & Tiến Độ Học Sinh")
+st.title(" Quản Lý Bài Tập")
 
 tab_create, tab_preview, tab_tracking = st.tabs([
-    "✨ Soạn bài tập (AI/Thủ công)", 
-    "📋 Xem trước & Lưu kho", 
-    "📈 Tiến độ học sinh"
+    "Soạn bài tập (AI/Thủ công)", 
+    "Xem trước & Lưu kho", 
+    "Tiến độ học sinh"
 ])
 
 # --- TAB 1: SOẠN BÀI TẬP ---
@@ -103,7 +103,7 @@ with tab_create:
             topic = st.text_input("Chủ đề học tập", placeholder="Ví dụ: Động vật hoang dã")
             num_q = st.slider("Số lượng câu", 1, 20, 5)
             
-            if st.button("🚀 AI Bắt đầu soạn đề", type="primary", use_container_width=True):
+            if st.button("Soạn đề bằng AI", type="primary", use_container_width=True):
                 if not topic: 
                     st.warning("⚠️ Vui lòng nhập chủ đề!")
                 else:
@@ -117,7 +117,7 @@ with tab_create:
             uploaded_file = st.file_uploader("Kéo thả hoặc chọn file Word (.docx)", type=["docx"])
             num_q_file = st.slider("Số lượng câu cần trích xuất", 1, 20, 5, key="file_slider")
 
-            if st.button("🚀 AI Đọc File & Soạn Đề", type="primary", use_container_width=True):
+            if st.button("AI bắt đầu soạn đề", type="primary", use_container_width=True):
                 if uploaded_file is None:
                     st.warning("⚠️ Vui lòng tải file Word lên trước!")
                 else:
@@ -150,7 +150,7 @@ with tab_create:
             o_a, o_b = c1.text_input("Đáp án A"), c1.text_input("Đáp án B")
             o_c, o_d = c2.text_input("Đáp án C"), c2.text_input("Đáp án D")
             correct = st.selectbox("Đáp án đúng", ["A", "B", "C", "D"])
-            if st.form_submit_button("➕ Thêm câu hỏi", use_container_width=True):
+            if st.form_submit_button(" Thêm câu hỏi", use_container_width=True):
                 if all([manual_q, o_a, o_b, o_c, o_d]):
                     opts = [f"A. {o_a}", f"B. {o_b}", f"C. {o_c}", f"D. {o_d}"]
                     idx = ["A", "B", "C", "D"].index(correct)
@@ -162,7 +162,7 @@ with tab_preview:
     if not st.session_state.quiz_questions:
         st.info("💡 Chưa có câu hỏi nào. Bạn hãy soạn đề ở Tab đầu tiên nhé!")
     else:
-        st.markdown(f"### 📋 Tổng hợp bộ Quiz ({len(st.session_state.quiz_questions)} câu)")
+        st.markdown(f"### Tổng hợp toàn bộ câu hỏi ({len(st.session_state.quiz_questions)} câu)")
         quiz_title = st.text_input("Tên bộ Quiz", placeholder="Nhập tên để lưu (Ví dụ: Kiểm tra 15 phút bài Word)...")
         
         for i, q in enumerate(st.session_state.quiz_questions):
@@ -171,10 +171,10 @@ with tab_preview:
                 cq.markdown(f"**Câu {i+1}: {q['question']}**")
                 ans_idx = q['options'].index(q['correct_answer']) if q['correct_answer'] in q['options'] else 0
                 cq.radio("Lựa chọn:", q['options'], index=ans_idx, key=f"preview_{i}", disabled=True)
-                if cb.button("🗑️", key=f"del_{i}"):
+                if cb.button("Xóa câu hỏi", key=f"del_{i}"):
                     st.session_state.quiz_questions.pop(i); st.rerun()
         
-        if st.button("💾 LƯU BỘ ĐỀ VÀO KHO", type="primary", use_container_width=True):
+        if st.button("LƯU BÀI TẬP VÀO KHO", type="primary", use_container_width=True):
             if not quiz_title: 
                 st.error("⚠️ Hãy đặt tên bộ đề trước khi lưu!")
             else:
@@ -196,4 +196,4 @@ with tab_tracking:
         results = [{"Học sinh": "An", "Bài tập": "Toán", "Điểm": "9/10", "Ngày": "12/05/2026"}]
     df = pd.DataFrame(results)
     st.table(df)
-    st.download_button("📥 Xuất báo cáo CSV", data=df.to_csv(index=False).encode('utf-8-sig'), file_name='ket_qua_lam_bai.csv', mime='text/csv')
+    st.download_button(" XUẤT BÁO CÁO", data=df.to_csv(index=False).encode('utf-8-sig'), file_name='ket_qua_lam_bai.csv', mime='text/csv')

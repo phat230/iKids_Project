@@ -78,7 +78,7 @@ def render_teacher_dashboard():
     # Tải CSS tách riêng
     load_css("teacher/dashboard.css")
 
-    st.title("📅 Bảng Tin Giáo Viên (Lịch Dạy)")
+    st.title(" Lịch Dạy Tuần")
 
     # Thông tin đăng nhập
     teacher_id = st.session_state.get("user_id", "demo_id")
@@ -183,7 +183,7 @@ def render_teacher_dashboard():
     st.divider()
 
     # 4. Gửi đơn hỗ trợ
-    st.markdown("### 🛠️ Xét duyệt & Gửi đơn hỗ trợ")
+    st.markdown("### Yêu cầu xét duyệt xin hỗ trợ")
     if not active_classes:
         st.info("Hiện tại chưa có lịch dạy nào.")
     else:
@@ -192,13 +192,13 @@ def render_teacher_dashboard():
             col_info, col_form = st.columns([1, 1.8])
             with col_info:
                 selected_class_info = class_map_for_form[selected_class_label]
-                st.success(f"**Thông tin Lớp:**\n\n🏫 {selected_class_info['class_name']}\n\n📚 {selected_class_label.split('|')[0]}")
+                st.success(f"**Thông tin Lớp:**\n\n🏫 {selected_class_info['class_name']}\n\n {selected_class_label.split('|')[0]}")
             with col_form:
-                req_type = st.radio("Loại đơn", ["🛑 Xin nghỉ dạy", "🔄 Xin đổi ca", "🏫 Xin đổi phòng"], horizontal=True)
+                req_type = st.radio("Loại đơn", [" Xin Nghỉ Dạy", " Xin Đổi Ca", " Xin Đổi Phòng"], horizontal=True)
                 request_date = st.date_input("Ngày áp dụng thay đổi", value=date.today())
                 reason = st.text_area("Lý do cụ thể (Bắt buộc)", placeholder="Nhập lý do...")
                 
-                if st.button("🚀 Gửi Đơn Hỗ Trợ", type="primary", use_container_width=True):
+                if st.button("Gửi Đơn Xét Duyệt", type="primary", use_container_width=True):
                     if not reason.strip():
                         st.error("⚠️ Vui lòng nhập lý do!")
                     else:

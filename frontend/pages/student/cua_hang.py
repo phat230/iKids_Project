@@ -8,14 +8,14 @@ require_role(["student"])
 BACKEND_URL = "http://localhost:8000"
 
 def show_student_store():
-    st.title("🎒 Cửa Hàng iKids")
+    st.title(" Cửa Hàng iKids")
     st.write("Em có thể dùng tiền tích lũy để đổi quà nhé!")
     
     user_id = st.session_state.get("user_id")
     profile = get_gamification_profile(user_id)
     balance = profile.get('balance', 0)
     
-    st.sidebar.markdown("### 💰 Ví tiền của em")
+    st.sidebar.markdown("###  Ví Tiền Của Em")
     st.sidebar.subheader(f":green[{balance:,.0f} VNĐ]") 
     st.divider()
 

@@ -38,11 +38,11 @@ def save_processed_image(uploaded_file, target_size=(500, 500)):
 
 # --- KIỂM TRA QUYỀN ---
 if st.session_state.get("role") not in ["admin", "operator"]:
-    st.error("🚫 Bạn không có quyền truy cập vùng này.")
+    st.error(" Bạn không có quyền truy cập vùng này.")
     st.stop()
 
 # --- HEADER ---
-st.title("📦 Quản lý Kho hàng iKids")
+st.title(" Quản lý Kho hàng iKids")
 st.caption("Thêm mới, chỉnh sửa hoặc gỡ bỏ sản phẩm khỏi hệ thống cửa hàng.")
 
 # --- STATE ---
@@ -70,7 +70,7 @@ st.divider()
 
 # --- FORM ĐĂNG / SỬA (Sử dụng Layout 2 cột bên trong) ---
 is_editing = st.session_state.editing_product is not None
-form_title = "🛠️ ĐANG CHỈNH SỬA SẢN PHẨM" if is_editing else "➕ THÊM SẢN PHẨM MỚI"
+form_title = " ĐANG CHỈNH SỬA SẢN PHẨM" if is_editing else " THÊM SẢN PHẨM MỚI"
 
 with st.container(border=True):
     st.subheader(form_title)
@@ -133,9 +133,9 @@ st.write("##")
 # --- DANH SÁCH SẢN PHẨM HIỆN CÓ ---
 col_head1, col_head2 = st.columns([2, 1])
 with col_head1:
-    st.subheader("🛒 Danh mục hàng hóa")
+    st.subheader(" Danh mục hàng hóa")
 with col_head2:
-    search_query = st.text_input("🔍 Tìm kiếm sản phẩm...", placeholder="Nhập tên sản phẩm...")
+    search_query = st.text_input(" Tìm kiếm sản phẩm...", placeholder="Nhập tên sản phẩm...")
 
 if not products:
     st.info("Chưa có sản essence phẩm nào trong kho.")
@@ -164,18 +164,18 @@ else:
             with c2:
                 st.markdown(f"**{p['name']}**")
                 st.caption(p.get('description', 'Không có mô tả.'))
-                st.caption(f"📅 Cập nhật: {p.get('updated_at', '---')}")
+                st.caption(f" Cập nhật: {p.get('updated_at', '---')}")
             
             with c3:
                 st.markdown(f"#### {p['price']:,}đ")
             
             with c4:
-                if st.button("✏️ Sửa", key=f"edit_{p['id']}", use_container_width=True):
+                if st.button(" Sửa", key=f"edit_{p['id']}", use_container_width=True):
                     st.session_state.editing_product = p
                     st.rerun()
             
             with c5:
-                if st.button("🗑️ Xóa", key=f"del_{p['id']}", use_container_width=True):
+                if st.button(" Xóa", key=f"del_{p['id']}", use_container_width=True):
                     if requests.delete(f"{API_URL}/products/{p['id']}").status_code == 200:
                         st.toast(f"Đã xóa {p['name']}!")
                         st.cache_data.clear()
