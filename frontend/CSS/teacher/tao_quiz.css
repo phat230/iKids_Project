@@ -51,31 +51,72 @@ div[key^="preview_q_"] {
     border-left: 5px solid #8b5cf6 !important;
 }
 
-/* ================= ĐỊNH DẠNG NÚT BẤM ================= */
-/* Nút bấm AI Bắt đầu (Primary) - Giữ nguyên màu Tím AI của ông */
+/* ================= ĐỊNH DẠNG NÚT BẤM ĐỒNG NHẤT ================= */
+
+/* 1. Nút bấm AI Bắt đầu (Primary) - Màu Tím AI */
 .stButton > button[kind="primary"] {
     background-color: #8b5cf6 !important; 
+    color: white !important;
     border: none !important;
-    height: 3rem;
+    height: 3rem !important;
     font-weight: bold !important;
     border-radius: 8px !important;
+    transition: all 0.3s ease !important;
 }
 .stButton > button[kind="primary"]:hover {
     background-color: #7c3aed !important; 
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px -2px rgba(139, 92, 246, 0.4) !important;
 }
 
-/* Nút xóa câu hỏi màu đỏ nhạt (Hình thùng rác) */
-button[key^="del_"] {
+/* 2. Nút Thêm câu hỏi (Bắt dính tất cả nút phụ & nút trong Form) - Viền tím đồng bộ */
+.stButton > button[kind="secondary"],
+.stButton > button[kind="secondaryFormSubmit"],
+[data-testid="stForm"] button {
+    background-color: #ffffff !important;
+    color: #8b5cf6 !important;
+    border: 2px solid #8b5cf6 !important;
+    height: 3rem !important;
+    font-weight: bold !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+.stButton > button[kind="secondary"]:hover,
+.stButton > button[kind="secondaryFormSubmit"]:hover,
+[data-testid="stForm"] button:hover {
+    background-color: #f5f3ff !important; /* Tím siêu nhạt */
+    border-color: #7c3aed !important;
+    color: #7c3aed !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px -2px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* 3. Nút xóa câu hỏi màu đỏ nhạt (Hình thùng rác) */
+button[key^="del_"],
+.stButton > button:has(p:contains("🗑️")),
+.stButton > button:has(div:contains("🗑️")) {
     color: #ef4444 !important;
     border: 1px solid #fecaca !important;
     background-color: #fef2f2 !important;
     border-radius: 50% !important;
-    padding: 5px !important;
+    padding: 0 !important;
+    height: 42px !important;
+    width: 42px !important;
+    min-height: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
-button[key^="del_"]:hover {
+button[key^="del_"]:hover,
+.stButton > button:has(p:contains("🗑️")):hover,
+.stButton > button:has(div:contains("🗑️")):hover {
     background-color: #fca5a5 !important;
     color: white !important;
     border-color: #f87171 !important;
+    transform: scale(1.1) !important;
 }
 
 /* ================= ĐỊNH DẠNG BẢNG ĐIỂM ================= */

@@ -94,7 +94,7 @@ with tab_create:
     col_ai, col_manual = st.columns(2, gap="large")
     
     with col_ai:
-        st.subheader("Sinh đề bằng AI")
+        st.subheader("Tạo Tập Bằng AI")
         
         # Công tắc chọn cách thức tạo đề
         ai_mode = st.radio("Cách thức tạo đề:", ["Tự nhập chủ đề", "Tải tài liệu Word (.docx) lên"], horizontal=True)

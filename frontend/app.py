@@ -51,7 +51,6 @@ else:
         menu_pages.extend([
             st.Page("pages/admin/dashboard.py", title="Bảng Điều Khiển Admin",),
             st.Page("pages/admin/quan_ly_nhan_su.py", title="Quản Lý Nhân Sự",),
-            st.Page("pages/admin/manage_users.py", title="Quản Lý Tài Khoản",),
             st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng",), # Thêm trang quản lý shop
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Hệ Thống",)
         ])
@@ -74,6 +73,7 @@ else:
             st.Page("pages/teacher/tao_quiz.py", title="Quản Lý Bài Tập AI"),
             st.Page("pages/teacher/kho_hoc_lieu.py", title="Kho Học Liệu", ),
             st.Page("pages/teacher/giao_bai.py", title="Giao Bài Tập"),
+            st.Page("pages/teacher/quan_ly_diem.py", title="Quản Lý & Ghi Điểm"),
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" )        
         ])
 

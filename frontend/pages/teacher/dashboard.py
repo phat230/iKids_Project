@@ -1,31 +1,15 @@
 import streamlit as st
+import pandas as pd
 import requests
 import os
+import time
 from datetime import datetime, timedelta, date
 
-# Import bảo vệ role
-try:
-    from utils.role_guard import require_role
-    require_role(["teacher", "admin"])
-except ImportError:
-    pass
+st.set_page_config(page_title="Bảng Tin Giáo Viên", page_icon=None, layout="wide")
 
-# ================= CẤU HÌNH HỆ THỐNG & NGÀY LỄ =================
-API_URL = "http://localhost:8000"
-
-HOLIDAYS = {
-    "01/01": "Tết Dương Lịch",
-    "30/04": "Giải Phóng Miền Nam",
-    "01/05": "Quốc Tế Lao Động",
-    "01/06": "Quốc Tế Thiếu Nhi",
-    "02/09": "Quốc Khánh",
-    "20/11": "Ngày Nhà Giáo VN"
-}
-
-# ================= HÀM HỖ TRỢ (LOAD CSS & LOGIC) =================
+# ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
-    """Tự động tìm file CSS trong thư mục frontend/CSS/"""
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = os.path.dirname(os.path.abspath(__file__)) 
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
 
@@ -33,188 +17,279 @@ def load_css(file_name):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+        st.warning(f"Canh bao: Khong tim thay file CSS tai: {full_path}")
 
-def get_start_of_week(dt):
-    return dt - timedelta(days=dt.weekday())
+load_css("teacher/dashboard.css")
 
-def parse_date_range(date_str):
+API_URL = "http://localhost:8000"
+
+# ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
+user_info = st.session_state.get("user_info", {})
+teacher_id = str(user_info.get("id", user_info.get("_id", "")))
+teacher_name = user_info.get("name", user_info.get("full_name", "Giáo viên"))
+
+# ================= HÀM LẤY LỊCH DẠY =================
+@st.cache_data(ttl=5)
+def get_my_schedules(t_id):
     try:
-        if "đến" in date_str:
-            parts = date_str.split("đến")
-            start = datetime.strptime(parts[0].strip(), "%d/%m/%Y").date()
-            end = datetime.strptime(parts[1].strip(), "%d/%m/%Y").date()
-            return start, end
-        d = datetime.strptime(date_str.strip(), "%d/%m/%Y" if "/" in date_str else "%Y-%m-%d").date()
-        return d, d
-    except:
-        return date.min, date.max
-
-def get_shift_id(time_str):
-    try:
-        h = int(time_str.split(":")[0])
-        if h < 9: return 1
-        elif h < 12: return 2
-        elif h < 15: return 3
-        elif h < 17: return 4
-        else: return 5
-    except:
-        return 5
-
-@st.cache_data(ttl=30)
-def fetch_teacher_schedules(teacher_id):
-    headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-    try:
+        headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
         res = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=10)
         if res.status_code == 200:
-            all_schedules = res.json()
-            return [s for s in all_schedules if s.get("teacher_id") == teacher_id and s.get("status") == "active"]
-        return []
-    except:
-        return []
-
-# ================= GIAO DIỆN CHÍNH =================
-def render_teacher_dashboard():
-    # Tải CSS tách riêng
-    load_css("teacher/dashboard.css")
-
-    st.title(" Lịch Dạy Tuần")
-
-    # Thông tin đăng nhập
-    teacher_id = st.session_state.get("user_id", "demo_id")
-    teacher_name = st.session_state.get("user_info", {}).get("name", "Giáo viên")
-
-    # 1. Quản lý điều hướng ngày tháng
-    if 'current_date' not in st.session_state:
-        st.session_state.current_date = datetime.now()
-
-    col_nav, col_title, col_view = st.columns([1, 2, 1])
-    with col_nav:
-        c1, c2, c3 = st.columns([1.5, 1, 1])
-        if c1.button("Hôm nay", use_container_width=True): st.session_state.current_date = datetime.now()
-        if c2.button("◀", use_container_width=True): st.session_state.current_date -= timedelta(days=7)
-        if c3.button("▶", use_container_width=True): st.session_state.current_date += timedelta(days=7)
-            
-    with col_title:
-        m_names = ["", "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", 
-                   "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"]
-        curr_month = m_names[st.session_state.current_date.month]
-        st.markdown(f"<h3 style='text-align: center; margin: 0;'>{curr_month} - {st.session_state.current_date.year}</h3>", unsafe_allow_html=True)
-
-    # 2. Xử lý lịch tuần
-    start_of_week = get_start_of_week(st.session_state.current_date)
-    start_of_week_date = start_of_week.date()
-    week_dates = []
-    for i in range(7):
-        current_day = start_of_week + timedelta(days=i)
-        d_str = current_day.strftime("%d/%m")
-        week_dates.append({
-            "name": f"Thứ {i+2}" if i < 6 else "Chủ Nhật",
-            "date": d_str,
-            "is_holiday": d_str in HOLIDAYS,
-            "holiday_name": HOLIDAYS.get(d_str, "")
-        })
-
-    # Lấy dữ liệu thật
-    raw_schedules = fetch_teacher_schedules(teacher_id)
-    schedule_data = []
-    active_classes = []
-    class_map_for_form = {}
-    day_map = {0: "Thứ 2", 1: "Thứ 3", 2: "Thứ 4", 3: "Thứ 5", 4: "Thứ 6", 5: "Thứ 7", 6: "Chủ nhật"}
-
-    for s in raw_schedules:
-        s_start, s_end = parse_date_range(s.get("study_date", ""))
-        label = f"{s.get('class_name')} - {s.get('subject')} | Khóa: {s.get('study_date')}"
-        if label not in active_classes:
-            active_classes.append(label)
-            class_map_for_form[label] = {"class_id": s.get("class_id", s.get("id", "")), "class_name": s.get("class_name", "")}
-
-        for i in range(7):
-            check_date = start_of_week_date + timedelta(days=i)
-            if s_start <= check_date <= s_end and day_map[i] in s.get("days_of_week", []):
-                schedule_data.append({
-                    "day_offset": i, 
-                    "shift": get_shift_id(s.get("start_time", "00:00")),
-                    "subject": s.get("subject", "N/A"), 
-                    "class_name": s.get("class_name", ""),
-                    "room": s.get("room", "Online"),
-                    "teacher": s.get("teacher_name", teacher_name),
-                    "time_str": f"{s.get('start_time')} - {s.get('end_time')}"
-                })
-
-    # 3. Vẽ bảng lịch bằng HTML sử dụng Class từ file Dashboard.css
-    html_table = '<table class="custom-calendar"><thead><tr><th>Buổi</th><th>Thời gian</th>'
-    for day in week_dates:
-        h_class = " class='holiday-header'" if day["is_holiday"] else ""
-        h_text = f"<span class='holiday-text'>{day['holiday_name']}</span>" if day["is_holiday"] else ""
-        html_table += f"<th{h_class}>{day['name']}<br><small>({day['date']})</small>{h_text}</th>"
-    html_table += "</tr></thead><tbody>"
-
-    def generate_cells(shift_id):
-        cells = ""
-        for idx, day in enumerate(week_dates):
-            if day["is_holiday"]:
-                cells += "<td class='holiday-cell'>Nghỉ Lễ</td>"
-            else:
-                content = ""
-                for item in schedule_data:
-                    if item['day_offset'] == idx and item['shift'] == shift_id:
-                        content += f"""<div class="class-cell">
-                            <div class="class-subject">{item['subject']}</div>
-                            <div class="class-name">{item['class_name']}</div>
-                            <div class="class-room">🏫 {item['room']}</div>
-                            <div class="class-teacher">👤 {item['teacher']}</div>
-                        </div>"""
-                cells += f"<td>{content}</td>"
-        return cells
-
-    # Hàng cho các Ca (Shift)
-    shifts = [("SÁNG", 1, "07:30 - 09:30"), ("SÁNG", 2, "09:45 - 11:45"), 
-              ("CHIỀU", 3, "13:30 - 15:30"), ("CHIỀU", 4, "15:45 - 17:45"), 
-              ("TỐI", 5, "18:30 - 20:30")]
-    
-    for label, sid, t_range in shifts:
-        session_td = ""
-        if sid in [1, 3]: session_td = f'<td rowspan="2" class="session-col">{label}</td>'
-        elif sid == 5: session_td = '<td class="session-col" style="writing-mode:horizontal-tb;transform:none;letter-spacing:0;width:auto;">TỐI</td>'
-        html_table += f'<tr>{session_td}<td class="time-col">Ca {sid}<br><small>{t_range}</small></td>{generate_cells(sid)}</tr>'
-
-    st.markdown(html_table + "</tbody></table>", unsafe_allow_html=True)
-    st.divider()
-
-    # 4. Gửi đơn hỗ trợ
-    st.markdown("### Yêu cầu xét duyệt xin hỗ trợ")
-    if not active_classes:
-        st.info("Hiện tại chưa có lịch dạy nào.")
-    else:
-        selected_class_label = st.selectbox("📌 Bước 1: Chọn Lớp/Ca dạy đang gặp vấn đề", ["-- Vui lòng chọn --"] + active_classes)
-        if selected_class_label != "-- Vui lòng chọn --":
-            col_info, col_form = st.columns([1, 1.8])
-            with col_info:
-                selected_class_info = class_map_for_form[selected_class_label]
-                st.success(f"**Thông tin Lớp:**\n\n🏫 {selected_class_info['class_name']}\n\n {selected_class_label.split('|')[0]}")
-            with col_form:
-                req_type = st.radio("Loại đơn", [" Xin Nghỉ Dạy", " Xin Đổi Ca", " Xin Đổi Phòng"], horizontal=True)
-                request_date = st.date_input("Ngày áp dụng thay đổi", value=date.today())
-                reason = st.text_area("Lý do cụ thể (Bắt buộc)", placeholder="Nhập lý do...")
+            schedules = res.json()
+            my_scheds = []
+            for s in schedules:
+                t_teach = str(s.get("teaching_teacher_id", ""))
+                t_resp = str(s.get("teacher_id", ""))
                 
-                if st.button("Gửi Đơn Xét Duyệt", type="primary", use_container_width=True):
-                    if not reason.strip():
-                        st.error("⚠️ Vui lòng nhập lý do!")
-                    else:
-                        payload = {
-                            "teacher_id": teacher_id, "teacher_name": teacher_name,
-                            "class_id": selected_class_info['class_id'], "class_name": selected_class_info['class_name'],
-                            "type": req_type[2:].strip(), "reason": reason, "date": str(request_date), "status": "pending"
-                        }
-                        try:
-                            res = requests.post(f"{API_URL}/submit-request", json=payload)
-                            if res.status_code == 200:
-                                st.success("✅ Gửi đơn thành công!"); st.balloons()
-                            else:
-                                st.error("❌ Lỗi gửi đơn.")
-                        except:
-                            st.error("❌ Không thể kết nối Backend.")
+                if (t_id == t_teach or t_id == t_resp) and t_id != "":
+                    my_scheds.append(s)
+            return my_scheds
+    except:
+        pass
+    return []
 
-if __name__ == "__main__":
-    render_teacher_dashboard()
+# Tạo danh sách khung giờ 30 phút
+time_slots = []
+for hour in range(7, 22):
+    for minute in [0, 30]:
+        if hour == 21 and minute == 30:
+            continue
+        time_slots.append(f"{hour:02d}:{minute:02d}")
+
+# ================= KHỞI TẠO STATE & ĐIỀU HƯỚNG VIEW =================
+if "current_week_date" not in st.session_state:
+    st.session_state.current_week_date = date.today()
+
+if "dashboard_view" not in st.session_state:
+    st.session_state.dashboard_view = "schedule" 
+
+def toggle_view():
+    if st.session_state.dashboard_view == "schedule":
+        st.session_state.dashboard_view = "request"
+    else:
+        st.session_state.dashboard_view = "schedule"
+
+st.title("Bảng Tin Giáo Viên")
+
+# Thanh điều khiển 5 cột đối xứng
+col_today, col_prev, col_title, col_next, col_toggle = st.columns([1.5, 0.5, 4, 0.5, 1.5])
+
+with col_today:
+    if st.session_state.dashboard_view == "schedule":
+        if st.button("Hôm nay", use_container_width=True):
+            st.session_state.current_week_date = date.today()
+            st.rerun()
+
+with col_prev:
+    if st.session_state.dashboard_view == "schedule":
+        if st.button("<", use_container_width=True):
+            st.session_state.current_week_date -= timedelta(days=7)
+            st.rerun()
+
+with col_title:
+    if st.session_state.dashboard_view == "schedule":
+        st.markdown(f"<h3 style='text-align: center; margin-top: 0;'>Tháng {st.session_state.current_week_date.month} - {st.session_state.current_week_date.year}</h3>", unsafe_allow_html=True)
+    else:
+        st.markdown("<h3 style='text-align: center; margin-top: 0;'>Quản Lý Đơn Từ & Ngày Nghỉ</h3>", unsafe_allow_html=True)
+
+with col_next:
+    if st.session_state.dashboard_view == "schedule":
+        if st.button(">", use_container_width=True):
+            st.session_state.current_week_date += timedelta(days=7)
+            st.rerun()
+
+with col_toggle:
+    btn_label = "Gửi yêu cầu" if st.session_state.dashboard_view == "schedule" else "Quay lại Lịch dạy"
+    if st.button(btn_label, use_container_width=True, type="primary"):
+        toggle_view()
+        st.rerun()
+
+# Lấy dữ liệu lịch để dùng chung
+my_schedules = get_my_schedules(teacher_id)
+sched_options = {str(s.get("id", s.get("_id", ""))): f"{s.get('class_name', '')} - {s.get('subject', '')}" for s in my_schedules}
+
+# ================= RENDER CƠ CHẾ 2 VIEWS =================
+
+if st.session_state.dashboard_view == "schedule":
+    # ---------------- VIEW 1: LỊCH DẠY ----------------
+    start_of_week = st.session_state.current_week_date - timedelta(days=st.session_state.current_week_date.weekday())
+    day_names = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"]
+    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+
+    schedule_map = {"SÁNG": {}, "CHIỀU": {}, "TỐI": {}}
+    for session in ["SÁNG", "CHIỀU", "TỐI"]:
+        for d in day_names:
+            schedule_map[session][d] = []
+
+    for s in my_schedules:
+        start_time = s.get("start_time", "00:00")
+        try:
+            hour = int(start_time.split(":")[0])
+        except:
+            hour = 8 
+        
+        if hour < 12:
+            session = "SÁNG"
+        elif hour < 17:
+            session = "CHIỀU"
+        else:
+            session = "TỐI"
+            
+        for d in s.get("days_of_week", []):
+            if d in day_names:
+                schedule_map[session][d].append(s)
+
+    for session in ["SÁNG", "CHIỀU", "TỐI"]:
+        for d in day_names:
+            schedule_map[session][d] = sorted(schedule_map[session][d], key=lambda x: x.get("start_time", "00:00"))
+
+    html_content = """
+    <table class="schedule-table">
+        <thead>
+            <tr>
+                <th style="width: 6%;">Buổi</th>
+    """
+
+    for i, d in enumerate(day_names):
+        date_str = week_dates[i].strftime('%d/%m')
+        html_content += f"<th>{d}<br><span style='font-size: 0.85em; font-weight: normal; color: #64748b;'>({date_str})</span></th>"
+    html_content += "</tr></thead><tbody>"
+
+    for session in ["SÁNG", "CHIỀU", "TỐI"]:
+        html_content += f"<tr><td class='session-label'>{session}</td>"
+        for d in day_names:
+            html_content += "<td>"
+            if not schedule_map[session][d]:
+                html_content += ""
+            else:
+                for s in schedule_map[session][d]:
+                    subject = s.get('subject', 'Chưa rõ môn')
+                    c_name = s.get('class_name', 'Chưa rõ lớp')
+                    t_str = f"{s.get('start_time', '')} - {s.get('end_time', '')}"
+                    room = s.get('room', 'Online')
+                    
+                    html_content += f"""
+                    <div class="class-card">
+                        <div class="class-subject">{subject}</div>
+                        <div class="class-name">{c_name}</div>
+                        <div class="class-time">{t_str} | Phòng: {room}</div>
+                    </div>
+                    """
+            html_content += "</td>"
+        html_content += "</tr>"
+
+    html_content += "</tbody></table>"
+    st.markdown(html_content, unsafe_allow_html=True)
+
+else:
+    # ---------------- VIEW 2: GỬI YÊU CẦU ----------------
+    if "my_leave_requests" not in st.session_state:
+        st.session_state.my_leave_requests = []
+
+    tab_form, tab_list = st.tabs(["Gửi Yêu Cầu Mới", "Lịch Sử Yêu Cầu"])
+
+    with tab_form:
+        # Dropdown loại đơn để Rerender Form bên dưới
+        req_type = st.selectbox("Chọn loại yêu cầu (*)", ["Xin nghỉ phép", "Xin đổi lịch dạy", "Đổi phương thức dạy", "Báo cáo sự cố thiết bị"])
+        
+        with st.container(border=True):
+            with st.form("dynamic_request_form", clear_on_submit=True):
+                
+                # CÁC TRƯỜNG DỮ LIỆU ĐỘNG DỰA THEO LOẠI ĐƠN
+                if req_type == "Xin nghỉ phép":
+                    sel_class = st.selectbox("Lớp học liên quan", options=list(sched_options.keys()), format_func=lambda x: sched_options[x])
+                    c1, c2 = st.columns(2)
+                    with c1: 
+                        ngay_nghi = st.date_input("Ngày xin nghỉ")
+                    with c2: 
+                        ngay_day_bu = st.date_input("Ngày dạy bù")
+                    c3, c4 = st.columns(2)
+                    with c3: 
+                        gio_bd_bu = st.selectbox("Giờ bắt đầu dạy bù", options=time_slots, index=time_slots.index("18:00") if "18:00" in time_slots else 0)
+                    with c4: 
+                        gio_kt_bu = st.selectbox("Giờ kết thúc dạy bù", options=time_slots, index=time_slots.index("19:30") if "19:30" in time_slots else 0)
+                    ly_do = st.text_area("Lý do xin nghỉ (*)")
+
+                elif req_type == "Xin đổi lịch dạy":
+                    sel_class = st.selectbox("Lớp học liên quan", options=list(sched_options.keys()), format_func=lambda x: sched_options[x])
+                    ngay_moi = st.date_input("Ngày học mới đề xuất")
+                    c1, c2 = st.columns(2)
+                    with c1: 
+                        gio_bd_moi = st.selectbox("Giờ bắt đầu mới", options=time_slots, index=time_slots.index("18:00") if "18:00" in time_slots else 0)
+                    with c2: 
+                        gio_kt_moi = st.selectbox("Giờ kết thúc mới", options=time_slots, index=time_slots.index("19:30") if "19:30" in time_slots else 0)
+                    ly_do = st.text_area("Lý do đổi lịch (*)")
+
+                elif req_type == "Đổi phương thức dạy":
+                    sel_class = st.selectbox("Lớp học liên quan", options=list(sched_options.keys()), format_func=lambda x: sched_options[x])
+                    ngay_ap_dung = st.date_input("Ngày bắt đầu áp dụng")
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        phuong_thuc = st.selectbox("Phương thức mới", ["Học Online", "Học Trực tiếp tại Trung tâm"])
+                    with c2:
+                        phong_hoc = st.text_input("Tên phòng (Nếu dạy trực tiếp)", placeholder="VD: Phòng A102")
+                    ly_do = st.text_area("Lý do thay đổi (*)")
+
+                elif req_type == "Báo cáo sự cố thiết bị":
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        phong_su_co = st.text_input("Phòng học xảy ra sự cố (*)", placeholder="VD: Phòng Lab 1")
+                    with c2:
+                        thiet_bi_loi = st.text_input("Tên thiết bị lỗi (*)", placeholder="VD: Máy chiếu, Mic...")
+                    ly_do = st.text_area("Mô tả chi tiết tình trạng sự cố (*)")
+
+                # NÚT GỬI ĐƠN CHUNG
+                if st.form_submit_button("Xác Nhận Gửi Yêu Cầu", type="primary", use_container_width=True):
+                    # Xử lý nội dung hiển thị cho bảng tóm tắt
+                    chi_tiet = ""
+                    if req_type == "Xin nghỉ phép":
+                        chi_tiet = f"Lớp: {sched_options.get(sel_class, '')} | Nghỉ: {ngay_nghi.strftime('%d/%m/%Y')} | Bù: {ngay_day_bu.strftime('%d/%m/%Y')} ({gio_bd_bu}-{gio_kt_bu})"
+                    elif req_type == "Xin đổi lịch dạy":
+                        chi_tiet = f"Lớp: {sched_options.get(sel_class, '')} | Lịch mới: {ngay_moi.strftime('%d/%m/%Y')} ({gio_bd_moi}-{gio_kt_moi})"
+                    elif req_type == "Đổi phương thức dạy":
+                        pt = f"Trực tiếp ({phong_hoc})" if phuong_thuc == "Học Trực tiếp tại Trung tâm" else "Online"
+                        chi_tiet = f"Lớp: {sched_options.get(sel_class, '')} | Áp dụng từ: {ngay_ap_dung.strftime('%d/%m/%Y')} | Dạng: {pt}"
+                    elif req_type == "Báo cáo sự cố thiết bị":
+                        chi_tiet = f"Phòng: {phong_su_co} | Thiết bị lỗi: {thiet_bi_loi}"
+
+                    if not ly_do:
+                        st.error("Vui lòng điền đầy đủ các thông tin bắt buộc (*).")
+                    else:
+                        new_req = {
+                            "id": str(int(time.time())),
+                            "teacher_id": teacher_id,
+                            "teacher_name": teacher_name,
+                            "type": req_type,
+                            "details": chi_tiet,
+                            "reason": ly_do,
+                            "status": "Chờ duyệt",
+                            "created_at": datetime.now().strftime("%d/%m/%Y %H:%M")
+                        }
+                        
+                        try:
+                            headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
+                            requests.post(f"{API_URL}/requests/create", json=new_req, headers=headers)
+                        except: pass
+                        
+                        st.session_state.my_leave_requests.insert(0, new_req)
+                        st.success("Đã gửi yêu cầu thành công!")
+                        time.sleep(0.5)
+                        st.rerun()
+
+    with tab_list:
+        if not st.session_state.my_leave_requests:
+            st.info("Hiện tại chưa có yêu cầu nào được gửi đi.")
+        else:
+            df_req = pd.DataFrame(st.session_state.my_leave_requests)
+            df_display = df_req.rename(columns={
+                "type": "Loại Yêu Cầu", 
+                "details": "Chi Tiết",
+                "reason": "Lý Do / Mô Tả", 
+                "status": "Trạng Thái", 
+                "created_at": "Ngày Gửi"
+            })
+            st.dataframe(
+                df_display[["Ngày Gửi", "Loại Yêu Cầu", "Chi Tiết", "Lý Do / Mô Tả", "Trạng Thái"]], 
+                use_container_width=True, 
+                hide_index=True
+            )

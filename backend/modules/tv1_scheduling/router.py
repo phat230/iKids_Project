@@ -9,20 +9,27 @@ from modules.notification.services import create_notification
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 router = APIRouter()
 
-# 1. API tiếp nhận đơn từ Giáo viên
-@router.post("/submit-request")
-async def submit_teacher_request(request: TeacherRequestCreate, db = Depends(get_db)):
-    request_dict = request.model_dump()
-    request_dict["status"] = "pending"
-    request_dict["created_at"] = datetime.now()
+# 1. API tiếp nhận đơn từ Giáo viên (ĐÃ ĐỒNG BỘ URL VÀ KIỂU DỮ LIỆU ĐỘNG)
+@router.post("/requests/create")
+async def submit_teacher_request(request_data: dict, db = Depends(get_db)):
+    # Nhận dict để linh hoạt xử lý mọi cấu trúc đơn (Xin nghỉ, Đổi lịch, Sự cố...)
+    request_data["status"] = "pending"
     
-    result = await db.teacher_requests.insert_one(request_dict)
+    # Giữ lại thời gian Frontend gửi hoặc tự tạo nếu thiếu
+    if "created_at" not in request_data:
+        request_data["created_at"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+        
+    # Xóa ID ảo do Frontend tạo (nếu có) để MongoDB cấp _id chuẩn
+    if "id" in request_data:
+        del request_data["id"]
+        
+    result = await db.teacher_requests.insert_one(request_data)
     return {"message": "Đã gửi đơn thành công", "id": str(result.inserted_id)}
 
 # 2. API lấy danh sách đơn chờ duyệt cho Admin
 @router.get("/pending-requests")
 async def get_pending_requests(db = Depends(get_db)):
-    cursor = db.teacher_requests.find({"status": "pending"})
+    cursor = db.teacher_requests.find({"status": "pending"}).sort("created_at", -1)
     requests_list = []
     async for doc in cursor:
         doc["id"] = str(doc["_id"])
@@ -403,16 +410,17 @@ async def get_teachers(
         del t["_id"]
 
     return teachers
+
 @router.post("/classes/create")
 async def create_new_class(class_data: ClassModel, db = Depends(get_db)):
-    """Nhân viên vận hành tạo lớp học mới [cite: 7, 11]"""
+    """Nhân viên vận hành tạo lớp học mới"""
     doc = class_data.model_dump()
     result = await db.classes.insert_one(doc)
     return {"id": str(result.inserted_id), "message": "Tạo lớp thành công"}
 
 @router.post("/classes/register")
 async def register_student_to_class(payload: dict, db = Depends(get_db)):
-    """Phụ huynh chọn lớp cho con - Tự động thêm vào danh sách [cite: 11, 20, 21]"""
+    """Phụ huynh chọn lớp cho con - Tự động thêm vào danh sách"""
     class_id = payload.get("class_id")
     student_id = payload.get("student_id")
     
@@ -424,6 +432,7 @@ async def register_student_to_class(payload: dict, db = Depends(get_db)):
     if result.modified_count:
         return {"status": "success", "message": "Đăng ký lớp thành công"}
     raise HTTPException(status_code=400, detail="Không thể đăng ký")
+
 # Lấy tất cả lớp học (Dành cho Nhân viên Vận hành)
 @router.get("/classes")
 async def get_all_classes(db = Depends(get_db)):
@@ -442,6 +451,7 @@ async def get_public_classes(db = Depends(get_db)):
         c["id"] = str(c["_id"])
         del c["_id"]
     return classes
+
 @router.put("/classes/{class_id}")
 async def update_class_info(class_id: str, payload: dict, db = Depends(get_db)):
     # Loại bỏ id khỏi payload nếu có để tránh lỗi MongoDB
@@ -463,6 +473,7 @@ async def delete_class_info(class_id: str, db = Depends(get_db)):
     if result.deleted_count:
         return {"status": "success", "message": "Đã xóa lớp học"}
     raise HTTPException(status_code=400, detail="Không thể xóa lớp học")
+
 # API Lấy danh sách học viên thật của một lớp
 @router.get("/classes/{class_id}/students/details")
 async def get_class_students_details(class_id: str, db = Depends(get_db)):
@@ -498,6 +509,7 @@ async def get_class_students_details(class_id: str, db = Depends(get_db)):
             "Tình trạng": "Đang học"
         })
     return result
+
 # API Xóa học sinh khỏi lớp học
 @router.delete("/classes/{class_id}/students/{student_id}")
 async def remove_student_from_class(class_id: str, student_id: str, db = Depends(get_db)):
@@ -509,6 +521,7 @@ async def remove_student_from_class(class_id: str, student_id: str, db = Depends
     if result.modified_count:
         return {"status": "success", "message": "Đã xóa học sinh khỏi lớp"}
     raise HTTPException(status_code=400, detail="Không thể xóa hoặc học sinh không có trong lớp")
+
 # Giả sử sau khi db.class_schedules.update_one thành công:
 async def notify_schedule_change(db, class_id, class_name, old_time, new_time):
     # 1. Tìm tất cả học sinh trong lớp này

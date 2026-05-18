@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Admin Dashboard - iKids", layout="wide", initial_sidebar_state="expanded", page_icon="🛡️")
+st.set_page_config(page_title="Admin Dashboard - iKids", layout="wide", initial_sidebar_state="expanded", page_icon=None)
 
 # ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
 def load_css(file_name):
@@ -22,7 +22,7 @@ def load_css(file_name):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
-        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
+        st.warning(f"Canh bao: Khong tim thay file CSS tai: {full_path}")
 
 # Tải CSS làm đẹp (Chỉ truyền phần sau thư mục CSS/)
 load_css("admin/dashboard.css")
@@ -65,7 +65,7 @@ def approve_deposit_issue(issue_id):
     except: return False
 
 # --- HEADER ---
-st.title(" Bảng Điều Khiển Quản Trị Trung Tâm")
+st.title("Bảng Điều Khiển Quản Trị Trung Tâm")
 st.markdown("*Hệ thống giám sát vận hành đồng bộ: Lịch dạy (TV1), Học thuật & AI (TV2), Cộng đồng (TV3)*")
 st.write("---")
 
@@ -104,10 +104,11 @@ left_col, right_col = st.columns([1.6, 1])
 
 # --- CỘT TRÁI: TV1 ---
 with left_col:
-    st.subheader("1. Phê duyệt & Điều phối ")
+    st.subheader("1. Phê duyệt & Điều phối")
     st.markdown(f"**A. Yêu cầu đang chờ duyệt ({total_pending_tv1})**")
+    
     if not pending_requests:
-        st.success("✨ Không có đơn hỗ trợ nào cần xử lý.")
+        st.success("Không có đơn hỗ trợ nào cần xử lý.")
     else:
         tv1_container = st.container(height=400) if len(pending_requests) > 3 else st.container()
         with tv1_container:
@@ -115,16 +116,17 @@ with left_col:
                 with st.container(border=True):
                     c_info, c_btn = st.columns([3, 1])
                     with c_info:
-                        icon = "🤒" if "nghỉ" in req.get('type', '').lower() else ""
-                        st.markdown(f"{icon} {req.get('type', '')} - GV: {req.get('teacher_name', '')}")
-                        st.caption(f"**Lớp:** {req.get('class_name', '')} | **Ngày:** {req.get('date', '')}")
+                        # Đã đồng bộ với cấu trúc "details" mới từ trang Giáo viên
+                        req_id = req.get('id', req.get('_id', ''))
+                        st.markdown(f"**{req.get('type', 'Yêu cầu')} - GV: {req.get('teacher_name', 'Không rõ')}**")
+                        st.caption(f"**Chi tiết:** {req.get('details', req.get('class_name', ''))} | **Ngày gửi:** {req.get('created_at', req.get('date', ''))}")
                         st.markdown(f"**Lý do:** {req.get('reason', '')}")
                     with c_btn:
-                        if st.button("✅ Duyệt", key=f"app_{req['id']}", type="primary", use_container_width=True):
-                            res = requests.post(f"{API_URL}/approve/{req['id']}")
+                        if st.button("Duyệt", key=f"app_{req_id}", type="primary", use_container_width=True):
+                            res = requests.post(f"{API_URL}/approve/{req_id}")
                             if res.status_code == 200: st.rerun()
-                        if st.button("❌ Từ chối", key=f"rej_{req['id']}", use_container_width=True):
-                            res = requests.post(f"{API_URL}/reject/{req['id']}")
+                        if st.button("Từ chối", key=f"rej_{req_id}", use_container_width=True):
+                            res = requests.post(f"{API_URL}/reject/{req_id}")
                             if res.status_code == 200: st.rerun()
 
     st.write("---")
@@ -133,13 +135,18 @@ with left_col:
     if history_requests:
         history_data = []
         for h in history_requests:
-            status_text = "✅ Đã duyệt" if h.get('status') == "approved" else "❌ Từ chối"
-            raw_time = h.get("updated_at")
-            time_str = pd.to_datetime(raw_time).strftime("%d/%m/%Y %H:%M") if raw_time else "Chưa rõ"
+            status_text = "Đã duyệt" if h.get('status') == "approved" else "Từ chối"
+            # Cố gắng lấy thời gian cập nhật, nếu không có thì lấy thời gian tạo
+            raw_time = h.get("updated_at", h.get("created_at", ""))
+            try:
+                time_str = pd.to_datetime(raw_time).strftime("%d/%m/%Y %H:%M") if raw_time else "Chưa rõ"
+            except:
+                time_str = raw_time
+                
             history_data.append({
                 "Giáo viên": h.get("teacher_name", ""),
                 "Loại đơn": h.get("type", ""),
-                "Lớp học": h.get("class_name", ""),
+                "Chi tiết": h.get("details", h.get("class_name", "")), # Đã đồng bộ cấu trúc mới
                 "Thời gian xử lý": time_str,
                 "Trạng thái": status_text
             })
@@ -147,15 +154,16 @@ with left_col:
 
 # --- CỘT PHẢI: TV2 & TV3 ---
 with right_col:
-    st.subheader(" 2. Học thuật & Tương tác")
+    st.subheader("2. Học thuật & Tương tác")
     with st.container(border=True):
-        st.markdown("A. Quản Lý Nội Dung Học Thuật ")
+        st.markdown("**A. Quản Lý Nội Dung Học Thuật**")
         if st.session_state.admin_tv2_view == "list":
             try: quizzes = requests.get(f"{API_URL}/api/tv2/quizzes").json()
             except: quizzes = []
             try: videos = requests.get(f"{API_URL}/api/tv2/videos").json()
             except: videos = []
-            tab_quiz, tab_video = st.tabs([" Kho Bài Tập", " Kho Video"])
+            
+            tab_quiz, tab_video = st.tabs(["Kho Bài Tập", "Kho Video"])
             with tab_quiz:
                 if not quizzes: st.info("Chưa có bộ đề nào.")
                 else:
@@ -167,7 +175,7 @@ with right_col:
                                 author = q.get("author", q.get("author_email", "Hệ thống"))
                                 col_q1.markdown(f"**{q.get('title', 'N/A')}**")
                                 col_q1.caption(f"Tác giả: {author} | Số câu hỏi: {len(q.get('questions', []))} câu")
-                                if col_q2.button("Xem ", key=f"ad_view_q_{q.get('id')}", use_container_width=True):
+                                if col_q2.button("Xem", key=f"ad_view_q_{q.get('id')}", use_container_width=True):
                                     st.session_state.admin_tv2_item, st.session_state.admin_tv2_type, st.session_state.admin_tv2_view = q, "quiz", "detail"
                                     st.rerun()
             with tab_video:
@@ -178,8 +186,8 @@ with right_col:
                         for v in videos:
                             with st.container(border=True):
                                 col_v1, col_v2 = st.columns([4, 1])
-                                col_v1.markdown(f"{v.get('title', 'N/A')}")
-                                col_v1.caption(f"Chủ đề: {v.get('topic')} | ❤️ {v.get('likes', 0)}")
+                                col_v1.markdown(f"**{v.get('title', 'N/A')}**")
+                                col_v1.caption(f"Chủ đề: {v.get('topic')} | Lượt thích: {v.get('likes', 0)}")
                                 if col_v2.button("Xem", key=f"ad_view_v_{v.get('id')}", use_container_width=True):
                                     st.session_state.admin_tv2_item, st.session_state.admin_tv2_type, st.session_state.admin_tv2_view = v, "video", "detail"
                                     st.rerun()
@@ -187,32 +195,37 @@ with right_col:
             if st.button("Quay Lại", type="primary"):
                 st.session_state.admin_tv2_view, st.session_state.admin_tv2_item = "list", None
                 st.rerun()
+                
             item = st.session_state.admin_tv2_item
             if st.session_state.admin_tv2_type == "quiz":
-                st.subheader(f" {item.get('title')}")
+                st.subheader(f"{item.get('title')}")
                 with st.container(height=300):
                     for idx, q_item in enumerate(item.get("questions", [])):
                         st.markdown(f"**Câu {idx + 1}: {q_item.get('question')}**")
-                        st.success(f" Đáp án: {q_item.get('correct_answer')}")
+                        st.success(f"Đáp án: {q_item.get('correct_answer')}")
             elif st.session_state.admin_tv2_type == "video":
-                st.subheader(f" {item.get('title')}")
+                st.subheader(f"{item.get('title')}")
                 st.video(item.get('url'))
 
     with st.container(border=True):
         st.markdown("**B. Trung tâm Tương tác Phụ huynh (TV3)**")
-        if not deposit_issues: st.success("✅ Không có sự cố nạp tiền.")
+        if not deposit_issues: 
+            st.success("Không có sự cố nạp tiền.")
         else:
             tv3_container = st.container(height=350) if len(deposit_issues) > 2 else st.container()
             with tv3_container:
                 for issue in deposit_issues:
                     with st.container(border=True):
-                        st.markdown(f"###  {issue.get('amount', 0):,.0f} VNĐ")
+                        st.markdown(f"### {issue.get('amount', 0):,.0f} VNĐ")
                         st.markdown(f"**Lý do:** {issue.get('content')}")
                         col_app, col_chk = st.columns(2)
-                        if col_app.button("✅ Duyệt", key=f"res_{issue['id']}", type="primary", use_container_width=True):
-                            if approve_deposit_issue(issue['id']): st.success("Xong!"); st.rerun()
-                        if col_chk.button("⚠️ Check", key=f"check_{issue['id']}", use_container_width=True): st.warning("Đã lưu.")
+                        if col_app.button("Duyệt", key=f"res_{issue['id']}", type="primary", use_container_width=True):
+                            if approve_deposit_issue(issue['id']): 
+                                st.success("Hoàn tất!")
+                                st.rerun()
+                        if col_chk.button("Kiểm tra", key=f"check_{issue['id']}", use_container_width=True): 
+                            st.warning("Đã lưu.")
 
     with st.container(border=True):
         st.markdown("**C. Yêu cầu xin nghỉ từ Phụ huynh**")
-        st.info(" Yêu cầu xin nghỉ học sẽ được tự động đồng bộ sang bộ phận Vận hành (TV1).")
+        st.info("Yêu cầu xin nghỉ học sẽ được tự động đồng bộ sang bộ phận Vận hành (TV1).")

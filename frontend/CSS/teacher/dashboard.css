@@ -1,105 +1,127 @@
-/* Tổng thể bảng lịch */
-.custom-calendar { 
-    width: 100%; 
-    border-collapse: collapse; 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    background-color: white; 
+/* ================= CSS LỊCH DẠY TUẦN ================= */
+.schedule-table {
+    width: 100%;
+    table-layout: fixed; 
+    border-collapse: separate; 
+    border-spacing: 0;
     margin-top: 10px;
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.custom-calendar th, .custom-calendar td { 
-    border: 1px solid #cbd5e1; 
-    padding: 10px; 
-    text-align: center; 
+.schedule-table th, .schedule-table td {
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 8px; 
+    word-wrap: break-word; 
+}
+
+/* Ép thẻ bài học ra chính giữa ô theo chiều dọc */
+.schedule-table td {
     vertical-align: middle; 
+    height: 140px; 
 }
 
-/* Header bảng */
-.custom-calendar th { 
-    background-color: #f1f5f9; 
-    color: #1e293b; 
-    font-weight: bold; 
-    font-size: 15px;
+.schedule-table th {
+    background-color: #f8fafc;
+    color: #1e293b;
+    text-align: center;
+    font-size: 0.95em;
+    padding: 12px 8px;
+    height: auto; 
+    vertical-align: middle;
 }
 
-/* Cột Buổi (Sáng/Chiều/Tối) */
-.session-col { 
-    font-weight: bold; 
-    background-color: #e2e8f0; 
-    color: #0f172a; 
-    writing-mode: vertical-rl; 
-    transform: rotate(180deg); 
-    width: 50px; 
-    font-size: 16px; 
+/* Ẩn viền thừa để bo góc được chuẩn */
+.schedule-table th:last-child, .schedule-table td:last-child {
+    border-right: none;
+}
+.schedule-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Hiệu ứng chữ dọc cho chữ SÁNG CHIỀU TỐI */
+.session-label {
+    font-weight: bold;
+    color: #475569;
+    text-align: center;
+    vertical-align: middle !important;
+    background-color: #f8fafc;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
     letter-spacing: 3px;
+    font-size: 1.1em;
+    padding: 0 !important;
 }
 
-/* Cột Thời gian */
-.time-col { 
-    background-color: #f8fafc; 
-    font-weight: 600; 
-    font-size: 13px; 
-    color: #475569; 
-    width: 120px; 
+/* ================= ĐỊNH DẠNG THẺ BÀI HỌC (CĂN GIỮA - CHUYÊN NGHIỆP) ================= */
+.class-card {
+    background-color: #ffffff; 
+    border: 1px solid #e2e8f0; 
+    border-top: 4px solid #4f46e5; /* Đổi vạch màu lên đỉnh thẻ cho cân đối */
+    border-radius: 8px;
+    padding: 12px 8px;
+    margin-bottom: 8px;
+    
+    /* Ép nội dung chữ ra giữa thẻ */
+    text-align: center; 
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    justify-content: center;
+    gap: 4px;
+
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
 }
 
-/* Định dạng ngày lễ */
-.holiday-header { 
-    color: #ef4444 !important; 
-    background-color: #fef2f2 !important; 
+.class-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    border-top-color: #4338ca;
 }
 
-.holiday-text { 
-    color: #ef4444; 
-    font-size: 11px; 
-    font-weight: bold; 
-    display: block; 
-    margin-top: 5px; 
+.class-card:last-child {
+    margin-bottom: 0;
 }
 
-.holiday-cell { 
-    background-color: #fef2f2; 
-    color: #ef4444; 
-    font-weight: bold; 
-    height: 100px; 
-    font-size: 14px;
+.class-subject {
+    font-weight: 800;
+    color: #2563eb; 
+    font-size: 0.9em;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* Thẻ lớp học trong ô */
-.class-cell { 
-    background-color: #eff6ff; 
-    border: 1px solid #bfdbfe; 
-    border-radius: 6px; 
-    padding: 10px; 
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
-    min-height: 80px;
-    text-align: left;
+.class-name {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #334155;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.class-subject { 
-    color: #1e3a8a; 
-    font-weight: bold; 
-    margin-bottom: 5px; 
-    font-size: 14px;
+.class-time {
+    font-size: 0.78em;
+    color: #64748b;
+    margin-top: 2px;
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.class-name { 
-    color: #475569; 
-    font-size: 0.85em; 
-    font-weight: bold; 
-    margin-bottom: 3px; 
-}
-
-.class-room { 
-    color: #b91c1c; 
-    font-size: 0.8em; 
-}
-
-.class-teacher { 
-    color: #0f172a; 
-    font-weight: bold; 
-    font-size: 0.9em; 
-    border-top: 1px dashed #bfdbfe;
-    margin-top: 5px;
-    padding-top: 5px;
+/* Fix nút điều hướng lịch */
+.stButton > button {
+    border-radius: 8px !important;
 }
