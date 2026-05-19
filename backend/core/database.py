@@ -2,16 +2,19 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from dotenv import load_dotenv
 
+# Load file .env
 load_dotenv()
 
-# Chuỗi kết nối bạn cung cấp
-MONGO_DETAILS = "mongodb+srv://phay123321_db_user:13251900Phat@cluster0.v6iwegp.mongodb.net/?retryWrites=true&w=majority"
+# Lấy thông tin từ .env
+MONGO_URI = os.getenv("MONGO_URI")
+DATABASE_NAME = os.getenv("DATABASE_NAME")
 
-client = AsyncIOMotorClient(MONGO_DETAILS)
+if not MONGO_URI:
+    raise ValueError("⚠️ CẢNH BÁO: Không tìm thấy MONGO_URI trong file .env")
 
-# Tên database dự án
-database = client.iKids_Project_DB
+# Kết nối
+client = AsyncIOMotorClient(MONGO_URI)
+database = client[DATABASE_NAME]
 
-# Hàm helper để lấy database trong các route FastAPI
 def get_db():
     return database
