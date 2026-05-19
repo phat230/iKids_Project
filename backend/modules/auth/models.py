@@ -4,7 +4,6 @@ from typing import Optional, List
 from enum import Enum
 
 class UserRole(str, Enum):
-    """Định nghĩa 5 role chuẩn của hệ thống iKids"""
     ADMIN = "admin"
     OPERATOR = "operator"
     TEACHER = "teacher"
@@ -12,15 +11,22 @@ class UserRole(str, Enum):
     STUDENT = "student"
 
 class UserDBModel(BaseModel):
-    """
-    Bản thiết kế đại diện cho 1 Document trong Collection 'users' trên MongoDB.
-    """
     name: str
     email: EmailStr
-    password: str  # Chứa mật khẩu đã được mã hóa (hashed)
-    role: UserRole # Ép kiểu bằng Enum để tránh lỗi nhập sai role
+    password: str  
+    role: UserRole 
     created_at: datetime = Field(default_factory=datetime.now)
-    is_active: bool = True
     
-    # Một phụ huynh có thể quản lý nhiều con, và MongoDB dùng str (ObjectId) thay vì int
+    # Mặc định ban đầu là False để chờ xác thực OTP qua SĐT (Trừ khi Admin/Operator tạo trực tiếp)
+    is_active: bool = False
+    
+    # Trường bổ sung nâng cao bảo mật và quản lý độ tuổi
+    phone_number: Optional[str] = None
+    birth_date: Optional[str] = None  # Lưu định dạng chuỗi ISO (YYYY-MM-DD)
+    
+    # Cấu trúc lưu mã xác thực OTP tin nhắn điện thoại
+    otp_code: Optional[str] = None
+    otp_expires_at: Optional[datetime] = None
+    
     student_ids_ref: Optional[List[str]] = None
+    subjects: Optional[List[str]] = None

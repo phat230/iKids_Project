@@ -3,48 +3,76 @@ import streamlit as st
 
 # Đảm bảo URL khớp với cấu hình FastAPI của bạn
 API_URL = "http://localhost:8000/api/tv3"
+API_AUTH_URL = "http://localhost:8000/api/auth"
 
 # --- 1. HỆ THỐNG GAMIFICATION & PROFILE ---
 
 def get_gamification_profile(user_id):
     """Lấy thông tin thực tế: Số dư (balance), EXP, và Rank."""
+    # Lấy token từ session_state để gửi kèm (nếu API yêu cầu bảo mật)
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        res = requests.get(f"{API_URL}/gamification/profile/{user_id}")
+        res = requests.get(f"{API_URL}/gamification/profile/{user_id}", headers=headers)
         if res.status_code == 200:
             return res.json()
     except Exception:
         pass
     return {"balance": 0.0, "exp": 0, "rank": "Beginner", "full_name": "Người dùng"}
 
-def update_profile(user_id, name=None, avatar_file=None):
-    """Cập nhật thông tin cá nhân và ảnh đại diện."""
-    data = {}
-    if name: data["full_name"] = name
+def update_profile(user_id, name=None, avatar_file=None, phone_number=None, birth_date=None):
+    """
+    Cập nhật thông tin cá nhân mở rộng công khai và ảnh đại diện.
+    ĐÃ ĐỒNG BỘ: Gửi payload json qua API_AUTH_URL khớp với endpoint cập nhật tài khoản bảo mật.
+    """
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
     
-    files = {}
-    if avatar_file:
-        files = {"avatar_file": (avatar_file.name, avatar_file.getvalue(), avatar_file.type)}
-    
+    # 1. Gửi cập nhật thông tin chữ (Text Data) bao gồm phone_number và birth_date qua endpoint Profile cá nhân
+    payload = {}
+    if name: 
+        payload["name"] = name
+    if phone_number: 
+        payload["phone_number"] = phone_number
+    if birth_date: 
+        payload["birth_date"] = birth_date
+
     try:
-        res = requests.post(f"{API_URL}/profile/update/{user_id}", data=data, files=files)
-        if res.status_code == 200:
-            return True, "Cập nhật hồ sơ thành công!"
-        return False, "Không thể cập nhật hồ sơ."
+        # Gọi cập nhật thông tin văn bản trước
+        res_text = requests.put(f"{API_AUTH_URL}/profile/update", json=payload, headers=headers)
+        if res_text.status_code != 200:
+            err_msg = res_text.json().get("detail", "Không thể cập nhật thông tin cá nhân.")
+            if isinstance(err_msg, list):
+                err_msg = err_msg[0].get("msg", "Dữ liệu nhập vào không hợp lệ.")
+            return False, err_msg
+            
+        # 2. Xử lý tải ảnh đại diện nếu người dùng có chọn tệp ảnh mới (Multipart form-data)
+        if avatar_file:
+            files = {"avatar_file": (avatar_file.name, avatar_file.getvalue(), avatar_file.type)}
+            # Điểm đến cập nhật ảnh đại diện của TV3 Media
+            res_avatar = requests.post(f"{API_URL}/profile/update/{user_id}", files=files, headers=headers)
+            if res_avatar.status_code != 200:
+                return True, "Đã lưu thông tin chữ, nhưng tải ảnh đại diện thất bại."
+                
+        return True, "Cập nhật hồ sơ thành công!"
     except Exception as e:
-        return False, f"Lỗi: {str(e)}"
+        return False, f"Lỗi kết nối: {str(e)}"
 
 # --- 2. TÀI CHÍNH & CỬA HÀNG ---
 
 def deposit_money(user_id, amount):
     """Gửi yêu cầu nạp tiền (Dùng để xác nhận gửi thông báo cho Admin/Webhook)."""
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     payload = {"user_id": str(user_id), "amount": float(amount)}
     try:
-        res = requests.post(f"{API_URL}/account/deposit", json=payload)
+        res = requests.post(f"{API_URL}/account/deposit", json=payload, headers=headers)
         if res.status_code == 200:
             return True, res.json().get("message", "Đã gửi thông báo nạp tiền.")
         return False, res.json().get("detail", "Giao dịch thất bại.")
     except Exception as e:
         return False, str(e)
+
 @st.cache_data(ttl=300) 
 def get_store_products():
     """Lấy danh sách sản phẩm."""
@@ -59,12 +87,14 @@ def purchase_product(user_id, product_id):
     XỬ LÝ MUA TRỰC TIẾP
     ĐÃ SỬA: Bỏ int(product_id) vì ID MongoDB là String
     """
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     payload = {
         "user_id": str(user_id), 
         "product_id": str(product_id)
     }
     try:
-        res = requests.post(f"{API_URL}/products/purchase", json=payload)
+        res = requests.post(f"{API_URL}/products/purchase", json=payload, headers=headers)
         if res.status_code == 200:
             return True, res.json().get("message", "Mua hàng thành công!")
         return False, res.json().get("detail", "Số dư không đủ hoặc lỗi hệ thống.")
@@ -76,6 +106,8 @@ def request_purchase(student_id, product_id, product_name, price):
     XỬ LÝ XIN PHÉP BA MẸ
     ĐÃ SỬA: Bỏ int(product_id) tại đây
     """
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     payload = {
         "student_id": str(student_id),
         "product_id": str(product_id), 
@@ -84,7 +116,7 @@ def request_purchase(student_id, product_id, product_name, price):
         "parent_id": None 
     }
     try:
-        res = requests.post(f"{API_URL}/store/request-purchase", json=payload)
+        res = requests.post(f"{API_URL}/store/request-purchase", json=payload, headers=headers)
         if res.status_code == 200:
             return True, res.json().get("message", "Đã gửi yêu cầu tới Ba Mẹ.")
         return False, res.json().get("detail", "Lỗi khi gửi yêu cầu.")
@@ -94,6 +126,8 @@ def request_purchase(student_id, product_id, product_name, price):
 # --- 3. LIÊN HỆ & BẢO MẬT ---
 
 def submit_contact_request(message_data):
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     payload = {
         "sender_id": str(message_data.sender_id),
         "receiver_id": str(message_data.receiver_id),
@@ -102,14 +136,16 @@ def submit_contact_request(message_data):
         "amount": getattr(message_data, 'amount', 0) 
     }
     try:
-        res = requests.post(f"{API_URL}/contact/submit", json=payload)
+        res = requests.post(f"{API_URL}/contact/submit", json=payload, headers=headers)
         return (True, "Thành công") if res.status_code == 200 else (False, "Thất bại")
     except Exception:
         return False, "Lỗi kết nối máy chủ."
 
 def get_contact_history(user_id):
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        res = requests.get(f"{API_URL}/contact/history/{user_id}")
+        res = requests.get(f"{API_URL}/contact/history/{user_id}", headers=headers)
         return res.json() if res.status_code == 200 else []
     except Exception:
         return []
@@ -118,7 +154,7 @@ def get_contact_history(user_id):
 
 def send_forgot_password_otp(email):
     try:
-        res = requests.post(f"{API_URL}/auth/forgot-password", json={"email": email})
+        res = requests.post(f"{API_AUTH_URL}/forgot-password", json={"email": email})
         return res.status_code == 200, res.json().get("message")
     except Exception:
         return False, "Không thể gửi OTP."
@@ -126,7 +162,7 @@ def send_forgot_password_otp(email):
 def verify_and_reset_password(email, otp, new_password):
     payload = {"email": email, "otp": otp, "new_password": new_password}
     try:
-        res = requests.post(f"{API_URL}/auth/verify-reset", json=payload)
+        res = requests.post(f"{API_AUTH_URL}/verify-reset", json=payload)
         return res.status_code == 200, res.json().get("message")
     except Exception:
         return False, "Xác thực thất bại."
@@ -142,24 +178,29 @@ def get_memories():
         return []
 
 def like_memory(memory_id):
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
-        res = requests.post(f"{API_URL}/memories/{memory_id}/like")
+        res = requests.post(f"{API_URL}/memories/{memory_id}/like", headers=headers)
         return res.status_code == 200
     except Exception:
         return False
     
 def manage_product_api(method, prod_id=None, payload=None):
     """Hàm dùng chung cho CRUD sản phẩm"""
+    token = st.session_state.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
     try:
         url = f"{API_URL}/products"
-        if prod_id: url += f"/{prod_id}"
+        if prod_id: 
+            url += f"/{prod_id}"
         
         if method == "POST":
-            res = requests.post(url, json=payload)
+            res = requests.post(url, json=payload, headers=headers)
         elif method == "PUT":
-            res = requests.put(url, json=payload)
+            res = requests.put(url, json=payload, headers=headers)
         elif method == "DELETE":
-            res = requests.delete(url)
+            res = requests.delete(url, headers=headers)
             
         return res.status_code == 200
     except:

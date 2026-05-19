@@ -1,23 +1,18 @@
 import streamlit as st
 import base64
 import os
+from datetime import date
 from api_clients.tv3_client import update_profile, get_gamification_profile
 from utils.role_guard import require_role
 
-# Bảo mật: Cho phép tất cả các vai trò đã đăng nhập truy cập vào trang hồ sơ của chính họ
 require_role(["student", "parent", "admin"])
 
 # ================= HÀM HỖ TRỢ (ĐÃ SỬA LỖI ĐƯỜNG DẪN CSS) =================
 
 def load_css(file_name):
-    """
-    Tự động tìm file CSS trong thư mục frontend/CSS/
-    file_name: tên file kèm thư mục con, ví dụ 'student/trang_ca_nhan.css'
-    """
-    # Lấy đường dẫn tuyệt đối của thư mục chứa file trang_ca_nhan.py hiện tại
-    current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
 
@@ -33,10 +28,9 @@ def get_image_base64(image_bytes):
 
 # ================= CẤU HÌNH GIAO DIỆN =================
 
-# Tải CSS từ file bên ngoài (Chỉ truyền phần tên thư mục con và file)
 load_css("student/trang_ca_nhan.css")
 
-st.title(" Quản Lý Hồ Sơ Cá Nhân")
+st.title(" ⚙️ Quản Lý Hồ Sơ Cá Nhân")
 
 # Kiểm tra Session
 user_id = st.session_state.get("user_id")
@@ -47,25 +41,42 @@ if not user_id:
     st.error("Vui lòng đăng nhập để tiếp tục.")
     st.stop()
 
-# HIỂN THỊ THÔNG TIN ĐẶC THÙ THEO VAI TRÒ
 profile_data = get_gamification_profile(user_id)
 
 if role == "student":
     st.info(f"🏆 Cấp độ hiện tại: **{profile_data.get('rank', 'Beginner')}** | ⭐ EXP: **{profile_data.get('exp', 0)}**")
 elif role == "parent":
     balance = profile_data.get('balance', 0)
-    st.success(f" Số dư ví phụ huynh: **{balance:,.0f} VNĐ**")
+    st.success(f" 💰 Số dư ví phụ huynh: **{balance:,.0f} VNĐ**")
 else:
-    st.info(f" Vai trò: **{role.upper()}**")
+    st.info(f" 🔑 Vai trò: **{role.upper()}**")
 
-# Nhập tên mới
-current_name = user_info.get("full_name", user_info.get("name", "Người dùng iKids"))
-new_full_name = st.text_input("Họ và Tên hiện tại:", value=current_name)
+# ================= CÁC TRƯỜNG NHẬP THÔNG TIN CÁ NHÂN =================
+st.markdown("##### 👤 Thông tin cơ bản")
+c1, c2 = st.columns(2)
+
+with c1:
+    current_name = user_info.get("full_name", user_info.get("name", "Người dùng iKids"))
+    new_full_name = st.text_input("Họ và Tên hiện tại: (*)", value=current_name)
+
+with c2:
+    current_phone = user_info.get("phone_number", "")
+    new_phone = st.text_input("Số điện thoại liên hệ:", value=current_phone, placeholder="Ví dụ: 0912345678")
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("#####  Thông tin mở rộng bảo mật")
+
+current_birth_str = user_info.get("birth_date", "2000-01-01")
+try:
+    default_birth = date.fromisoformat(current_birth_str)
+except:
+    default_birth = date(2000, 1, 1)
+
+new_birth_date = st.date_input("Ngày tháng năm sinh:", value=default_birth)
 
 st.divider()
 
-# PHẦN XỬ LÝ ẢNH ĐẠI DIỆN
-st.write(" **Ảnh Đại Diện**")
+st.write("  **Ảnh Đại Diện**")
 
 if "temp_avatar" not in st.session_state:
     st.session_state.temp_avatar = None
@@ -107,31 +118,46 @@ st.divider()
 
 # NÚT LƯU TỔNG THỂ
 if st.button(" Lưu Thông Tin Thay Đổi", use_container_width=True, type="primary"):
-    with st.spinner("Đang đồng bộ dữ liệu..."):
-        avatar_file = None
-        if st.session_state.temp_avatar == "uploading" and hasattr(st.session_state, "avatar_data"):
-            class MockFile:
-                def __init__(self, name, data, type):
-                    self.name = name
-                    self.type = type
-                    self._data = data
-                def getvalue(self): return self._data
-            
-            avatar_file = MockFile(st.session_state.avatar_name, st.session_state.avatar_data, st.session_state.avatar_type)
+    if not new_full_name.strip():
+        st.error("⚠️ Họ và Tên không được để trống!")
+    else:
+        with st.spinner("Đang đồng bộ dữ liệu..."):
+            avatar_file = None
+            if st.session_state.temp_avatar == "uploading" and hasattr(st.session_state, "avatar_data"):
+                class MockFile:
+                    def __init__(self, name, data, type):
+                        self.name = name
+                        self.type = type
+                        self._data = data
+                    def getvalue(self): return self._data
+                
+                avatar_file = MockFile(st.session_state.avatar_name, st.session_state.avatar_data, st.session_state.avatar_type)
 
-        # Gọi API cập nhật
-        success, message = update_profile(user_id, name=new_full_name, avatar_file=avatar_file)
-        
-        if success:
-            if "user_info" not in st.session_state:
-                st.session_state["user_info"] = {}
-            st.session_state["user_info"]["full_name"] = new_full_name
+            success, message = update_profile(
+                user_id=user_id, 
+                name=new_full_name.strip(), 
+                avatar_file=avatar_file,
+                phone_number=new_phone.strip(),
+                birth_date=new_birth_date.isoformat()
+            )
             
-            st.success(message)
-            st.balloons()
-            st.session_state.temp_avatar = None
-            if hasattr(st.session_state, "avatar_data"):
-                del st.session_state.avatar_data
-            st.rerun()
-        else:
-            st.error(message)
+            if success:
+                if "user_info" not in st.session_state:
+                    st.session_state["user_info"] = {}
+                
+                st.session_state["user_info"]["full_name"] = new_full_name.strip()
+                st.session_state["user_info"]["name"] = new_full_name.strip()
+                st.session_state["user_info"]["phone_number"] = new_phone.strip()
+                st.session_state["user_info"]["birth_date"] = new_birth_date.isoformat()
+                
+                st.success(message)
+                st.balloons()
+                st.session_state.temp_avatar = None
+                if hasattr(st.session_state, "avatar_data"):
+                    del st.session_state.avatar_data
+                time.sleep(1.5)
+                st.rerun()
+            else:
+                if isinstance(message, list):
+                    message = message[0].get("msg", "Dữ liệu nhập vào không hợp lệ.")
+                st.error(f"❌ Không thể lưu thay đổi: {message}")

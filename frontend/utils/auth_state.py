@@ -39,20 +39,62 @@ def logout_user():
         del st.session_state[key]
     st.rerun()
 
-def register_user(name, email, password, role):
-    """Gọi API Đăng ký người dùng mới"""
-    payload = {"name": name, "email": email, "password": password, "role": role}
+def register_user(name, email, password, role, phone_number=None, birth_date=None):
+    """
+    Gọi API Đăng ký người dùng mới.
+    Đã bổ sung: phone_number (Số điện thoại nhận OTP) và birth_date (Ngày sinh YYYY-MM-DD)
+    """
+    payload = {
+        "name": name, 
+        "email": email, 
+        "password": password, 
+        "role": role,
+        "phone_number": phone_number,
+        "birth_date": birth_date
+    }
     try:
         response = requests.post(f"{API_URL}/register", json=payload)
+        
+        # Nhận mã trạng thái 200 từ Backend khi đăng ký bước đầu thành công
         if response.status_code == 200:
-            return True, "Đăng ký thành công! Hãy chuyển sang Đăng nhập."
+            msg = response.json().get("message", "Đăng ký thành công bước đầu! Vui lòng kiểm tra OTP.")
+            return True, msg
         
         try:
             error_msg = response.json().get("detail", "Lỗi đăng ký")
+            # Trường hợp Pydantic Validation trả về lỗi mảng (ví dụ lỗi định dạng hoặc lỗi validator tuổi)
+            if isinstance(error_msg, list):
+                error_msg = error_msg[0].get("msg", "Dữ liệu nhập vào không hợp lệ.")
         except Exception:
             error_msg = f"Lỗi hệ thống ({response.status_code})"
             
         return False, error_msg
         
     except requests.exceptions.ConnectionError:
-        return False, "Lỗi kết nối Server."
+        return False, "Lỗi kết nối Server Backend."
+
+def verify_registration_otp(email, otp_code):
+    """
+    Gọi API Xác thực mã OTP để chính thức kích hoạt tài khoản vừa đăng ký
+    """
+    payload = {
+        "email": email,
+        "otp_code": otp_code
+    }
+    try:
+        response = requests.post(f"{API_URL}/verify-registration-otp", json=payload)
+        if response.status_code == 200:
+            msg = response.json().get("message", "Xác thực tài khoản thành công!")
+            return True, msg
+        
+        try:
+            error_msg = response.json().get("detail", "Mã xác thực không hợp lệ hoặc đã hết hạn.")
+            if isinstance(error_msg, list):
+                error_msg = error_msg[0].get("msg", "Dữ liệu OTP không hợp lệ.")
+        except Exception:
+            error_msg = f"Lỗi hệ thống ({response.status_code})"
+            
+        return False, error_msg
+        
+    except requests.exceptions.ConnectionError:
+        return False, "Lỗi kết nối Server khi gửi mã xác thực."
