@@ -23,31 +23,100 @@ def load_css(file_name):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
-        # Hiển thị đường dẫn chính xác mà hệ thống đang tìm để bạn kiểm tra
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-# Tải CSS làm đẹp cho bảng điểm (Chỉ truyền phần sau thư mục CSS/)
+# Tải CSS làm đẹp cho bảng điểm
 load_css("student/ket_qua.css")
 
-# ================= GIAO DIỆN CHÍNH =================
-st.title("📊 Bảng Điểm Cá Nhân")
-st.write("Theo dõi sự tiến bộ của bạn qua từng bài kiểm tra và các kỳ thi nhé!")
-st.divider()
+# Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+lang = st.session_state.get("lang", "vi")
 
-# 2. Dữ liệu giả lập (Sau này sẽ gọi API lấy từ Backend - TV2)
-data = {
-    "Môn học": ["Toán Tư Duy", "Anh Văn", "Khoa Học", "Kỹ Năng Sống"],
-    "Điểm Giữa Kỳ": [8.5, 9.0, 7.5, 10.0],
-    "Điểm Cuối Kỳ": ["Chưa có", "Chưa có", "Chưa có", "Chưa có"],
-    "Đánh giá": ["Khá", "Tốt", "Cần cố gắng", "Xuất sắc"]
+# ==========================================
+# BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO STUDENT KET_QUA
+# ==========================================
+STUDENT_REPORT_LABELS = {
+    "vi": {
+        "title": "📊 Bảng Điểm Cá Nhân",
+        "subtitle": "Theo dõi sự tiến bộ của bạn qua từng bài kiểm tra và các kỳ thi nhé!",
+        "sub_ai": "🤖 Phân Tích Từ Hệ Thống AI",
+        "ai_comment": "💡 **AI Nhận xét:** Bạn đang làm rất tốt môn Kỹ Năng Sống và Anh Văn! Tuy nhiên, điểm môn Khoa Học đang hơi thấp. Hãy vào mục **Bài Tập AI** để ôn luyện thêm phần này, vừa cải thiện điểm số vừa nhận thêm thật nhiều iKids Xu nhé!",
+        
+        # Tiêu đề cột DataFrame
+        "col_subject": "Môn học",
+        "col_midterm": "Điểm Giữa Kỳ",
+        "col_final": "Điểm Cuối Kỳ",
+        "col_grade": "Đánh giá",
+        
+        # Dữ liệu nội mảng động
+        "sub_math": "Toán Tư Duy",
+        "sub_english": "Anh Văn",
+        "sub_science": "Khoa Học",
+        "sub_skills": "Kỹ Năng Sống",
+        "not_available": "Chưa có",
+        "grade_good": "Khá",
+        "grade_excellent": "Tốt",
+        "grade_needs_improvement": "Cần cố gắng",
+        "grade_outstanding": "Xuất sắc"
+    },
+    "en": {
+        "title": "📊 My Report Card",
+        "subtitle": "Track your academic growth and exam grades throughout the semester!",
+        "sub_ai": "🤖 AI Insights & Recommendations",
+        "ai_comment": "💡 **AI Feedback:** You are performing excellently in Life Skills and English! However, your Science score has room for improvement. Head over to the **AI Quizzes** section to practice more, level up your scores, and earn lots of iKids Coins! 🪙",
+        
+        # DataFrame Table Header Config
+        "col_subject": "Course Subject",
+        "col_midterm": "Midterm Grade",
+        "col_final": "Final Exam Grade",
+        "col_grade": "Performance Evaluation",
+        
+        # Inner array cell items data mapped
+        "sub_math": "Critical Thinking Math",
+        "sub_english": "English Language",
+        "sub_science": "Science Experiments",
+        "sub_skills": "Essential Life Skills",
+        "not_available": "N/A",
+        "grade_good": "Good",
+        "grade_excellent": "Very Good",
+        "grade_needs_improvement": "Needs Improvement",
+        "grade_outstanding": "Outstanding"
+    }
 }
 
-# 3. Hiển thị bảng dữ liệu đẹp mắt
+# ================= GIAO DIỆN CHÍNH =================
+st.title(STUDENT_REPORT_LABELS[lang]["title"])
+st.write(STUDENT_REPORT_LABELS[lang]["subtitle"])
+st.divider()
+
+# 2. Dữ liệu mảng học thuật thích ứng linh hoạt theo ngôn ngữ hiển thị
+data = {
+    STUDENT_REPORT_LABELS[lang]["col_subject"]: [
+        STUDENT_REPORT_LABELS[lang]["sub_math"], 
+        STUDENT_REPORT_LABELS[lang]["sub_english"], 
+        STUDENT_REPORT_LABELS[lang]["sub_science"], 
+        STUDENT_REPORT_LABELS[lang]["sub_skills"]
+    ],
+    STUDENT_REPORT_LABELS[lang]["col_midterm"]: [8.5, 9.0, 7.5, 10.0],
+    STUDENT_REPORT_LABELS[lang]["col_final"]: [
+        STUDENT_REPORT_LABELS[lang]["not_available"], 
+        STUDENT_REPORT_LABELS[lang]["not_available"], 
+        STUDENT_REPORT_LABELS[lang]["not_available"], 
+        STUDENT_REPORT_LABELS[lang]["not_available"]
+    ],
+    STUDENT_REPORT_LABELS[lang]["col_grade"]: [
+        STUDENT_REPORT_LABELS[lang]["grade_good"], 
+        STUDENT_REPORT_LABELS[lang]["grade_excellent"], 
+        STUDENT_REPORT_LABELS[lang]["grade_needs_improvement"], 
+        STUDENT_REPORT_LABELS[lang]["grade_outstanding"]
+    ]
+}
+
+# 3. Hiển thị bảng dữ liệu đẹp mắt (Tự động thích ứng đầu cột dynamic)
 df = pd.DataFrame(data)
 st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.divider()
 
 # 4. Góc phân tích thông minh của AI (Smart Recommendation)
-st.subheader("🤖 Phân Tích Từ Hệ Thống AI")
-st.info("💡 **AI Nhận xét:** Bạn đang làm rất tốt môn Kỹ Năng Sống và Anh Văn! Tuy nhiên, điểm môn Khoa Học đang hơi thấp. Hãy vào mục **Bài Tập AI** để ôn luyện thêm phần này, vừa cải thiện điểm số vừa nhận thêm thật nhiều iKids Xu nhé!")
+st.subheader(STUDENT_REPORT_LABELS[lang]["sub_ai"])
+st.info(STUDENT_REPORT_LABELS[lang]["ai_comment"])

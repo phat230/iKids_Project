@@ -5,6 +5,30 @@ import os
 import time
 from datetime import datetime
 
+# ================= ĐA NGÔN NGỮ =================
+lang = st.session_state.get("lang", "vi")
+
+GRADING_LABELS = {
+    "vi": {
+        "title": "Quản Lý & Ghi Điểm Học Tập",
+        "desc": "Hệ thống sẽ tự động tính toán Điểm Tổng Kết dựa trên cấu hình mặc định.",
+        "info_no_class": "Hiện tại thầy/cô chưa được Vận hành phân công phụ trách lớp học nào. Vui lòng liên hệ bộ phận Vận hành!",
+        "select_class": "Chọn lớp học để ghi điểm:",
+        "info_demo": "Lớp học này hiện tại chưa có học sinh thật được xếp vào. Hệ thống đang hiển thị dữ liệu mẫu để trải nghiệm tính năng.",
+        "input_name": "Tên Học Sinh",
+        "col_id": "Mã HS"
+    },
+    "en": {
+        "title": "Grading & Academic Management",
+        "desc": "System automatically calculates Final Grade based on default configuration.",
+        "info_no_class": "You are currently not assigned to any classes by Operations. Please contact the Operations Department!",
+        "select_class": "Select a class to grade:",
+        "info_demo": "This class has no real students enrolled. Showing sample data for preview.",
+        "input_name": "Student Name",
+        "col_id": "Student ID"
+    }
+}
+
 st.set_page_config(page_title="Ghi Điểm Học Tập", page_icon=None, layout="wide")
 
 # ================= HÀM ĐỌC FILE CSS =================
@@ -20,7 +44,7 @@ load_css("teacher/quan_ly_diem.css")
 
 API_URL = "http://127.0.0.1:8000"
 
-# ================= LẤY THÔNG TIN GIÁO VIÊN ĐANG ĐĂNG NHẬP =================
+# ================= LẤY THÔNG TIN GIÁO VIÊN =================
 def get_teacher_info():
     if "user_info" in st.session_state:
         info = st.session_state.user_info
@@ -31,11 +55,10 @@ def get_teacher_info():
 
 teacher_id, teacher_name = get_teacher_info()
 
-# Khởi tạo bộ nhớ lưu các quyền đã sử dụng (để khóa lại sau khi lưu)
 if "used_permissions" not in st.session_state:
     st.session_state.used_permissions = []
 
-# ================= KẾT NỐI API LẤY DỮ LIỆU THẬT =================
+# ================= API DỮ LIỆU =================
 @st.cache_data(ttl=5)
 def get_my_classes(t_id):
     try:
@@ -49,41 +72,37 @@ def get_my_classes(t_id):
 def get_class_students(class_id):
     try:
         res = requests.get(f"{API_URL}/classes/{class_id}/students/details", timeout=10)
-        if res.status_code == 200:
-            return res.json()
+        if res.status_code == 200: return res.json()
         return []
     except: return []
 
 # ================= GIAO DIỆN CHÍNH =================
-st.title("Quản Lý & Ghi Điểm Học Tập")
-st.markdown("Hệ thống sẽ tự động tính toán Điểm Tổng Kết dựa trên cấu hình mặc định.")
+st.title(GRADING_LABELS[lang]["title"])
+st.markdown(GRADING_LABELS[lang]["desc"])
 
 # --- BƯỚC 1: CHỌN LỚP HỌC ---
 my_classes = get_my_classes(teacher_id)
 
 if not my_classes:
-    st.info("Hiện tại thầy/cô chưa được Vận hành phân công phụ trách lớp học nào. Vui lòng liên hệ bộ phận Vận hành!")
+    st.info(GRADING_LABELS[lang]["info_no_class"])
     st.stop()
 
 class_options = {str(c.get("id", c.get("_id"))): f"{c.get('class_name')} - {c.get('subject')}" for c in my_classes}
 
 col_filter, col_empty = st.columns([1, 1])
 with col_filter:
-    selected_class_id = st.selectbox("Chọn lớp học để ghi điểm:", options=list(class_options.keys()), format_func=lambda x: class_options[x])
+    selected_class_id = st.selectbox(GRADING_LABELS[lang]["select_class"], options=list(class_options.keys()), format_func=lambda x: class_options[x])
 
 st.divider()
 
-# --- BƯỚC 2: KIỂM TRA & BƠM DỮ LIỆU ẢO NẾU CẦN ---
+# --- BƯỚC 2: DỮ LIỆU HỌC SINH ---
 real_students = get_class_students(selected_class_id)
 
 if not real_students:
-    st.info("Lớp học này hiện tại chưa có học sinh thật được xếp vào. Hệ thống đang hiển thị dữ liệu mẫu để trải nghiệm tính năng.")
+    st.info(GRADING_LABELS[lang]["info_demo"])
     real_students = [
-        {"Mã HS": "HS001_DEMO", "Tên Học Sinh": "Nguyễn Văn A (Demo)"},
-        {"Mã HS": "HS002_DEMO", "Tên Học Sinh": "Trần Thị B (Demo)"},
-        {"Mã HS": "HS003_DEMO", "Tên Học Sinh": "Lê Hoàng C (Demo)"},
-        {"Mã HS": "HS004_DEMO", "Tên Học Sinh": "Phạm Mai D (Demo)"},
-        {"Mã HS": "HS005_DEMO", "Tên Học Sinh": "Hoàng Khắc E (Demo)"}
+        {GRADING_LABELS[lang]["col_id"]: "HS001_DEMO", GRADING_LABELS[lang]["input_name"]: "Nguyễn Văn A (Demo)"},
+        {GRADING_LABELS[lang]["col_id"]: "HS002_DEMO", GRADING_LABELS[lang]["input_name"]: "Trần Thị B (Demo)"},
     ]
 
 # ================= KIỂM TRA QUYỀN TRUY CẬP TỪ ADMIN =================

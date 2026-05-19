@@ -19,9 +19,9 @@ from .services import (
 )
 from bson import ObjectId
 from datetime import datetime
-
+from deep_translator import GoogleTranslator
 router = APIRouter()
-
+translator = GoogleTranslator(source='vi', target='en')
 # --- 1. CỬA HÀNG (DÀNH CHO NGƯỜI DÙNG) ---
 
 @router.get("/products")
@@ -270,8 +270,8 @@ async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db
         await db.users.update_one({"_id": ObjectId(req["student_id"])}, {"$inc": {"balance": -req["price"]}})
         await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "approved"}})
         return {"status": "success"}
-
-# --- 10. QUẢN LÝ NỘI DUNG TRANG CHỦ (CMS) ---
+# --- 10. QUẢN LÝ NỘI DUNG TRANG CHỦ (CMS ĐA NGÔN NGỮ CHUẨN KIẾN TRÚC) ---
+from deep_translator import GoogleTranslator
 
 @router.get("/posts")
 async def get_all_posts(status: str = None, db = Depends(get_db)):
@@ -287,14 +287,80 @@ async def get_all_posts(status: str = None, db = Depends(get_db)):
 
 @router.post("/posts")
 async def create_new_post(payload: dict = Body(...), db = Depends(get_db)):
-    if "status" not in payload: payload["status"] = "published"
-    result = await db.posts.insert_one(payload)
-    return {"status": "success", "id": str(result.inserted_id)}
+    """API Tạo bài viết mới - Tự động dịch cưỡng bức sang Tiếng Anh"""
+    try:
+        title_vi = payload.get("title", "").strip()
+        content_vi = payload.get("content", "").strip()
+        
+        if not title_vi or not content_vi:
+            raise HTTPException(status_code=400, detail="Tiêu đề và nội dung không được trống")
+            
+        # Khởi tạo instance mới độc lập để ép Google Translate nhận dạng đúng tiếng Việt sang tiếng Anh
+        core_translator = GoogleTranslator(source='vi', target='en')
+        
+        try:
+            translated_title = core_translator.translate(title_vi)
+            translated_content = core_translator.translate(content_vi)
+            
+            # Kiểm tra chống lỗi trùng lặp (nếu Google trả về nguyên văn tiếng Việt do lag)
+            if translated_title == title_vi and any(ord(c) > 127 for c in title_vi):
+                translated_title = GoogleTranslator(source='auto', target='en').translate(title_vi)
+                translated_content = GoogleTranslator(source='auto', target='en').translate(content_vi)
+        except Exception as e:
+            print(f"⚠️ Lỗi kết nối Google Translate API: {e}. Hệ thống tự động fallback.")
+            translated_title = title_vi
+            translated_content = content_vi
+
+        # Đóng gói cấu trúc phân cấp đa ngôn ngữ vào MongoDB
+        multilang_post = {
+            "title": {
+                "vi": title_vi,
+                "en": translated_title if translated_title else title_vi
+            },
+            "content": {
+                "vi": content_vi,
+                "en": translated_content if translated_content else content_vi
+            },
+            "image_url": payload.get("image_url", ""),
+            "layout": payload.get("layout", "left"),
+            "img_width": payload.get("img_width", 400),
+            "status": payload.get("status", "published"),
+            "date": payload.get("date", datetime.now().strftime("%d/%m/%Y"))
+        }
+        
+        result = await db.posts.insert_one(multilang_post)
+        return {"status": "success", "id": str(result.inserted_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi tạo bài viết: {str(e)}")
 
 @router.put("/posts/{post_id}")
 async def update_post(post_id: str, payload: dict = Body(...), db = Depends(get_db)):
-    await db.posts.update_one({"_id": ObjectId(post_id)}, {"$set": payload})
-    return {"status": "success"}
+    """API Cập nhật bài viết - Đồng bộ và dịch lại bản dịch mới khi admin sửa đổi"""
+    try:
+        title_vi = payload.get("title", "").strip()
+        content_vi = payload.get("content", "").strip()
+        
+        core_translator = GoogleTranslator(source='vi', target='en')
+        try:
+            translated_title = core_translator.translate(title_vi)
+            translated_content = core_translator.translate(content_vi)
+        except Exception:
+            translated_title = title_vi
+            translated_content = content_vi
+
+        update_doc = {
+            "title": {"vi": title_vi, "en": translated_title},
+            "content": {"vi": content_vi, "en": translated_content},
+            "image_url": payload.get("image_url"),
+            "layout": payload.get("layout"),
+            "img_width": payload.get("img_width"),
+            "status": payload.get("status", "published")
+        }
+        
+        await db.posts.update_one({"_id": ObjectId(post_id)}, {"$set": update_doc})
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi sửa bài viết: {str(e)}")
 
 @router.delete("/posts/{post_id}")
 async def delete_post(post_id: str, db = Depends(get_db)):
@@ -310,9 +376,30 @@ async def get_about(db = Depends(get_db)):
     return data
 
 @router.put("/about")
-async def update_about(payload: dict, db = Depends(get_db)):
-    await db.config.update_one({"type": "about"}, {"$set": payload}, upsert=True)
-    return {"status": "success"}
+async def update_about(payload: dict = Body(...), db = Depends(get_db)):
+    """Tự động dịch trang giới thiệu khi admin cập nhật"""
+    try:
+        content_vi = payload.get("content", "").strip()
+        
+        core_translator = GoogleTranslator(source='vi', target='en')
+        try:
+            # Xử lý dịch thuật cho chuỗi văn bản rất dài của trang giới thiệu
+            translated_content = core_translator.translate(content_vi) if content_vi else ""
+        except Exception:
+            translated_content = content_vi
+
+        multilang_about = {
+            "type": "about",
+            "content": {
+                "vi": content_vi,
+                "en": translated_content
+            },
+            "updated_at": datetime.now()
+        }
+        await db.config.update_one({"type": "about"}, {"$set": multilang_about}, upsert=True)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/contact")
 async def get_contact(db = Depends(get_db)):
@@ -323,10 +410,55 @@ async def get_contact(db = Depends(get_db)):
     return data
 
 @router.put("/contact")
-async def update_contact(payload: dict, db = Depends(get_db)):
-    await db.config.update_one({"type": "contact"}, {"$set": payload}, upsert=True)
-    return {"status": "success"}
+async def update_contact(payload: dict = Body(...), db = Depends(get_db)):
+    """Hoàn thiện API cập nhật thông tin liên hệ - Tự động dịch Địa chỉ & Mô tả"""
+    try:
+        address_vi = payload.get("address", "").strip()
+        description_vi = payload.get("description", "").strip()
+        
+        core_translator = GoogleTranslator(source='vi', target='en')
+        try:
+            translated_address = core_translator.translate(address_vi) if address_vi else ""
+            translated_description = core_translator.translate(description_vi) if description_vi else ""
+        except Exception:
+            translated_address = address_vi
+            translated_description = description_vi
 
+        multilang_contact = {
+            "type": "contact",
+            "address": {"vi": address_vi, "en": translated_address},
+            "description": {"vi": description_vi, "en": translated_description},
+            "phone": payload.get("phone", ""),
+            "email": payload.get("email", "")
+        }
+        
+        await db.config.update_one({"type": "contact"}, {"$set": multilang_contact}, upsert=True)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật liên hệ: {str(e)}")
+    """Tự động dịch thông tin liên hệ tĩnh (Địa chỉ, mô tả phòng tuyển sinh...)"""
+    try:
+        address_vi = payload.get("address", "").strip()
+        description_vi = payload.get("description", "").strip()
+        
+        try:
+            translated_address = translator.translate(address_vi) if address_vi else ""
+            translated_description = translator.translate(description_vi) if description_vi else ""
+        except Exception:
+            translated_address = address_vi
+            translated_description = description_vi
+
+        multilang_contact = {
+            "type": "contact",
+            "address": {"vi": address_vi, "en": translated_address},
+            "description": {"vi": description_vi, "en": translated_description},
+            "phone": payload.get("phone", ""),
+            "email": payload.get("email", "")
+        }
+        await db.config.update_one({"type": "contact"}, {"$set": multilang_contact}, upsert=True)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 # --- 11. QUẢN LÝ CỬA HÀNG (OPERATOR) ---
 
 @router.post("/products")

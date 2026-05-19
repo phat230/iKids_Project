@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import time
 from utils.auth_state import login_user
+from locales import UI_LOCALES  # Import từ điển ngôn ngữ tập trung
 
 def load_auth_css():
     current_dir = os.path.dirname(os.path.abspath(__file__)) 
@@ -12,42 +13,76 @@ def load_auth_css():
 
 load_auth_css()
 
+# Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
+lang = st.session_state.get("lang", "vi")
+
+# Mở rộng bộ từ điển cho riêng các nhãn chi tiết của trang Login (Tránh viết sót)
+LOGIN_LABELS = {
+    "vi": {
+        "welcome_title": "Chào mừng trở lại! 👋",
+        "welcome_subtitle": "Đăng nhập để tiếp tục truy cập iKids Portal",
+        "placeholder_email": "ví dụ: phuhuynh@gmail.com",
+        "btn_forgot": "🔑 Quên mật khẩu",
+        "btn_register_now": "📝 Đăng ký ngay",
+        "redirect_success": "🎉 Đăng nhập thành công! Đang chuyển hướng..."
+    },
+    "en": {
+        "welcome_title": "Welcome Back! 👋",
+        "welcome_subtitle": "Sign in to continue to iKids Portal",
+        "placeholder_email": "e.g., parent@gmail.com",
+        "btn_forgot": "🔑 Forgot Password?",
+        "btn_register_now": "📝 Register Now",
+        "redirect_success": "🎉 Login successful! Redirecting..."
+    }
+}
+
 # Dùng cột để ép Form vào giữa màn hình
 _, col, _ = st.columns([1, 1.5, 1])
 
 with col:
-    # Phần Header
+    # --- PHẦN HEADER ---
     st.markdown("<div class='auth-header'>", unsafe_allow_html=True)
-    # Tạm dùng icon sinh ngẫu nhiên, bạn có thể thay bằng logo iKids thật
     st.image("https://api.dicebear.com/7.x/initials/svg?seed=iKids&backgroundColor=1e3a8a", width=70)
-    st.markdown("<h2 class='auth-title'>Chào mừng trở lại! </h2>", unsafe_allow_html=True)
-    st.markdown("<p class='auth-subtitle'>Đăng nhập để tiếp tục truy cập iKids Portal</p>", unsafe_allow_html=True)
+    st.markdown(f"<h2 class='auth-title'>{LOGIN_LABELS[lang]['welcome_title']}</h2>", unsafe_allow_html=True)
+    st.markdown(f"<p class='auth-subtitle'>{LOGIN_LABELS[lang]['welcome_subtitle']}</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Phần Form nằm trong khung
+    # --- PHẦN FORM ĐĂNG NHẬP ---
     with st.container(border=True):
         with st.form("login_form"):
-            email = st.text_input(" Địa chỉ Email", placeholder="ví dụ: phuhuynh@gmail.com")
-            password = st.text_input(" Mật khẩu", type="password", placeholder="••••••••")
+            # Sử dụng UI_LOCALES tập trung cho các trường input chính
+            email = st.text_input(f"📧 {UI_LOCALES[lang]['field_username']}", placeholder=LOGIN_LABELS[lang]['placeholder_email'])
+            password = st.text_input(f"🔒 {UI_LOCALES[lang]['field_password']}", type="password", placeholder="••••••••")
             st.write("") # Tạo khoảng trống nhỏ
-            submit_login = st.form_submit_button(" Đăng Nhập", use_container_width=True, type="primary")
+            
+            submit_login = st.form_submit_button(UI_LOCALES[lang]['btn_login'], use_container_width=True, type="primary")
             
             if submit_login:
-                success, msg = login_user(email, password)
-                if success:
-                    st.success("Đăng nhập thành công! Đang chuyển hướng...")
-                    time.sleep(1)
-                    st.rerun() 
+                if not email.strip() or not password.strip():
+                    st.error("⚠️ Please fill in all fields" if lang == "en" else "⚠️ Vui lòng điền đầy đủ các thông tin!")
                 else:
-                    st.error(msg)
+                    success, msg = login_user(email, password)
+                    if success:
+                        st.success(LOGIN_LABELS[lang]['redirect_success'])
+                        time.sleep(1)
+                        st.rerun() 
+                    else:
+                        # Nếu API trả về tin nhắn lỗi từ Backend (Tiếng Việt), 
+                        # ta dịch nhanh một số lỗi phổ biến hoặc hiển thị trực tiếp msg
+                        if lang == "en" and "Không tìm thấy" in msg:
+                            st.error("❌ Account does not exist or wrong password.")
+                        elif lang == "en" and "Mật khẩu" in msg:
+                            st.error("❌ Incorrect password.")
+                        else:
+                            st.error(msg)
 
-    # Nút điều hướng phụ (nằm dưới form)
+    # --- NÚT ĐIỀU HƯỚNG PHỤ (NẰM DƯỚI FORM) ---
     st.markdown("<div class='btn-outline'>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button(" Quên mật khẩu", use_container_width=True):
+        if st.button(LOGIN_LABELS[lang]['btn_forgot'], use_container_width=True):
             st.switch_page("auth/forgot_password.py")
     with c2:
-        if st.button(" Đăng ký ngay", use_container_width=True):
+        if st.button(LOGIN_LABELS[lang]['btn_register_now'], use_container_width=True):
             st.switch_page("auth/register.py")
     st.markdown("</div>", unsafe_allow_html=True)

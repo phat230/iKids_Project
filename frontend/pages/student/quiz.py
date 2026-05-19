@@ -3,6 +3,8 @@ import requests
 import time
 import urllib.parse
 import os
+
+# ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Trạm Quiz AI", page_icon="📝", layout="wide")
 
 # ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
@@ -11,10 +13,7 @@ def load_css(file_name):
     Tự động tìm file CSS trong thư mục frontend/CSS/
     file_name: tên file kèm thư mục con, ví dụ 'student/quiz.css'
     """
-    # Lấy đường dẫn tuyệt đối đến thư mục chứa file quiz.py hiện tại
     current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
-    
-    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
 
@@ -24,8 +23,69 @@ def load_css(file_name):
     else:
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-# Tải CSS (Chỉ truyền phần tên thư mục con và file)
+# Tải CSS làm đẹp cho trang Quiz
 load_css("student/quiz.css")
+
+# Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+lang = st.session_state.get("lang", "vi")
+
+# ==========================================
+# BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO STUDENT QUIZ
+# ==========================================
+QUIZ_LABELS = {
+    "vi": {
+        "title": "📝 Trạm Quiz AI",
+        "subtitle": "Hoàn thành các bài tập dưới đây để tích lũy EXP thăng hạng nhé!",
+        "lbl_total_exp": "Tổng EXP của bạn:",
+        "info_empty_quizzes": "✨ Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!",
+        "lbl_questions_count": "Số câu:",
+        "lbl_reward": "Phần thưởng:",
+        "btn_completed": "✅ Đã hoàn thành",
+        "btn_start": "▶ Bắt đầu làm",
+        "btn_back_dashboard": "⬅️ Quay lại Bảng Điều Khiển",
+        
+        # Màn hình làm bài
+        "btn_back_list": "⬅ Trở về danh sách bộ đề",
+        "lbl_quiz_title": "Đề Bài:",
+        "info_quiz_hint": "💡 Hãy đọc kỹ câu hỏi và chọn đáp án chính xác nhất. Cần tích đủ tất cả các câu mới có thể nộp bài.",
+        "lbl_question_prefix": "Câu",
+        "select_option_lbl": "Chọn đáp án:",
+        "btn_submit_quiz": "🏆 Nộp Bài & Nhận Thưởng",
+        
+        # Thông báo phản hồi kết quả
+        "err_unanswered": "⚠️ Bạn chưa chọn đáp án cho tất cả các câu. Vui lòng kéo lên kiểm tra và điền đầy đủ trước khi nộp!",
+        "err_save_toast": "⚠️ Có lỗi khi lưu dữ liệu lên server:",
+        "success_grading": "🎉 Chấm xong! Bạn làm đúng {}/{} câu. **Điểm: {}/10**",
+        "info_exp_reward": "🚀 Chúc mừng! Bạn nhận được +{} EXP! Đang quay lại trang chủ...",
+        "err_connection": "⚠️ Mất kết nối đến Backend Database. Hãy đảm bảo Uvicorn đang chạy! Chi tiết lỗi:"
+    },
+    "en": {
+        "title": "📝 AI Quiz Station",
+        "subtitle": "Complete the practice quizzes below to accumulate EXP and level up your rank! 🏆",
+        "lbl_total_exp": "Your Current EXP:",
+        "info_empty_quizzes": "✨ There are currently no active homework quizzes assigned. You can take a break!",
+        "lbl_questions_count": "Questions:",
+        "lbl_reward": "Reward Value:",
+        "btn_completed": "✅ Completed",
+        "btn_start": "▶ Start Quiz",
+        "btn_back_dashboard": "⬅️ Back to Dashboard",
+        
+        # In-quiz screen
+        "btn_back_list": "⬅ Back to Quiz List",
+        "lbl_quiz_title": "Quiz Title:",
+        "info_quiz_hint": "💡 Please read each question carefully and select the most accurate option. All questions must be answered to submit.",
+        "lbl_question_prefix": "Question",
+        "select_option_lbl": "Select an answer:",
+        "btn_submit_quiz": "🏆 Submit & Claim Rewards",
+        
+        # Response feedbacks
+        "err_unanswered": "⚠️ You haven't answered all the questions yet. Please scroll up to verify and complete all fields before submitting!",
+        "err_save_toast": "⚠️ Error occurred while synchronizing metrics to server data:",
+        "success_grading": "🎉 Grading completed! You got {}/{} correct. **Score: {}/10**",
+        "info_exp_reward": "🚀 Congratulations! You earned +{} EXP! Navigating back to main deck...",
+        "err_connection": "⚠️ Unable to establish a connection to Backend Database. Please verify that Uvicorn is active! Error details:"
+    }
+}
 
 # ================= HÀM LẤY TÊN USER =================
 def get_current_username():
@@ -33,8 +93,8 @@ def get_current_username():
     if "username" in st.session_state and st.session_state.username: return st.session_state.username
     if "full_name" in st.session_state and st.session_state.full_name: return st.session_state.full_name
     if "user_info" in st.session_state and isinstance(st.session_state.user_info, dict):
-        return st.session_state.user_info.get("full_name", st.session_state.user_info.get("name", "Học sinh"))
-    return "Học sinh"
+        return st.session_state.user_info.get("full_name", st.session_state.user_info.get("name", "Student"))
+    return "Student"
 
 real_name = get_current_username()
 encoded_name = urllib.parse.quote(real_name)
@@ -46,7 +106,7 @@ try:
         st.session_state.student_profile = prof_res.json()
     else:
         st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
-except Exception as e:
+except Exception:
     if "student_profile" not in st.session_state:
         st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
 
@@ -58,10 +118,8 @@ try:
     else:
         saved_quizzes = []
 except Exception as e:
-    # ĐÂY LÀ DÒNG LỖI MỚI. NẾU WEB CỦA ÔNG CHƯA HIỆN DÒNG NÀY NGHĨA LÀ CHƯA SAVE CODE!
-    st.error(f"⚠️ Mất kết nối đến Backend Database (Chi tiết lỗi: {e}). Hãy đảm bảo Uvicorn đang chạy!")
+    st.error(f"{QUIZ_LABELS[lang]['err_connection']} {e}")
     saved_quizzes = []
-# ============================================================================
 
 if "selected_quiz" not in st.session_state:
     st.session_state.selected_quiz = None
@@ -70,13 +128,13 @@ if "selected_quiz" not in st.session_state:
 # MÀN HÌNH 1: DANH SÁCH BỘ ĐỀ
 # -------------------------------------------------------------------------
 if st.session_state.selected_quiz is None:
-    st.title("Trạm Quiz AI")
-    st.write("Hoàn thành các bài tập dưới đây để tích lũy EXP thăng hạng nhé!")
+    st.title(QUIZ_LABELS[lang]["title"])
+    st.write(QUIZ_LABELS[lang]["subtitle"])
     
-    st.markdown(f" **Tổng EXP của bạn:** `{st.session_state.student_profile.get('exp', 0)} EXP`")
+    st.markdown(f"🏅 **{QUIZ_LABELS[lang]['lbl_total_exp']}** `{st.session_state.student_profile.get('exp', 0)} EXP`")
 
     if not saved_quizzes:
-        st.info("Hiện tại giáo viên chưa có bài tập nào. Bạn có thể nghỉ ngơi!")
+        st.info(QUIZ_LABELS[lang]["info_empty_quizzes"])
     else:
         for i, q in enumerate(saved_quizzes):
             quiz_id = q.get('id', f"quiz_backup_id_{i}")
@@ -87,22 +145,22 @@ if st.session_state.selected_quiz is None:
                 with col_info:
                     st.markdown(f"""
                     <div class="quiz-card">
-                        <div class="quiz-title"> {q.get('title', 'Bài tập chưa có tên')}</div>
-                        <div class="quiz-meta">Số câu: {len(q.get('questions', []))} | Phần thưởng: +50 EXP</div>
+                        <div class="quiz-title"> {q.get('title', 'Bài tập chưa có tên' if lang == 'vi' else 'Untitled Quiz')}</div>
+                        <div class="quiz-meta">{QUIZ_LABELS[lang]['lbl_questions_count']} {len(q.get('questions', []))} | {QUIZ_LABELS[lang]['lbl_reward']} +50 EXP</div>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col_btn:
                     st.write("") 
                     if is_completed:
-                        st.button("✅ Đã hoàn thành", key=f"done_{quiz_id}", disabled=True, use_container_width=True)
+                        st.button(QUIZ_LABELS[lang]["btn_completed"], key=f"done_{quiz_id}", disabled=True, use_container_width=True)
                     else:
-                        if st.button("▶ Bắt đầu làm", key=f"start_{quiz_id}", type="primary", use_container_width=True):
+                        if st.button(QUIZ_LABELS[lang]["btn_start"], key=f"start_{quiz_id}", type="primary", use_container_width=True):
                             st.session_state.selected_quiz = q
                             st.rerun()
 
     st.divider()
-    if st.button("⬅️ Quay lại Bảng Điều Khiển"):
+    if st.button(QUIZ_LABELS[lang]["btn_back_dashboard"]):
         st.switch_page("pages/student/dashboard.py")
 
 # -------------------------------------------------------------------------
@@ -114,20 +172,20 @@ else:
     questions = q.get('questions', [])
     num_questions = len(questions)
 
-    if st.button("⬅ Trở về danh sách bộ đề"):
+    if st.button(QUIZ_LABELS[lang]["btn_back_list"]):
         st.session_state.selected_quiz = None
         st.rerun()
 
-    st.markdown(f"##  Đề Bài: {q.get('title')}")
-    st.info("Hãy đọc kỹ câu hỏi và chọn đáp án chính xác nhất. Cần tích đủ tất cả các câu mới có thể nộp bài.")
+    st.markdown(f"## 📝 {QUIZ_LABELS[lang]['lbl_quiz_title']} {q.get('title')}")
+    st.info(QUIZ_LABELS[lang]["info_quiz_hint"])
 
     with st.form(key=f"full_quiz_form_{quiz_id}"):
         user_answers = {}
         for idx, question in enumerate(questions):
-            st.markdown(f"**Câu {idx + 1}: {question['question']}**")
+            st.markdown(f"**{QUIZ_LABELS[lang]['lbl_question_prefix']} {idx + 1}: {question['question']}**")
             
             user_answers[idx] = st.radio(
-                label="Chọn đáp án:", 
+                label=QUIZ_LABELS[lang]["select_option_lbl"], 
                 options=question['options'], 
                 key=f"ans_{quiz_id}_{idx}", 
                 index=None,
@@ -135,11 +193,11 @@ else:
             )
             st.write("---")
         
-        submit_btn = st.form_submit_button("🏆 Nộp Bài & Nhận Thưởng", type="primary", use_container_width=True)
+        submit_btn = st.form_submit_button(QUIZ_LABELS[lang]["btn_submit_quiz"], type="primary", use_container_width=True)
         
         if submit_btn:
             if None in user_answers.values():
-                st.error("⚠️ Bạn chưa chọn đáp án cho tất cả các câu. Vui lòng kéo lên kiểm tra và điền đầy đủ trước khi nộp!")
+                st.error(QUIZ_LABELS[lang]["err_unanswered"])
             else:
                 correct_count = sum(1 for idx, question in enumerate(questions) if user_answers[idx] == question['correct_answer'])
                 score = round((correct_count / num_questions) * 10, 1) if num_questions > 0 else 0
@@ -154,14 +212,14 @@ else:
                 try:
                     requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
                 except Exception as e:
-                    st.toast(f"⚠️ Có lỗi khi lưu dữ liệu lên server: {e}")
+                    st.toast(f"{QUIZ_LABELS[lang]['err_save_toast']} {e}")
 
                 st.session_state.student_profile['exp'] += earned_exp
                 st.session_state.student_profile['completed_tasks'].append(quiz_id)
                 
-                st.success(f" Chấm xong! Bạn làm đúng {correct_count}/{num_questions} câu. **Điểm: {score}/10**")
+                st.success(QUIZ_LABELS[lang]["success_grading"].format(correct_count, num_questions, score))
                 st.balloons()
-                st.info(f" Chúc mừng! Bạn nhận được +{earned_exp} EXP! Đang quay lại trang chủ...")
+                st.info(QUIZ_LABELS[lang]["info_exp_reward"].format(earned_exp))
                 
                 time.sleep(3)
                 st.session_state.selected_quiz = None

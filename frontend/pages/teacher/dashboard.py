@@ -5,24 +5,73 @@ import os
 import time
 from datetime import datetime, timedelta, date
 
-st.set_page_config(page_title="Bảng Tin Giáo Viên", page_icon=None, layout="wide")
+# ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
+st.set_page_config(page_title="Bảng Tin Giáo Viên", page_icon="👨‍🏫", layout="wide")
+
+# ================= ĐA NGÔN NGỮ =================
+lang = st.session_state.get("lang", "vi")
+
+DASHBOARD_LABELS = {
+    "vi": {
+        "title": "Bảng Tin Giáo Viên",
+        "btn_today": "Hôm nay",
+        "btn_send_req": "Gửi yêu cầu",
+        "btn_back_sched": "Quay lại Lịch dạy",
+        "month_label": "Tháng {} - {}",
+        "req_mgmt_title": "Quản Lý Đơn Từ & Ngày Nghỉ",
+        "day_names": ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"],
+        "sessions": ["SÁNG", "CHIỀU", "TỐI"],
+        "lbl_room": "Phòng:",
+        "unknown_subject": "Chưa rõ môn",
+        "unknown_class": "Chưa rõ lớp",
+        "tab_new_req": "Gửi Yêu Cầu Mới",
+        "tab_history": "Lịch Sử Yêu Cầu",
+        "req_types": ["Xin nghỉ phép", "Xin đổi lịch dạy", "Đổi phương thức dạy", "Báo cáo sự cố thiết bị"],
+        "lbl_class": "Lớp học liên quan",
+        "lbl_reason": "Lý do (*)",
+        "btn_submit": "Xác Nhận Gửi Yêu Cầu",
+        "success_msg": "Đã gửi yêu cầu thành công!",
+        "info_empty_req": "Hiện tại chưa có yêu cầu nào được gửi đi.",
+        "df_cols": ["Ngày Gửi", "Loại Yêu Cầu", "Chi Tiết", "Lý Do / Mô Tả", "Trạng Thái"]
+    },
+    "en": {
+        "title": "Teacher's Dashboard",
+        "btn_today": "Today",
+        "btn_send_req": "Send Request",
+        "btn_back_sched": "Back to Schedule",
+        "month_label": "{} - {}",
+        "req_mgmt_title": "Leave & Request Management",
+        "day_names": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "sessions": ["MORNING", "AFTERNOON", "EVENING"],
+        "lbl_room": "Room:",
+        "unknown_subject": "Subject TBD",
+        "unknown_class": "Class TBD",
+        "tab_new_req": "Submit New Request",
+        "tab_history": "Request History",
+        "req_types": ["Leave Request", "Reschedule Request", "Change Teaching Mode", "Report Equipment Issue"],
+        "lbl_class": "Related Class",
+        "lbl_reason": "Reason (*)",
+        "btn_submit": "Confirm & Submit",
+        "success_msg": "Request submitted successfully!",
+        "info_empty_req": "No requests have been sent yet.",
+        "df_cols": ["Sent Date", "Request Type", "Details", "Reason / Description", "Status"]
+    }
+}
 
 # ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__)) 
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
-
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
-        st.warning(f"Canh bao: Khong tim thay file CSS tai: {full_path}")
+        st.warning(f"Warning: CSS file not found at: {full_path}")
 
 load_css("teacher/dashboard.css")
 
 API_URL = "http://localhost:8000"
-
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})
 teacher_id = str(user_info.get("id", user_info.get("_id", "")))

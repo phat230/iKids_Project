@@ -8,6 +8,7 @@ from utils.role_guard import require_role
 # Bảo vệ trang, chỉ học sinh được vào
 require_role(["student"])
 
+# ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Lịch Học Của Tôi", page_icon="📅", layout="wide")
 
 # ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
@@ -34,8 +35,67 @@ load_css("student/lich_hoc.css")
 
 API_URL = "http://localhost:8000"
 
-st.title(" Thời Khóa Biểu Của Tôi")
-st.write("Theo dõi lịch học để không bỏ lỡ buổi học nào nhé!")
+# Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+lang = st.session_state.get("lang", "vi")
+
+# ==========================================
+# BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO STUDENT LICH_HOC
+# ==========================================
+STUDENT_SCHEDULE_LABELS = {
+    "vi": {
+        "title": "📅 Thời Khóa Biểu Của Tôi",
+        "subtitle": "Theo dõi lịch học để không bỏ lỡ buổi học nào nhé!",
+        "spinner_loading": "Đang tải thời khóa biểu của bạn...",
+        "info_empty": "ℹ️ Bạn chưa có lịch học nào. Vui lòng đợi Nhân viên vận hành xếp lịch hoặc nhờ Phụ huynh đăng ký lớp mới nhé!",
+        "caption_footer": "💡 Lịch học sẽ tự động cập nhật nếu Nhân viên vận hành thay đổi thời gian hoặc phòng học.",
+        "err_connection": "Lỗi kết nối máy chủ:",
+        
+        # Tiêu đề cột DataFrame
+        "col_subject": "Môn học",
+        "col_class": "Tên lớp",
+        "col_teacher": "Giáo viên",
+        "col_days": "Thứ trong tuần",
+        "col_slot": "Ca học",
+        "col_duration": "Khóa học",
+        "col_room": "Phòng học",
+        "col_status": "Trạng thái",
+        
+        # Giá trị ô dữ liệu tĩnh
+        "val_unknown": "Chưa rõ",
+        "val_updating": "Đang cập nhật",
+        "val_not_assigned": "Chưa xếp thứ",
+        "status_active": "🟢 Đang diễn ra",
+        "status_ended": "🔴 Đã kết thúc"
+    },
+    "en": {
+        "title": "📅 My Class Schedule",
+        "subtitle": "Keep track of your classes and never miss a single lesson!",
+        "spinner_loading": "Loading your class timetable...",
+        "info_empty": "ℹ️ You do not have any classes scheduled yet. Please wait for the academic staff to assign your schedule or ask your Parents to enroll in a new class!",
+        "caption_footer": "💡 Your schedule updates automatically whenever operators change the time slots or classrooms.",
+        "err_connection": "Server connection failure:",
+        
+        # DataFrame Table Header Config
+        "col_subject": "Subject",
+        "col_class": "Class Name",
+        "col_teacher": "Teacher",
+        "col_days": "Days of Week",
+        "col_slot": "Time Slot",
+        "col_duration": "Course Duration",
+        "col_room": "Room/Classroom",
+        "col_status": "Status",
+        
+        # Data cell static values mapping
+        "val_unknown": "Unknown",
+        "val_updating": "Updating...",
+        "val_not_assigned": "Not Assigned Yet",
+        "status_active": "🟢 Ongoing",
+        "status_ended": "🔴 Completed"
+    }
+}
+
+st.title(STUDENT_SCHEDULE_LABELS[lang]["title"])
+st.write(STUDENT_SCHEDULE_LABELS[lang]["subtitle"])
 st.divider()
 
 # Lấy ID của học sinh đang đăng nhập
@@ -77,37 +137,65 @@ def get_my_schedules(current_student_id):
         ]
         return my_schedules
     except Exception as e:
-        st.error(f"Lỗi kết nối máy chủ: {e}")
+        st.error(f"{STUDENT_SCHEDULE_LABELS[lang]['err_connection']} {e}")
         return []
+
+# Mảng các đầu cột chuẩn hóa theo ngôn ngữ lựa chọn
+columns_list = [
+    STUDENT_SCHEDULE_LABELS[lang]["col_subject"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_class"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_teacher"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_days"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_slot"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_duration"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_room"],
+    STUDENT_SCHEDULE_LABELS[lang]["col_status"]
+]
 
 # =========================
 # HIỂN THỊ DỮ LIỆU LÊN BẢNG
 # =========================
-with st.spinner("Đang tải thời khóa biểu của bạn..."):
+with st.spinner(STUDENT_SCHEDULE_LABELS[lang]["spinner_loading"]):
     schedules = get_my_schedules(student_id)
 
 if not schedules:
-    st.info("ℹ️ Bạn chưa có lịch học nào. Vui lòng đợi Nhân viên vận hành xếp lịch hoặc nhờ Phụ huynh đăng ký lớp mới nhé!")
+    st.info(STUDENT_SCHEDULE_LABELS[lang]["info_empty"])
     
-    # Hiển thị bảng trống cho đẹp mắt
-    empty_df = pd.DataFrame(columns=["Môn học", "Tên lớp", "Giáo viên", "Thứ trong tuần", "Ca học", "Khóa học", "Phòng học", "Trạng thái"])
+    # Hiển thị bảng trống định dạng chuẩn cho thẩm mỹ giao diện
+    empty_df = pd.DataFrame(columns=columns_list)
     st.dataframe(empty_df, use_container_width=True, hide_index=True)
 else:
     # Xử lý và làm đẹp dữ liệu cho bảng
     table_data = []
     
     for s in schedules:
-        study_date_str = s.get('study_date', 'Chưa rõ')
+        study_date_str = s.get('study_date', STUDENT_SCHEDULE_LABELS[lang]["val_unknown"])
         days_list = s.get('days_of_week', [])
-        days_str = ", ".join(days_list) if days_list else "Chưa xếp thứ"
+        
+        # Bản dịch các Thứ trong tuần nếu hiển thị Tiếng Anh
+        if lang == "en" and days_list:
+            day_mapping = {
+                "Thứ 2": "Monday", "Thứ 3": "Tuesday", "Thứ 4": "Wednesday",
+                "Thứ 5": "Thursday", "Thứ 6": "Friday", "Thứ 7": "Saturday", "Chủ Nhật": "Sunday"
+            }
+            days_list = [day_mapping.get(d, d) for d in days_list]
+
+        days_str = ", ".join(days_list) if days_list else STUDENT_SCHEDULE_LABELS[lang]["val_not_assigned"]
         time_str = f"{s.get('start_time', '--:--')} - {s.get('end_time', '--:--')}"
         
-        # Tính toán Trạng thái (Đang học / Đã kết thúc) giống bên Vận hành
+        # Bản dịch nhãn thời lượng Khóa học nếu có ký tự chuỗi kết nối
+        if lang == "en" and isinstance(study_date_str, str) and "đến" in study_date_str:
+            study_date_str = study_date_str.replace("đến", "to")
+
+        # Tính toán Trạng thái (Đang học / Đã kết thúc) giống phân hệ Vận hành
         try:
             now = datetime.now()
             end_time_str = s.get('end_time', '23:59')
-            if "đến" in study_date_str:
-                end_date_str = study_date_str.split("đến")[1].strip()
+            if "đến" in s.get('study_date', ''):
+                end_date_str = s.get('study_date', '').split("đến")[1].strip()
+                end_datetime = datetime.strptime(f"{end_date_str} {end_time_str}", "%d/%m/%Y %H:%M")
+            elif "to" in study_date_str:
+                end_date_str = s.get('study_date', '').split("to")[1].strip()
                 end_datetime = datetime.strptime(f"{end_date_str} {end_time_str}", "%d/%m/%Y %H:%M")
             elif "/" in study_date_str:
                 end_datetime = datetime.strptime(f"{study_date_str} {end_time_str}", "%d/%m/%Y %H:%M")
@@ -115,30 +203,30 @@ else:
                 end_datetime = datetime.strptime(f"{study_date_str} {end_time_str}", "%Y-%m-%d %H:%M")
             
             if now > end_datetime:
-                status = "Đã kết thúc"
+                status = STUDENT_SCHEDULE_LABELS[lang]["status_ended"]
             else:
-                status = " Đang diễn ra"
+                status = STUDENT_SCHEDULE_LABELS[lang]["status_active"]
         except:
-            status = " Đang diễn ra"
+            status = STUDENT_SCHEDULE_LABELS[lang]["status_active"]
 
         table_data.append({
-            "Môn học": s.get("subject", "Chưa rõ"),
-            "Tên lớp": s.get("class_name", "Chưa rõ"),
-            "Giáo viên": s.get("teacher_name", "Đang cập nhật"),
-            "Thứ trong tuần": days_str,
-            "Ca học": time_str,
-            "Khóa học": study_date_str,
-            "Phòng học": s.get("room", "Online"),
-            "Trạng thái": status
+            STUDENT_SCHEDULE_LABELS[lang]["col_subject"]: s.get("subject", STUDENT_SCHEDULE_LABELS[lang]["val_unknown"]),
+            STUDENT_SCHEDULE_LABELS[lang]["col_class"]: s.get("class_name", STUDENT_SCHEDULE_LABELS[lang]["val_unknown"]),
+            STUDENT_SCHEDULE_LABELS[lang]["col_teacher"]: s.get("teacher_name", STUDENT_SCHEDULE_LABELS[lang]["val_updating"]),
+            STUDENT_SCHEDULE_LABELS[lang]["col_days"]: days_str,
+            STUDENT_SCHEDULE_LABELS[lang]["col_slot"]: time_str,
+            STUDENT_SCHEDULE_LABELS[lang]["col_duration"]: study_date_str,
+            STUDENT_SCHEDULE_LABELS[lang]["col_room"]: s.get("room", "Online"),
+            STUDENT_SCHEDULE_LABELS[lang]["col_status"]: status
         })
 
-    # Đưa vào Pandas DataFrame để hiển thị đẹp như Excel
+    # Đưa vào Pandas DataFrame để kết xuất giao diện
     df = pd.DataFrame(table_data)
     
-    # Sắp xếp để các môn "Đang diễn ra" luôn nằm trên cùng, các môn "Đã kết thúc" đẩy xuống dưới
-    df = df.sort_values(by="Trạng thái", ascending=False)
+    # Sắp xếp để các môn lớp "Đang diễn ra" luôn nằm trên cùng, các môn đã đóng lớp đẩy xuống dưới
+    df = df.sort_values(by=STUDENT_SCHEDULE_LABELS[lang]["col_status"], ascending=False)
 
     # Hiển thị bảng dữ liệu (Table/Dataframe)
     st.dataframe(df, use_container_width=True, hide_index=True)
     
-    st.caption("💡 Lịch học sẽ tự động cập nhật nếu Nhân viên vận hành thay đổi thời gian hoặc phòng học.")
+    st.caption(STUDENT_SCHEDULE_LABELS[lang]["caption_footer"])
