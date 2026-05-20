@@ -69,8 +69,7 @@ def load_css(file_name):
     else:
         st.warning(f"Warning: CSS file not found at: {full_path}")
 
-load_css("teacher/dashboard.css")
-
+load_css("teacher/teacher_global.css")
 API_URL = "http://localhost:8000"
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})

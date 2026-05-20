@@ -40,8 +40,7 @@ def load_css(file_name):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-load_css("teacher/quan_ly_diem.css")
-
+load_css("teacher/teacher_global.css")
 API_URL = "http://127.0.0.1:8000"
 
 # ================= LẤY THÔNG TIN GIÁO VIÊN =================

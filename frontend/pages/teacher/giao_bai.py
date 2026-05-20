@@ -18,8 +18,7 @@ def load_css(file_name):
     else:
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-load_css("teacher/giao_bai.css")
-
+load_css("teacher/teacher_global.css")
 # Lấy mã ngôn ngữ hiện hành (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

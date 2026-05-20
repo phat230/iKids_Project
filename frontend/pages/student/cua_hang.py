@@ -1,3 +1,4 @@
+# frontend/pages/student/cua_hang.py
 import streamlit as st
 import os
 import time
@@ -5,7 +6,9 @@ from api_clients.tv3_client import get_store_products, get_gamification_profile,
 from utils.role_guard import require_role
 from deep_translator import GoogleTranslator  # Thêm bộ dịch dự phòng trực tiếp tại chỗ
 
+# Kiểm tra phân quyền truy cập
 require_role(["student"])
+
 BACKEND_URL = "http://localhost:8000"
 
 def get_localized_value(data_field, lang="vi", default_val=""):
@@ -29,6 +32,13 @@ def get_localized_value(data_field, lang="vi", default_val=""):
     return default_val
 
 def show_student_store():
+    # --- NHÚNG FILE CSS TOÀN CỤC CHO PHÂN HỆ HỌC SINH ---
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    css_path = os.path.abspath(os.path.join(current_dir, "../../CSS/student/student_global.css"))
+    if os.path.exists(css_path):
+        with open(css_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
     # Lấy mã ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
     lang = st.session_state.get("lang", "vi")
 

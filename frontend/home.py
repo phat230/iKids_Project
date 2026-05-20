@@ -1,9 +1,10 @@
+# frontend/home.py
 import streamlit as st
 import requests
 import os
 import time
 from streamlit_quill import st_quill
-from deep_translator import GoogleTranslator  # Thêm bộ dịch dự phòng tại chỗ
+from deep_translator import GoogleTranslator
 
 API_URL = "http://localhost:8000/api/tv3"
 
@@ -28,47 +29,31 @@ def save_uploaded_file(uploaded_file):
     return ""
 
 def get_localized_value(data_field, lang="vi", default_val=""):
-    """
-    Hàm bóc tách dữ liệu nâng cao:
-    - Nếu là dict đa ngôn ngữ chuẩn: Lấy đúng key ngôn ngữ hiện hành.
-    - Nếu là chuỗi phẳng (Dữ liệu mới thâm nhập thô từ bên ngoài):
-         + Xem ở Tiếng Việt: Trả về chuỗi gốc.
-         + Xem ở Tiếng Anh: Tự động dịch trực tiếp tại chỗ bằng Google Translate.
-    """
     if not data_field:
         return default_val
-        
-    # Trường hợp 1: Dữ liệu cấu trúc đa ngôn ngữ chuẩn của hệ thống (Dict)
     if isinstance(data_field, dict):
         return data_field.get(lang, data_field.get("vi", default_val))
-        
-    # Trường hợp 2: Dữ liệu thô thâm nhập vào dưới dạng chuỗi phẳng (String)
     if isinstance(data_field, str):
         if lang == "vi":
             return data_field
         else:
             try:
-                # Ép tự động nhận diện ngôn ngữ gốc để dịch cưỡng bức sang English tại chỗ
                 return GoogleTranslator(source='auto', target='en').translate(data_field)
             except Exception:
-                return data_field  # Fallback an toàn nếu mất mạng
-                
+                return data_field
     return default_val
 
-# Tải CSS
+# Tải CSS làm đẹp toàn cục cho Trang chủ
 load_css("CSS/home_style.css")
 
 # ================= 2. QUẢN LÝ NGÔN NGỮ & PHÂN QUYỀN =================
-# LẤY TRẠNG THÁI NGÔN NGỮ TỪ FILE ĐIỀU HƯỚNG GỐC (ĐÃ XÓA KHỐI SIDEBAR TẠO THỪA GÂY LẶP LẠI)
 current_lang = st.session_state.get("lang", "vi")
-
 role = st.session_state.get("role", "guest").lower()
 is_operator = role in ["operator", "admin"]
 
-# Bộ từ điển nhãn tĩnh (UI Locales) giúp Việt/Anh hóa giao diện CMS
 UI_LABELS = {
     "vi": {
-        "about_header": "🏠 Giới thiệu trung tâm",
+        "about_header": "🏢 Giới thiệu trung tâm",
         "news_header": "📰 Tin tức & Sự kiện",
         "contact_header": "📞 Thông tin liên hệ",
         "btn_add": "➕ Đăng bài mới",
@@ -76,7 +61,7 @@ UI_LABELS = {
         "btn_submit_news": "🚀 Xác nhận Đăng bài",
         "btn_edit_contact": "✏️ Chỉnh sửa thông tin Liên hệ",
         "btn_save_all_about": "💾 XÁC NHẬN CẬP NHẬT TOÀN BỘ GIỚI THIỆU",
-        "preview_title": "📋 Bài mẫu khi sửa",
+        "preview_title": "👀 Giao diện xem trước công bố",
         "preview_info": "Đây là giao diện người xem sẽ nhìn thấy sau khi bạn nhấn nút Lưu.",
         "input_title": "Tiêu đề bài viết",
         "input_layout": "Chọn bố cục hiển thị:",
@@ -84,7 +69,7 @@ UI_LABELS = {
         "input_content": "Nội dung bài viết (Soạn thảo như Word):"
     },
     "en": {
-        "about_header": "🏠 About iKids Edu",
+        "about_header": "🏢 About iKids Edu",
         "news_header": "📰 News & Events",
         "contact_header": "📞 Contact Information",
         "btn_add": "➕ Post New Article",
@@ -92,7 +77,7 @@ UI_LABELS = {
         "btn_submit_news": "🚀 Confirm & Publish",
         "btn_edit_contact": "✏️ Edit Contact Information",
         "btn_save_all_about": "💾 CONFIRM & UPDATE ALL ABOUT US",
-        "preview_title": "📋 Live Preview",
+        "preview_title": "👀 Live Preview",
         "preview_info": "This is the layout parents will see after you click Save.",
         "input_title": "Article Title",
         "input_layout": "Select Display Layout:",
@@ -112,29 +97,27 @@ about_data = get_cms_data("about")
 contact_data = get_cms_data("contact")
 all_posts = get_cms_data("posts")
 
-# ================= 3. HEADER =================
-col_logo, col_title = st.columns([1, 4])
+# ================= 3. HEADER GIAO DIỆN BIỂU MẪU =================
+st.markdown("<div class='header-container'>", unsafe_allow_html=True)
+col_logo, col_title = st.columns([1, 5])
 with col_logo:
     logo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "static/logo.png"))
-    st.image(logo_path if os.path.exists(logo_path) else "https://api.dicebear.com/7.x/initials/svg?seed=iKids", width=100)
+    st.image(logo_path if os.path.exists(logo_path) else "https://api.dicebear.com/7.x/initials/svg?seed=iKids", width=95)
 with col_title:
     st.markdown("<h1 style='margin:0;'>iKids Edu Headquarter</h1>", unsafe_allow_html=True)
-    st.caption("🚀 Systems Content Management Multilang iKids v2.5")
-
+    st.caption("🌐 Systems Content Management Multilang iKids v2.5")
+st.markdown("</div>", unsafe_allow_html=True)
 st.divider()
 
 # ================= 4. BÀI GIỚI THIỆU (ABOUT) =================
-st.subheader(UI_LABELS[current_lang]["about_header"])
-
-# Trích xuất dữ liệu đa ngôn ngữ an toàn cho bài giới thiệu
 about_title_vi = get_localized_value(about_data.get('title'), lang="vi", default_val="Về iKids Edu")
 about_content_vi = get_localized_value(about_data.get('content'), lang="vi", default_val="")
-about_title_display = get_localized_value(about_data.get('title'), lang=current_lang, default_val="About iKids Edu")
 about_content_display = get_localized_value(about_data.get('content'), lang=current_lang, default_val="")
 
 if is_operator:
-    # --- KHU VỰC NHẬP LIỆU (Giữ nguyên form nhập Tiếng Việt phẳng) ---
-    with st.expander("🛠️ THIẾT LẬP BÀI GIỚI THIỆU", expanded=True):
+    st.subheader(UI_LABELS[current_lang]["about_header"])
+    
+    with st.expander("🛠️ THIẾT LẬP BÀI GIỚI THIỆU", expanded=False):
         new_about_title = st.text_input(UI_LABELS[current_lang]["input_title"], value=about_title_vi)
         
         c_lay, c_size = st.columns(2)
@@ -150,7 +133,6 @@ if is_operator:
         uploaded_about_imgs = st.file_uploader("Tải ảnh mới từ máy tính:", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
         keep_old = st.checkbox("Giữ lại ảnh cũ", value=True)
 
-    st.markdown("---")
     st.markdown(f"### {UI_LABELS[current_lang]['preview_title']}")
     st.info(UI_LABELS[current_lang]["preview_info"])
     
@@ -161,9 +143,7 @@ if is_operator:
         elif about_data.get('images'):
             preview_img = about_data.get('images')[0]
 
-        # Khu vực Preview đổi động theo ngôn ngữ được chọn ở Sidebar để kiểm tra bản dịch
-        st.markdown(f"## {new_about_title if current_lang == 'vi' else 'Live Translating Preview...'}")
-        
+        # ĐÃ SỬA: Xóa bỏ dòng tiêu đề lớn h2 gây trùng lặp lặp ở khu vực xem trước
         if about_layout == "Ảnh TRÁI - Chữ PHẢI":
             cp1, cp2 = st.columns([1, 1])
             cp1.image(preview_img, width=about_img_width)
@@ -177,13 +157,14 @@ if is_operator:
             st.markdown(new_about_content if current_lang == 'vi' else about_content_display, unsafe_allow_html=True)
 
 else:
-    # HIỂN THỊ CHO PHỤ HUYNH (Tự động thích ứng ngôn ngữ)
+    st.subheader(UI_LABELS[current_lang]["about_header"])
+    
     layout = about_data.get('layout', 'left')
     images = about_data.get('images', [])
     img_main = images[0] if images else "https://via.placeholder.com/600x400"
     i_width = int(about_data.get('img_width', 500))
 
-    st.markdown(f"## {about_title_display}")
+    # ĐÃ SỬA: Xóa bỏ hoàn toàn dòng lệnh st.markdown(f"## {about_title_display}") tại đây
     
     if layout == "left":
         c1, c2 = st.columns([1, 1])
@@ -231,7 +212,6 @@ if is_operator:
                     st.session_state.show_add = False
                     st.rerun()
 
-    # --- CHỈNH SỬA BÀI VIẾT TIN TỨC ---
     if st.session_state.editing_post_data:
         p_edit = st.session_state.editing_post_data
         p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
@@ -257,7 +237,6 @@ if is_operator:
                 st.session_state.editing_post_data = None
                 st.rerun()
 
-# HIỂN THỊ DANH SÁCH TIN TỨC CHUYỂN ĐỔI SONG NGỮ MƯỢT MÀ
 display_posts = all_posts if is_operator else [p for p in all_posts if p.get('status') == 'published']
 if display_posts:
     for p in display_posts:
@@ -266,7 +245,6 @@ if display_posts:
             img_p = p.get('image_url') or "https://via.placeholder.com/400"
             p_width = int(p.get('img_width', 400))
             
-            # Trích xuất động ngôn ngữ hiện hành (Có cơ chế tự động dịch chuỗi thô mới thâm nhập)
             p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
             p_content_display = get_localized_value(p.get('content'), lang=current_lang, default_val="No Content")
             
@@ -313,9 +291,9 @@ if is_operator:
                 requests.put(f"{API_URL}/contact", json={"phone": new_phone, "email": new_email, "address": new_addr})
                 st.session_state.editing_contact = False
                 st.success("Đã cập nhật thông tin liên hệ!")
-                time.sleep(1); st.rerun()
+                time.sleep(1)
+                st.rerun()
 
-    # NÚT GỬI DỮ LIỆU CHO BÀI GIỚI THIỆU (ABOUT)
     st.write("")
     if st.button(UI_LABELS[current_lang]["btn_save_all_about"], type="primary", use_container_width=True):
         with st.spinner("Đang lưu và dịch bài giới thiệu..."):
@@ -331,16 +309,16 @@ if is_operator:
                 "images": final_imgs, "layout": l_val, "img_width": about_img_width
             })
             st.success("Đã cập nhật thành công bài giới thiệu!")
-            time.sleep(1); st.rerun()
+            time.sleep(1)
+            st.rerun()
 else:
-    # HIỂN THỊ LIÊN HỆ ĐA NGÔN NGỮ Ở FOOTER DÀNH CHO PHỤ HUYNH
     contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật / Updating")
     
     st.markdown(f"""
-    <div class="contact-footer" style="background-color: #1e293b; color: white; padding: 40px; border-radius: 20px;">
-        <h3 style="color: #60a5fa;">{UI_LABELS[current_lang]['contact_header']}</h3>
+    <div class="contact-footer">
+        <h3>{UI_LABELS[current_lang]['contact_header']}</h3>
         <p>📍 <b>{"Địa chỉ / Address"}:</b> {contact_addr_display}</p>
-        <p>📧 <b>Email:</b> {contact_data.get('email', 'Đang cập nhật')}</p>
+        <p>✉️ <b>Email:</b> {contact_data.get('email', 'Đang cập nhật')}</p>
         <p>☎️ <b>Hotline:</b> {contact_data.get('phone', 'Đang cập nhật')}</p>
     </div>
     """, unsafe_allow_html=True)

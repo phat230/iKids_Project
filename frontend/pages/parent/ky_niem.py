@@ -25,9 +25,7 @@ def load_css(file_name):
     else:
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-# Tải CSS làm đẹp cho trang Kỷ Niệm
-load_css("parent/ky_niem.css")
-
+load_css("parent/parent_global.css")
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

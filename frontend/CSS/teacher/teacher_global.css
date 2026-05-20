@@ -1,0 +1,88 @@
+/* frontend/CSS/teacher/teacher_global.css */
+
+/* --- 1. KHOẢNG CÁCH TỔNG THỂ & TYPOGRAPHY --- */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+/* Tiêu đề chính các trang quản lý (Màu xám tối chuyên nghiệp) */
+h1 {
+    color: #1e293b !important;
+    font-weight: 800;
+}
+
+/* Tiêu đề nhóm, phân mục (Màu xanh dương học thuật) */
+h2, h3 {
+    color: #2563eb !important;
+    font-weight: 700;
+}
+
+/* Tiêu đề phụ hoặc nhãn AI Insights */
+h4 {
+    color: #0f766e !important;
+    font-weight: 700;
+}
+
+/* --- 2. HỆ THỐNG NÚT BẤM (BUTTONS) GIÁO VIÊN --- */
+.stButton > button {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.25s ease-in-out !important;
+}
+
+/* Nút chính (Lưu điểm, Giao bài, Tạo Quiz) */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2) !important;
+}
+
+/* Nút đặc biệt: Xóa bài tập / Huỷ lệnh (Hiệu ứng hover chuyển đỏ cảnh báo) */
+.stButton > button:has(p:contains("🗑️")):hover,
+.stButton > button:has(div:contains("🗑️")):hover,
+.stButton > button:has(p:contains("Xóa")):hover {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #dc2626 !important;
+}
+
+/* --- 3. ĐỊNH DẠNG FORM & CONTAINER NHẬP LIỆU --- */
+/* Khung bọc Form tạo Quiz AI, nhập điểm số, nhận xét nhật ký */
+div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 25px !important;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+}
+
+/* --- 4. TỐI ƯU BẢNG ĐIỂM & ĐIỂM DANH (TABLES) --- */
+/* Làm đẹp các lưới dữ liệu nhập điểm, danh sách học sinh */
+.stTable, table {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+thead th {
+    background-color: #f8fafc !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
+}
+
+/* --- 5. TÙY CHỈNH TABS ĐIỀU HƯỚNG --- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 15px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px 6px 0 0;
+}

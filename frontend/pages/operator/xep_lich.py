@@ -23,9 +23,7 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
         st.warning(f"⚠️ Khong tim thay file CSS tai: {full_path}")
-
-load_css("operator/xep_lich.css")
-
+load_css("operator/operator_global.css")
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

@@ -1,4 +1,7 @@
+# frontend/app.py
 import streamlit as st
+import os
+import time
 from utils.auth_state import logout_user
 from locales import UI_LOCALES
 
@@ -9,33 +12,39 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Khởi tạo trạng thái ngôn ngữ mặc định
+# Khởi tạo trạng thái ngôn ngữ mặc định (Bảo vệ session state)
 if "lang" not in st.session_state:
-    st.session_state.lang = "vi"
+    st.session_state["lang"] = "vi"
 
-# Khởi tạo các state mặc định khác
 if "view_mode" not in st.session_state:
-    st.session_state.view_mode = "week"
+    st.session_state["view_mode"] = "week"
 
 
-# ================= 2. BỘ CHUYỂN ĐỔI NGÔN NGỮ TẠI SIDEBAR =================
+# ================= 2. BỘ CHUYỂN ĐỔI NGÔN NGỮ TẠI SIDEBAR (SỬA LỖI RE-RUN) =================
 with st.sidebar:
-    st.markdown(f"### {UI_LOCALES[st.session_state.lang]['sidebar_lang_title']}")
+    st.markdown(f"### {UI_LOCALES[st.session_state['lang']]['sidebar_lang_title']}")
+    
+    # Sử dụng cơ chế an toàn để lấy index dropdown tránh crash
+    current_lang_idx = 0 if st.session_state["lang"] == "vi" else 1
+    
     lang_choice = st.selectbox(
-        UI_LOCALES[st.session_state.lang]['sidebar_lang_select'],
+        UI_LOCALES[st.session_state['lang']]['sidebar_lang_select'],
         options=["Tiếng Việt", "English"],
-        index=0 if st.session_state.lang == "vi" else 1,
+        index=current_lang_idx,
         key="global_lang_selector"
     )
-    # Cập nhật state ngôn ngữ ngay khi thay đổi dropdown
-    st.session_state.lang = "vi" if lang_choice == "Tiếng Việt" else "en"
+    
+    # Tạo logic kiểm tra: Chỉ cập nhật và ép tải lại khi người dùng thực sự click đổi ngôn ngữ
+    new_lang_code = "vi" if lang_choice == "Tiếng Việt" else "en"
+    if st.session_state["lang"] != new_lang_code:
+        st.session_state["lang"] = new_lang_code
+        st.rerun()
 
-# Lấy mã ngôn ngữ hiện hành để áp dụng đồng bộ xuống dưới
-lang = st.session_state.lang
+# Lấy mã ngôn ngữ hiện hành để áp dụng đồng bộ xuống dưới form
+lang = st.session_state["lang"]
 
 
 # ================= 3. ĐỊNH NGHĨA CÁC TRANG DỊCH THEO NGÔN NGỮ ĐÃ CHỌN =================
-# Định nghĩa các trang cơ bản
 home_page = st.Page("home.py", title=UI_LOCALES[lang]["menu_home"], default=True)
 login_page = st.Page("auth/login.py", title=UI_LOCALES[lang]["auth_tab_login"])
 register_page = st.Page("auth/register.py", title=UI_LOCALES[lang]["auth_tab_register"])
@@ -48,17 +57,18 @@ section_account = "Tài khoản" if lang == "vi" else "Account"
 
 # ================= 4. XỬ LÝ ĐIỀU HƯỚNG THEO TRẠNG THÁI LOGIN =================
 if "token" not in st.session_state or st.session_state.token is None:
-    # --- GIAO DIỆN KHI CHƯA ĐĂNG NHẬP ---
+    # --- GIAO DIỆN KHI CHƯA ĐĂNG NHẬP (DẠNG DICT PHÂN VÙNG CHUẨN) ---
     pg = st.navigation({
         section_system: [home_page],
         section_account: [login_page, register_page, forgot_page]
     })
     
+    # CSS Ẩn thanh Quên mật khẩu khỏi Sidebar nếu bạn không muốn hiện link thô
     st.markdown("""
         <style>
             [data-testid="stSidebarNav"] ul li:has(span:contains("Quên Mật Khẩu")),
             [data-testid="stSidebarNav"] ul li:has(span:contains("Forgot Password")) {
-                display: none;
+                display: none !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -69,34 +79,35 @@ else:
     role = st.session_state.get("role", "").lower()
     user = st.session_state.get("user_info", {})
     
-    # Định nghĩa động trang thông báo
+    # Định nghĩa động trang thông báo dùng chung (Shared)
     noti_title = "Hộp Thư & Thông Báo" if lang == "vi" else "Inbox & Notifications"
     notification_page = st.Page("pages/shared/thong_bao.py", title=noti_title)
     
+    # Khởi tạo danh mục trang chính mặc định sau khi đăng nhập
     menu_pages = [home_page, notification_page] 
     
-    # --- PHÂN QUYỀN MENU CHI TIẾT (ĐÃ DỊCH MENU TIÊU ĐỀ) ---
+    # --- PHÂN QUYỀN MENU CHI TIẾT (FIX LỖI PATH VÀ COMPONENT DI CHUYỂN) ---
     
-    # 1. Role: Admin
+    # 1. Quyền hạn: Admin
     if role == "admin":
         menu_pages.extend([
             st.Page("pages/admin/dashboard.py", title="Bảng Điều Khiển Admin" if lang == "vi" else "Admin Dashboard"),
             st.Page("pages/admin/quan_ly_nhan_su.py", title="Quản Lý Nhân Sự" if lang == "vi" else "Staff Management"),
-            st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng" if lang == "vi" else "Store Management"),
+            st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"),
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Hệ Thống" if lang == "vi" else "System Settings")
         ])
 
-    # 2. Role: Operator
+    # 2. Quyền hạn: Operator (Vận hành)
     elif role == "operator":
         menu_pages.extend([
-            st.Page("pages/operator/dashboard.py", title="Bảng Vận Hành" if lang == "vi" else "Operator Dashboard"),
+            # FIX DỨT ĐIỂM: Operator không có file dashboard.py riêng, sử dụng đúng các trang chức năng cốt lõi của họ
             st.Page("pages/operator/xep_lich.py", title="Xếp Lịch Dạy" if lang == "vi" else "Schedule Teaching"),
             st.Page("pages/operator/quan_ly_lop.py", title="Quản Lý Lớp Học" if lang == "vi" else "Class Management"), 
-            st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng" if lang == "vi" else "Store Management"),
+            st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"),
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" if lang == "vi" else "My Profile")
         ])
 
-    # 3. Role: Teacher
+    # 3. Quyền hạn: Teacher (Giáo viên)
     elif role == "teacher":
         menu_pages.extend([
             st.Page("pages/teacher/dashboard.py", title="Bảng Tin Giáo Viên" if lang == "vi" else "Teacher Dashboard"),
@@ -108,7 +119,7 @@ else:
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" if lang == "vi" else "My Profile")        
         ])
 
-    # 4. Role: Student
+    # 4. Quyền hạn: Student (Học sinh)
     elif role == "student":
         menu_pages.extend([
             st.Page("pages/student/dashboard.py", title="Góc Học Tập" if lang == "vi" else "Learning Corner"),
@@ -119,7 +130,7 @@ else:
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" if lang == "vi" else "My Profile")
         ])
 
-    # 5. Role: Parent
+    # 5. Quyền hạn: Parent (Phụ huynh)
     elif role == "parent":
         menu_pages.extend([
             st.Page("pages/parent/quan_ly_con.py", title="Quản Lý Con Em" if lang == "vi" else "Children Management"),
@@ -131,10 +142,10 @@ else:
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Tài Khoản" if lang == "vi" else "Account Settings")
         ])
 
-    # Khởi tạo Navigation động dựa trên danh sách trang đã được dịch
+    # Khởi tạo Navigation động dựa trên mảng danh sách trang đã phân phối quyền thành công
     pg = st.navigation(menu_pages)
     
-    # Hiển thị thông tin định danh ở Sidebar (Đa ngôn ngữ câu chào và quyền hạn)
+    # Hiển thị thông tin định danh ở góc thanh Sidebar menu
     with st.sidebar:
         welcome_txt = "Chào" if lang == "vi" else "Welcome"
         st.write(f"### {welcome_txt}, {user.get('full_name', user.get('name', 'Member'))}! ")

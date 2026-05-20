@@ -27,8 +27,7 @@ def get_image_base64(image_bytes):
 
 # ================= CẤU HÌNH GIAO DIỆN =================
 
-load_css("student/trang_ca_nhan.css")
-
+load_css("student/student_global.css")
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

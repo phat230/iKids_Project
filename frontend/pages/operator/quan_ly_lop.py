@@ -20,7 +20,7 @@ def load_css(file_name):
     else:
         st.warning(f"⚠️ Canh bao: Khong tim thay file CSS tai: {full_path}")
 
-load_css("operator/quan_ly_lop.css")
+load_css("operator/operator_global.css")
 
 API_URL = "http://localhost:8000"
 

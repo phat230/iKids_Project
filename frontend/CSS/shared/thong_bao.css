@@ -1,49 +1,92 @@
-/* Khoảng cách tổng thể */
+/* frontend/CSS/shared/thong_bao.css */
+
+/* --- 1. TỔNG THỂ & TIÊU ĐỀ --- */
 .block-container {
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
 
-/* Định dạng tiêu đề chính */
 h1 {
-    color: #4f46e5;
-    font-weight: bold;
+    color: #4f46e5 !important; /* Màu xanh Indigo công nghệ, chuyên nghiệp */
+    font-weight: 800;
+    margin-bottom: 10px;
 }
 
-/* Làm đẹp cho các Tab */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 20px;
-}
-.stTabs [data-baseweb="tab"] {
+h3 {
+    color: #1e293b !important;
     font-weight: 600;
 }
 
-/* Tùy chỉnh các nút bấm */
-.stButton > button {
-    border-radius: 8px !important;
-    transition: all 0.2s;
+/* --- 2. THANH CHUYỂN TABS --- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 15px;
 }
 
-/* Hiệu ứng cho nút Gửi (Primary) */
+.stTabs [data-baseweb="tab"] {
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px 6px 0 0;
+    color: #475569;
+}
+
+/* --- 3. ĐỊNH DẠNG KHỐI FORM SOẠN TIN MỚI --- */
+div[data-testid="stForm"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 30px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* --- 4. CÁC HỘP CHỨA THÔNG BÁO (CONTAINER CARD) --- */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    margin-bottom: 12px !important;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Hiệu ứng nổi lên nhẹ khi di chuột vào từng dòng thông báo */
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-2px);
+    border-color: #4f46e5 !important;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
+}
+
+/* Nội dung thông báo ẩn bên trong Expander */
+.noti-content {
+    background-color: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+/* --- 5. NÚT BẤM VÀ CÁC THÀNH PHẦN KHÁC --- */
+.stButton > button {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* Nút Primary (Gửi Ngay) */
 .stButton > button[kind="primary"] {
     background-color: #4f46e5 !important;
     color: white !important;
+    border: none !important;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #4338ca !important;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
 }
 
-/* Kiểu dáng cho container thông báo */
-div[data-testid="stVerticalBlockBorderWrapper"] {
-    transition: transform 0.2s;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-    transform: scale(1.01);
-}
-
-/* Màu sắc bổ sung cho nội dung tin nhắn */
-.noti-content {
-    background-color: #f8fafc;
-    padding: 15px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    color: #1e293b;
+/* Tùy chỉnh các thông báo nhỏ (Caption) */
+.stCaption {
+    color: #64748b !important;
+    font-weight: 500;
 }

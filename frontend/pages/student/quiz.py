@@ -24,8 +24,7 @@ def load_css(file_name):
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 # Tải CSS làm đẹp cho trang Quiz
-load_css("student/quiz.css")
-
+load_css("student/student_global.css")
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

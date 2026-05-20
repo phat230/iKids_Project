@@ -26,8 +26,7 @@ def load_css(file_name):
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 # Tải CSS làm đẹp
-load_css("parent/ket_qua.css")
-
+load_css("parent/parent_global.css")
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 

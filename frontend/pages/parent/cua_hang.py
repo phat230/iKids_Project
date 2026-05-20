@@ -3,11 +3,22 @@ import requests
 import time
 from api_clients.tv3_client import get_store_products, purchase_product, get_gamification_profile
 from utils.role_guard import require_role
-from deep_translator import GoogleTranslator  # Thêm bộ dịch dự phòng trực tiếp tại chỗ
+from deep_translator import GoogleTranslator 
 
 require_role(["parent", "admin"])
 BACKEND_URL = "http://localhost:8000"
 API_TV3 = "http://localhost:8000/api/tv3"
+
+def load_css(file_name):
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+load_css("parent/parent_global.css")
 
 def get_localized_value(data_field, lang="vi", default_val=""):
     """

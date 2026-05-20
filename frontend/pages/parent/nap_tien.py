@@ -25,7 +25,7 @@ def load_css(file_name):
 
 def show_deposit_page():
     # Tải CSS làm đẹp cho trang Nạp Tiền
-    load_css("parent/nap_tien.css")
+    load_css("parent/parent_global.css")
 
     # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
     lang = st.session_state.get("lang", "vi")

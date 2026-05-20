@@ -1,0 +1,91 @@
+/* frontend/CSS/operator/operator_global.css */
+
+/* --- 1. ĐỊNH DẠNG TỔNG THỂ & TYPOGRAPHY --- */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+h1 {
+    color: #1e293b !important;
+    font-weight: 800;
+}
+
+h2, h3 {
+    color: #334155 !important;
+    font-weight: 600;
+}
+
+.stCaption {
+    color: #64748b !important;
+}
+
+/* --- 2. CONTAINER FORM CHUNG --- */
+div[data-testid="stForm"] {
+    background-color: #ffffff;
+    border-radius: 12px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 25px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* --- 3. ĐỊNH DẠNG CÁC NÚT BẤM (BUTTONS) --- */
+/* Nút bấm chính Primary (Tạo / Lưu / Đăng) */
+.stButton > button[kind="primary"] {
+    background-color: #4f46e5 !important; /* Dùng tone Indigo hiện đại làm màu chủ đạo */
+    color: white !important;
+    font-weight: bold !important;
+    border-radius: 8px !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.2s ease-in-out;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background-color: #4338ca !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.15);
+}
+
+/* Nút xóa / rút học viên (Các nút có viền màu đỏ đặc trưng) */
+div[data-testid="stVerticalBlock"] > div:last-child .stButton > button {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    border-radius: 8px !important;
+}
+div[data-testid="stVerticalBlock"] > div:last-child .stButton > button:hover {
+    background-color: #fef2f2 !important;
+    border-color: #dc2626 !important;
+}
+
+/* --- 4. STYLE CHO TRANG QUAN_LY_LOP --- */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 48px;
+    background-color: #f8fafc;
+    border-radius: 8px 8px 0 0;
+    padding: 0 20px;
+    font-weight: 600;
+    color: #475569;
+}
+
+[data-testid="stDataFrame"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+/* --- 5. STYLE CHO TRANG XEP_LICH (THẺ LỊCH HỌC) --- */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: #f8fafc;
+    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    transition: all 0.2s ease-in-out;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-2px);
+    border-color: #4f46e5 !important; /* Đổi viền hover sang màu Indigo đồng bộ */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}

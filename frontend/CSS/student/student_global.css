@@ -1,0 +1,138 @@
+/* frontend/CSS/student/student_global.css */
+
+/* --- 1. KHOẢNG CÁCH TRANG & TYPOGRAPHY TRẺ EM --- */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Tiêu đề chính các trang (Màu tím sáng tạo hoặc màu tối chuyên nghiệp) */
+h1 {
+    color: #8b5cf6 !important; /* Tím đặc trưng iKids */
+    font-weight: 800;
+}
+
+/* Tiêu đề phụ (Màu xanh dương học thuật) */
+h2, h3 {
+    color: #2563eb !important; 
+    font-weight: 700;
+}
+
+h4 {
+    color: #059669 !important; /* Xanh lá AI insights */
+    font-weight: bold;
+}
+
+/* --- 2. NÚT BẤM TOÀN HỆ THỐNG (BUTTONS) --- */
+/* Tất cả các nút bấm chính (Mua quà, Làm ngay, Nộp bài) */
+.stButton > button {
+    border-radius: 12px !important; /* Bo góc tròn mềm mại phù hợp trẻ em */
+    font-weight: 600 !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* Hiệu ứng hover nổi lên nhẹ nhàng kèm đổ bóng khi các bé rê chuột */
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 12px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* --- 3. ĐỊNH DẠNG CONTAINER & THẺ CARD (GAMIFICATION) --- */
+/* Thẻ bọc form và container bài tập */
+div[data-testid="stForm"], div[data-testid="stContainer"] {
+    border-radius: 14px !important;
+}
+
+/* Khung hiển thị nhiệm vụ hằng ngày và bộ đề Quiz */
+.quiz-card, div[data-testid="stForm"] {
+    background: #ffffff;
+    border-radius: 12px !important;
+    padding: 18px 22px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
+    border-left: 6px solid #8b5cf6 !important; /* Vạch tím trang trí bên trái */
+    border-top: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 15px;
+}
+
+.quiz-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.quiz-meta {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+/* Căn chỉnh khoảng cách văn bản tiến trình Daily Quests */
+.task-text {
+    font-size: 1.05rem;
+    line-height: 2.2;
+    color: #334155;
+}
+
+/* --- 4. HÌNH ẢNH & SỐ DƯ VÍ (SIDEBAR) --- */
+img {
+    border-radius: 10px !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Làm nổi bật số dư ví iKids Xu ở góc Sidebar */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+    color: #10b981 !important;
+    text-align: center;
+    padding: 10px;
+    background: #ecfdf5 !important;
+    border-radius: 10px;
+    border: 1px solid #a7f3d0;
+}
+
+/* --- 5. TIỆN ÍCH VIDEO PLAYER & COMMENTS --- */
+.noti-content, .noti-content div, .noti-content p {
+    background-color: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+}
+
+.cmt-container {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.cmt-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Ảnh đại diện trang cá nhân */
+.avatar-preview-img {
+    width: 150px;
+    height: 150px;
+    border-radius: 50% !important;
+    object-fit: cover;
+    border: 4px solid #8b5cf6;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
