@@ -1,3 +1,4 @@
+# frontend/auth/login.py
 import streamlit as st
 import os
 import time
@@ -42,7 +43,17 @@ _, col, _ = st.columns([1, 1.5, 1])
 with col:
     # --- PHẦN HEADER ---
     st.markdown("<div class='auth-header'>", unsafe_allow_html=True)
-    st.image("https://api.dicebear.com/7.x/initials/svg?seed=iKids&backgroundColor=1e3a8a", width=70)
+    
+    # SỬA ĐỔI: Đọc logo local từ thư mục static thay vì gọi link API chữ IK xanh cũ
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    logo_path = os.path.abspath(os.path.join(current_dir, "../static/logo.png"))
+    
+    if os.path.exists(logo_path):
+        st.image(logo_path, width=85, output_format="PNG")
+    else:
+        # Fallback phòng hờ nếu hệ thống chưa nhận diện kịp file logo
+        st.image("https://api.dicebear.com/7.x/initials/svg?seed=iKids&backgroundColor=1e3a8a", width=85)
+        
     st.markdown(f"<h2 class='auth-title'>{LOGIN_LABELS[lang]['welcome_title']}</h2>", unsafe_allow_html=True)
     st.markdown(f"<p class='auth-subtitle'>{LOGIN_LABELS[lang]['welcome_subtitle']}</p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -67,8 +78,6 @@ with col:
                         time.sleep(1)
                         st.rerun() 
                     else:
-                        # Nếu API trả về tin nhắn lỗi từ Backend (Tiếng Việt), 
-                        # ta dịch nhanh một số lỗi phổ biến hoặc hiển thị trực tiếp msg
                         if lang == "en" and "Không tìm thấy" in msg:
                             st.error("❌ Account does not exist or wrong password.")
                         elif lang == "en" and "Mật khẩu" in msg:
