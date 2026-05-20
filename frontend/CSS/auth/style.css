@@ -1,22 +1,93 @@
-/* Căn giữa và làm đẹp phần Header */
-.auth-header {
-    text-align: center;
-    margin-bottom: 20px;
-    margin-top: 40px;
+/* =========================================================
+   1. CẤU HÌNH MẶC ĐỊNH CHO ĐIỆN THOẠI (Màn hình dọc)
+   - Hình nền phủ kín toàn bộ khoảng trắng.
+   - Chuyển chữ sang màu SÁNG để nổi bật trên nền anime tối.
+   ========================================================= */
+.stApp {
+    background-image: url("/app/static/anh_mobile.jpg") !important; 
+    background-size: cover !important; 
+    background-position: center center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+}
+
+/* --- MÀU CHỮ TRÊN ĐIỆN THOẠI: CHUYỂN SANG MÀU TRẮNG + ĐỔ BÓNG --- */
+.stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
+    color: #ffffff !important; 
+    font-weight: 600 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important; /* Bóng đen sâu để đọc rõ chữ */
 }
 
 .auth-title {
-    color: #1e293b;
+    color: #ffffff !important;
     font-weight: 800;
     font-size: 28px;
     margin-bottom: 5px;
     padding-bottom: 0;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
 }
 
 .auth-subtitle {
-    color: #64748b;
+    color: #e2e8f0 !important; /* Xám trắng sáng */
     font-size: 15px;
     margin-bottom: 20px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Màu chữ hiển thị trong thanh menu Sidebar điện thoại */
+[data-testid="stSidebar"] * {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+
+/* =========================================================
+   2. CẤU HÌNH RIÊNG CHO MÁY TÍNH & LAPTOP (Màn hình từ 768px trở lên)
+   - Đổi hình nền laptop sang dạng co giãn khít màn hình.
+   - ÉP MÀU CHỮ VỀ MẶC ĐỊNH (MÀU ĐEN) như bạn mong muốn.
+   ========================================================= */
+@media screen and (min-width: 768px) {
+    .stApp {
+        background-image: url("/app/static/anh_laptop.jpg") !important; 
+        background-size: 100% 100% !important; 
+        background-position: center center !important;
+    }
+
+    /* --- MÀU CHỮ TRÊN MÁY TÍNH: QUAY VỀ MÀU ĐEN --- */
+    .stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
+        color: #0f172a !important; 
+        font-weight: 500 !important;
+        text-shadow: none !important; /* Xóa bỏ bóng chữ */
+    }
+
+    .auth-title {
+        color: #1e293b !important;
+        text-shadow: none !important;
+    }
+
+    .auth-subtitle {
+        color: #64748b !important;
+        text-shadow: none !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #0f172a !important; /* Menu Sidebar màu đen mặc định */
+        text-shadow: none !important;
+    }
+}
+
+
+/* =========================================================
+   3. CÁC THÀNH PHẦN GIAO DIỆN DÙNG CHUNG (KHÔNG THAY ĐỔI)
+   ========================================================= */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: 40px;
 }
 
 /* Nâng cấp Nút bấm (Button) */
@@ -24,9 +95,10 @@
     border-radius: 8px !important;
     font-weight: 600 !important;
     transition: all 0.3s ease !important;
+    width: 100% !important; 
 }
 
-/* Nút phụ (Chuyển trang) mờ hơn để nhường chỗ cho nút chính */
+/* Nút phụ mờ hơn để nhường chỗ cho nút chính */
 .btn-outline .stButton > button {
     background-color: transparent !important;
     border: 1px solid #cbd5e1 !important;
@@ -40,6 +112,13 @@
 
 /* Làm đẹp ô nhập liệu (Input) */
 .stTextInput > div > div > input {
-    border-radius: 8px;
-    padding: 12px 14px;
+    border-radius: 8px !important;
+    padding: 12px 14px !important;
+    color: #0f172a !important; /* Chữ điền vào ô luôn luôn là màu đen dễ đọc */
+    background-color: white !important;
+    border: 1px solid #cbd5e1 !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 1px #3b82f6 !important;
 }
