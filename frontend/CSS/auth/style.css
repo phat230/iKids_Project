@@ -1,7 +1,5 @@
 /* =========================================================
-   1. CẤU HÌNH MẶC ĐỊNH CHO ĐIỆN THOẠI (Màn hình dọc)
-   - Hình nền phủ kín toàn bộ khoảng trắng.
-   - Chuyển chữ sang màu SÁNG để nổi bật trên nền anime tối.
+   1. CẤU HÌNH HÌNH NỀN & PHÔNG NỀN CHUNG (KHÔNG ĐỔI)
    ========================================================= */
 .stApp {
     background-image: url("/app/static/anh_mobile.jpg") !important; 
@@ -11,75 +9,13 @@
     background-repeat: no-repeat !important;
 }
 
-/* --- MÀU CHỮ TRÊN ĐIỆN THOẠI: CHUYỂN SANG MÀU TRẮNG + ĐỔ BÓNG --- */
-.stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
-    color: #ffffff !important; 
-    font-weight: 600 !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important; /* Bóng đen sâu để đọc rõ chữ */
-}
-
-.auth-title {
-    color: #ffffff !important;
-    font-weight: 800;
-    font-size: 28px;
-    margin-bottom: 5px;
-    padding-bottom: 0;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
-}
-
-.auth-subtitle {
-    color: #e2e8f0 !important; /* Xám trắng sáng */
-    font-size: 15px;
-    margin-bottom: 20px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
-}
-
-/* Màu chữ hiển thị trong thanh menu Sidebar điện thoại */
-[data-testid="stSidebar"] * {
-    color: #ffffff !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-
-/* =========================================================
-   2. CẤU HÌNH RIÊNG CHO MÁY TÍNH & LAPTOP (Màn hình từ 768px trở lên)
-   - Đổi hình nền laptop sang dạng co giãn khít màn hình.
-   - ÉP MÀU CHỮ VỀ MẶC ĐỊNH (MÀU ĐEN) như bạn mong muốn.
-   ========================================================= */
 @media screen and (min-width: 768px) {
     .stApp {
         background-image: url("/app/static/anh_laptop.jpg") !important; 
         background-size: 100% 100% !important; 
-        background-position: center center !important;
-    }
-
-    /* --- MÀU CHỮ TRÊN MÁY TÍNH: QUAY VỀ MÀU ĐEN --- */
-    .stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
-        color: #0f172a !important; 
-        font-weight: 500 !important;
-        text-shadow: none !important; /* Xóa bỏ bóng chữ */
-    }
-
-    .auth-title {
-        color: #1e293b !important;
-        text-shadow: none !important;
-    }
-
-    .auth-subtitle {
-        color: #64748b !important;
-        text-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #0f172a !important; /* Menu Sidebar màu đen mặc định */
-        text-shadow: none !important;
     }
 }
 
-
-/* =========================================================
-   3. CÁC THÀNH PHẦN GIAO DIỆN DÙNG CHUNG (KHÔNG THAY ĐỔI)
-   ========================================================= */
 header[data-testid="stHeader"] {
     background: transparent !important;
 }
@@ -89,36 +25,185 @@ header[data-testid="stHeader"] {
     margin-bottom: 20px;
     margin-top: 40px;
 }
-
-/* Nâng cấp Nút bấm (Button) */
-.stButton > button {
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    transition: all 0.3s ease !important;
-    width: 100% !important; 
+ 
+/* =========================================================
+   2. CẤU HÌNH MÀU CHỮ TIÊU ĐỀ (GIỮ LẠI PHONG CÁCH NITRO 5 THEO YÊU CẦU TRƯỚC)
+   - Tiêu đề chính "Chào mừng trở lại! 👋" là màu cam neon siêu sáng.
+   - Tiêu đề phụ là màu xanh cyan neon siêu sáng.
+   ========================================================= */
+.auth-title {
+    color: #ff6a00 !important; /* Cam Nitro rực lửa */
+    font-weight: 800;
+    font-size: 30px;
+    margin-bottom: 8px;
+    padding-bottom: 0;
+    text-shadow: 0 0 10px rgba(255, 106, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+ 
+.auth-subtitle {
+    color: #00f0ff !important; /* Xanh neon cực sáng */
+    font-size: 15px;
+    margin-bottom: 25px;
+    font-weight: 500;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.8) !important;
 }
 
-/* Nút phụ mờ hơn để nhường chỗ cho nút chính */
-.btn-outline .stButton > button {
+/* Các nhãn Input (Label) trong Form - Sáng hơn để phù hợp */
+.stTextInput label, div[data-testid="stWidgetLabel"] p {
+    color: #ff9d00 !important; /* Cam sáng ấm */
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    text-shadow: 0 0 6px rgba(255, 157, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+}
+
+div[data-testid="stMarkdownContainer"] p, .stCaption {
+    color: #ffffff !important; 
+    font-weight: 500 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* =========================================================
+   3. GIẢI QUYẾT VẤN ĐỀ 1: KHUNG ĐĂNG NHẬP 3D & NEON WAVE CHUYỂN MÀU
+   - Sử dụng một "kính khói" tối hơn để các hiệu ứng neon và chữ cam nổi bật.
+   - Thêm hiệu ứng nổi lên 3D sâu.
+   - Thêm viền neon chuyển màu hoạt hình (Wave effect).
+   ========================================================= */
+
+/* Tẩy nền mặc định của form Streamlit */
+[data-testid="stForm"] {
     background-color: transparent !important;
-    border: 1px solid #cbd5e1 !important;
-    color: #475569 !important;
-}
-.btn-outline .stButton > button:hover {
-    border-color: #3b82f6 !important;
-    color: #3b82f6 !important;
-    background-color: #eff6ff !important;
+    border: none !important;
 }
 
-/* Làm đẹp ô nhập liệu (Input) */
+/* Thẻ bọc ngoài st.container(border=True) - Target cho hiệu ứng 3D và Neon */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    /* Đặt vị trí là relative để phần tử giả có thể hoạt động chính xác */
+    position: relative;
+    
+    /* 3D / Nổi lên: Bóng đổ sâu bên ngoài và bóng đổ trong suốt bên trong */
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.1) !important;
+    
+    /* Kính thủy tinh tối màu (Smoked Glass) - Tối hơn để nổi bật hơn */
+    background: rgba(15, 23, 42, 0.7) !important; 
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    
+    border-radius: 20px !important;
+    border: none !important; /* Xóa viền mặc định của Streamlit */
+    padding: 30px !important;
+    
+    /* Hoạt ảnh xuất hiện (Zoom-in) vẫn được giữ lại */
+    animation: nitro5-zoom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Hiệu ứng nổi lên sâu hơn khi rê chuột vào */
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-10px) !important;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Phần tử giả để tạo viền chuyển màu hoạt hình (Neon Wave Border) */
+[data-testid="stVerticalBlockBorderWrapper"]::before {
+    content: "";
+    position: absolute;
+    top: -10px; /* Nhô ra ngoài 10px */
+    bottom: -10px;
+    left: -10px;
+    right: -10px;
+    background: linear-gradient(90deg, #ff0055, #ffaa00, #00ffcc, #0099ff, #aa00ff, #ff00ff, #ff0055);
+    background-size: 400%; /* Làm cho gradient lớn hơn để di chuyển */
+    z-index: -1; /* Đặt dưới container kính */
+    border-radius: 20px;
+    animation: neon-wave-border 8s linear infinite; /* Hoạt ảnh chuyển màu */
+    filter: blur(15px); /* Hiệu ứng neon mờ */
+    opacity: 0.8; /* Làm cho hiệu ứng mềm mại hơn */
+}
+
+/* --- ANIMATION: ZOOM-IN KHI LOAD TRANG (KHÔNG ĐỔI) --- */
+@keyframes nitro5-zoom {
+    0% {
+        opacity: 0;
+        transform: scale(0.8) translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* --- ANIMATION: VIỀN SÓNG NEON CHUYỂN MÀU (NEW WAVE EFFECT) --- */
+@keyframes neon-wave-border {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 400% 0; /* Di chuyển gradient 400% để tạo hiệu ứng sóng */
+    }
+}
+
+
+/* =========================================================
+   4. CÁC THÀNH PHẦN KHÁC (NÚT BẤM & INPUT - GIỮ LẠI PHONG CÁCH NITRO 5)
+   ========================================================= */
+
+/* Ô nhập liệu (Input Username / Password) */
 .stTextInput > div > div > input {
     border-radius: 8px !important;
     padding: 12px 14px !important;
-    color: #0f172a !important; /* Chữ điền vào ô luôn luôn là màu đen dễ đọc */
-    background-color: white !important;
-    border: 1px solid #cbd5e1 !important;
+    color: #ffffff !important; /* Chữ gõ vào màu Trắng cực ngầu */
+    background-color: rgba(255, 255, 255, 0.1) !important; /* Ô nhập liệu trong suốt nhẹ */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    transition: all 0.3s ease;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 1px #3b82f6 !important;
+    border-color: #ff6a00 !important;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.5) !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Nút Đăng nhập chính (Primary Button) */
+.stButton > button[data-testid="stBaseButton-primary"] {
+    background: linear-gradient(45deg, #ff0055, #ff6a00) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(255, 106, 0, 0.4) !important;
+}
+.stButton > button[data-testid="stBaseButton-primary"]:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 20px #ff6a00 !important;
+}
+
+/* Nút phụ bên dưới (Quên mật khẩu / Đăng ký) */
+.btn-outline .stButton > button {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #e2e8f0 !important;
+}
+.btn-outline .stButton > button:hover {
+    border-color: #00f0ff !important;
+    color: #00f0ff !important;
+    background-color: rgba(0, 240, 255, 0.1) !important;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3) !important;
+}
+
+
+/* =========================================================
+   5. GIẢI QUYẾT VẤN ĐỀ 2: ĐẶT LẠI MÀU SIDEBAR VỀ MẶC ĐỊNH
+   - Target cụ thể menu sidebar và tất cả các phần tử con để xóa ép màu trắng.
+   ========================================================= */
+
+[data-testid="stSidebar"] * {
+    color: unset !important; /* Đặt lại màu chữ về mặc định của Streamlit (thường là màu đen) */
+    text-shadow: none !important; /* Xóa bóng chữ */
+}
+
+/* Đặt lại màu cụ thể cho các thẻ label của Input nếu cần thiết */
+[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stCaption {
+    color: unset !important;
 }
