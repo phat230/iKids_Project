@@ -216,13 +216,9 @@ if st.session_state.dashboard_view == "schedule":
                     t_str = f"{s.get('start_time', '')} - {s.get('end_time', '')}"
                     room = s.get('room', 'Online')
                     
-                    html_content += f"""
-                    <div class="class-card">
-                        <div class="class-subject">{subject}</div>
-                        <div class="class-name">{c_name}</div>
-                        <div class="class-time">{t_str} | Phòng: {room}</div>
-                    </div>
-                    """
+                    # ĐÃ SỬA LỖI: Viết toàn bộ thẻ HTML trên cùng 1 dòng, không có khoảng trắng thụt lề
+                    html_content += f"<div class='class-card'><div class='class-subject'>{subject}</div><div class='class-name'>{c_name}</div><div class='class-time'>{t_str} | Phòng: {room}</div></div>"
+                    
             html_content += "</td>"
         html_content += "</tr>"
 
@@ -237,13 +233,11 @@ else:
     tab_form, tab_list = st.tabs(["Gửi Yêu Cầu Mới", "Lịch Sử Yêu Cầu"])
 
     with tab_form:
-        # Dropdown loại đơn để Rerender Form bên dưới
         req_type = st.selectbox("Chọn loại yêu cầu (*)", ["Xin nghỉ phép", "Xin đổi lịch dạy", "Đổi phương thức dạy", "Báo cáo sự cố thiết bị"])
         
         with st.container(border=True):
             with st.form("dynamic_request_form", clear_on_submit=True):
                 
-                # CÁC TRƯỜNG DỮ LIỆU ĐỘNG DỰA THEO LOẠI ĐƠN
                 if req_type == "Xin nghỉ phép":
                     sel_class = st.selectbox("Lớp học liên quan", options=list(sched_options.keys()), format_func=lambda x: sched_options[x])
                     c1, c2 = st.columns(2)
@@ -286,9 +280,7 @@ else:
                         thiet_bi_loi = st.text_input("Tên thiết bị lỗi (*)", placeholder="VD: Máy chiếu, Mic...")
                     ly_do = st.text_area("Mô tả chi tiết tình trạng sự cố (*)")
 
-                # NÚT GỬI ĐƠN CHUNG
                 if st.form_submit_button("Xác Nhận Gửi Yêu Cầu", type="primary", use_container_width=True):
-                    # Xử lý nội dung hiển thị cho bảng tóm tắt
                     chi_tiet = ""
                     if req_type == "Xin nghỉ phép":
                         chi_tiet = f"Lớp: {sched_options.get(sel_class, '')} | Nghỉ: {ngay_nghi.strftime('%d/%m/%Y')} | Bù: {ngay_day_bu.strftime('%d/%m/%Y')} ({gio_bd_bu}-{gio_kt_bu})"

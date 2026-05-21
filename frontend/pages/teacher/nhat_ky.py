@@ -1,7 +1,8 @@
 import streamlit as st
-import time
+import pandas as pd
 import requests
 import os
+import time
 from datetime import date
 
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
@@ -18,6 +19,7 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
+
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 
@@ -80,8 +82,10 @@ if "token" not in st.session_state or st.session_state.get("role") not in ["teac
     st.error("🔒 Bạn không có quyền truy cập trang này." if lang == "vi" else "🔒 Access Denied.")
     st.stop()
 
-headers = {"Authorization": f"Bearer {st.session_state.token}"}
-teacher_id = st.session_state.get("user_id")
+# ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
+user_info = st.session_state.get("user_info", {})
+teacher_id = str(user_info.get("id", user_info.get("_id", "")))
+headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
 
 st.title(JOURNAL_LABELS[lang]["title"])
 st.write(JOURNAL_LABELS[lang]["subtitle"])
@@ -89,7 +93,7 @@ st.write(JOURNAL_LABELS[lang]["subtitle"])
 @st.cache_data(ttl=60)
 def fetch_teacher_classes():
     try:
-        res = requests.get(f"{API_URL}/schedule/list", headers=headers)
+        res = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=10)
         if res.status_code == 200:
             all_schedules = res.json()
             return [s for s in all_schedules if s.get('teacher_id') == teacher_id]
@@ -136,22 +140,22 @@ if selected_sid:
             h3.markdown(f"**{JOURNAL_LABELS[lang]['lbl_attitude']}**")
             h4.markdown(f"**{JOURNAL_LABELS[lang]['lbl_comment']}**")
 
-            for stu in students:
-                with st.container(border=True):
-                    c_name, c_att, c_emo, c_cmt = st.columns([2.5, 2, 2, 3])
-                    sid = stu.get('Mã HS', stu.get('id', stu.get('_id')))
-                    sname = stu.get('Tên Học Sinh', stu.get('name', 'Học sinh'))
-
-                    c_name.markdown(f"<div style='padding-top: 5px;'>{sname}</div>", unsafe_allow_html=True)
-                    att = c_att.selectbox("Status", JOURNAL_LABELS[lang]["att_options"], key=f"att_{sid}", label_visibility="collapsed")
-                    
-                    is_absent = (att == JOURNAL_LABELS[lang]["att_options"][1])
-                    emo = c_emo.selectbox("Attitude", JOURNAL_LABELS[lang]["emo_options"], key=f"emo_{sid}", label_visibility="collapsed", disabled=is_absent)
-                    cmt = c_cmt.text_input("Comment", placeholder="..." if lang=="en" else "Khen ngợi...", key=f"cmt_{sid}", label_visibility="collapsed", disabled=is_absent)
-                    
-                    attendance_records.append({
-                        "student_id": sid, "student_name": sname, "status": att, "feedback": emo, "comment": cmt
-                    })
+            for student in students:
+                sid = student.get("id", student.get("_id", ""))
+                sname = student.get("full_name", student.get("name", "Unknown"))
+                
+                c_name, c_att, c_emo, c_cmt = st.columns([2.5, 2, 2, 3])
+                c_name.markdown(f"<div style='padding-top: 5px;'>{sname}</div>", unsafe_allow_html=True)
+                
+                att = c_att.selectbox("Status", JOURNAL_LABELS[lang]["att_options"], key=f"att_{sid}", label_visibility="collapsed")
+                
+                is_absent = (att == JOURNAL_LABELS[lang]["att_options"][1])
+                emo = c_emo.selectbox("Attitude", JOURNAL_LABELS[lang]["emo_options"], key=f"emo_{sid}", label_visibility="collapsed", disabled=is_absent)
+                cmt = c_cmt.text_input("Comment", placeholder="..." if lang=="en" else "Khen ngợi...", key=f"cmt_{sid}", label_visibility="collapsed", disabled=is_absent)
+                
+                attendance_records.append({
+                    "student_id": sid, "student_name": sname, "status": att, "feedback": emo, "comment": cmt
+                })
 
     with col_right:
         st.markdown(f"### {JOURNAL_LABELS[lang]['sub_lesson_journal']}")
