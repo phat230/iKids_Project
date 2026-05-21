@@ -1,80 +1,80 @@
-/* frontend/CSS/admin/admin_global.css */
+    /* frontend/CSS/admin/admin_global.css */
 
-/* Khoảng cách tổng thể của trang quản trị */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-}
+    /* Khoảng cách tổng thể của trang quản trị */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
 
-/* Định dạng tiêu đề chính và tiêu đề phụ chuyên nghiệp */
-h1 {
-    color: #1e293b !important; /* Màu xám đậm / tối phối hợp */
-    font-weight: bold;
-}
-h2, h3 {
-    color: #334155 !important;
-    font-weight: 600;
-}
+    /* Định dạng tiêu đề chính và tiêu đề phụ chuyên nghiệp */
+    h1 {
+        color: #1e293b !important; /* Màu xám đậm / tối phối hợp */
+        font-weight: bold;
+    }
+    h2, h3 {
+        color: #334155 !important;
+        font-weight: 600;
+    }
 
-/* Làm nổi bật và chuẩn hóa bo góc cho các khung thông báo stAlert */
-div[data-testid="stAlert"] {
-    border-radius: 8px !important;
-    border-left: 5px solid #3b82f6 !important;
-}
+    /* Làm nổi bật và chuẩn hóa bo góc cho các khung thông báo stAlert */
+    div[data-testid="stAlert"] {
+        border-radius: 8px !important;
+        border-left: 5px solid #3b82f6 !important;
+    }
 
-/* Hiệu ứng bo góc, đổ bóng và màu sắc đồng bộ cho tất cả Nút Primary */
-.stButton > button[kind="primary"] {
-    background-color: #0f172a !important; /* Màu tối huyền bí, sang trọng */
-    color: white !important;
-    border-radius: 8px !important;
-    padding: 0.5rem 1rem !important;
-    font-weight: bold !important;
-    transition: all 0.2s ease-in-out;
-}
-.stButton > button[kind="primary"]:hover {
-    background-color: #1e293b !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
+    /* Hiệu ứng bo góc, đổ bóng và màu sắc đồng bộ cho tất cả Nút Primary */
+    .stButton > button[kind="primary"] {
+        background-color: #0f172a !important; /* Màu tối huyền bí, sang trọng */
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 0.5rem 1rem !important;
+        font-weight: bold !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #1e293b !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
 
-/* Tùy chỉnh các thẻ Tabs của Streamlit */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 15px;
-}
-.stTabs [data-baseweb="tab"] {
-    font-weight: 600;
-    padding: 8px 16px;
-}
+    /* Tùy chỉnh các thẻ Tabs của Streamlit */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 15px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-weight: 600;
+        padding: 8px 16px;
+    }
 
-/* Định dạng hiển thị các khối Metric tổng quan số lượng nhân sự */
-[data-testid="stMetricValue"] {
-    color: #0ea5e9 !important; /* Xanh dương sáng bắt mắt */
-    font-size: 2rem !important;
-    font-weight: 700;
-}
+    /* Định dạng hiển thị các khối Metric tổng quan số lượng nhân sự */
+    [data-testid="stMetricValue"] {
+        color: #0ea5e9 !important; /* Xanh dương sáng bắt mắt */
+        font-size: 2rem !important;
+        font-weight: 700;
+    }
 
-/* Khung Expander danh sách thao tác trực tiếp tài khoản */
-.st-expander {
-    border-radius: 8px !important;
-    border: 1px solid #cbd5e1 !important;
-    background-color: #f8fafc;
-}
+    /* Khung Expander danh sách thao tác trực tiếp tài khoản */
+    .st-expander {
+        border-radius: 8px !important;
+        border: 1px solid #cbd5e1 !important;
+        background-color: #f8fafc;
+    }
 
-/* CSS Tùy chỉnh riêng cho các thẻ Metric dạng HTML tự chế trong trang Dashboard */
-.metric-card {
-    background-color: #ffffff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    text-align: center;
-}
-.tv1-border { border-top: 4px solid #ef4444; }
-.tv2-border { border-top: 4px solid #f59e0b; }
-.tv3-border { border-top: 4px solid #3b82f6; }
-.metric-label { font-size: 0.85rem; font-weight: bold; color: #64748b; margin-bottom: 5px; }
-.metric-value { font-size: 2rem; font-weight: bold; color: #0f172a; margin: 5px 0; }
-.metric-caption { font-size: 0.75rem; font-weight: 500; }
-.caption-red { color: #ef4444; }
-.caption-green { color: #10b981; }
-.caption-orange { color: #f59e0b; }
-.caption-blue { color: #3b82f6; }
+    /* CSS Tùy chỉnh riêng cho các thẻ Metric dạng HTML tự chế trong trang Dashboard */
+    .metric-card {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        text-align: center;
+    }
+    .tv1-border { border-top: 4px solid #ef4444; }
+    .tv2-border { border-top: 4px solid #f59e0b; }
+    .tv3-border { border-top: 4px solid #3b82f6; }
+    .metric-label { font-size: 0.85rem; font-weight: bold; color: #64748b; margin-bottom: 5px; }
+    .metric-value { font-size: 2rem; font-weight: bold; color: #0f172a; margin: 5px 0; }
+    .metric-caption { font-size: 0.75rem; font-weight: 500; }
+    .caption-red { color: #ef4444; }
+    .caption-green { color: #10b981; }
+    .caption-orange { color: #f59e0b; }
+    .caption-blue { color: #3b82f6; }
