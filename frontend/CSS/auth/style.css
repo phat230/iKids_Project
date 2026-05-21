@@ -48,7 +48,7 @@
    ========================================================= */
 @media screen and (min-width: 768px) {
     .stApp {
-        background-image: url("/app/static/logo.png") !important; 
+        background-image: url("/app/static/anh_laptop.jpg") !important; 
         background-size: 100% 100% !important; 
         background-position: center center !important;
     }
