@@ -1,0 +1,9 @@
+[theme]
+# Ép hệ thống luôn sử dụng giao diện nền trắng
+base="light"
+
+# (Tùy chọn) Bạn có thể cấu hình luôn màu chủ đạo của hệ thống tại đây
+primaryColor="#3b82f6"
+backgroundColor="#ffffff"
+secondaryBackgroundColor="#f8fafc"
+textColor="#0f172a"

@@ -322,6 +322,7 @@ async def create_schedule(
         "message": "Tạo lịch học thành công",
         "schedule_id": str(result.inserted_id)
     }
+
 # 2. LẤY DANH SÁCH LỊCH HỌC
 @router.get("/schedule/list")
 async def get_schedule_list(
@@ -341,6 +342,7 @@ async def get_schedule_list(
         schedules.append(doc)
 
     return schedules
+
 # 3. SỬA LỊCH HỌC
 @router.put("/schedule/{schedule_id}")
 async def update_schedule(
@@ -367,6 +369,7 @@ async def update_schedule(
         "status": "success",
         "message": "Đã cập nhật lịch học"
     }
+
 # 4. XÓA LỊCH HỌC
 @router.delete("/schedule/{schedule_id}")
 async def delete_schedule(
@@ -389,16 +392,18 @@ async def delete_schedule(
         "status": "success",
         "message": "Đã xóa lịch học"
     }
-# 5. LẤY DANH SÁCH GIÁO VIÊN
+
+# 5. LẤY DANH SÁCH GIÁO VIÊN (ĐÃ SỬA LỖI LỌC MINHGV)
 @router.get("/teachers")
 async def get_teachers(
     db = Depends(get_db)
 ):
-
+    # Lọc những giáo viên (role=teacher), is_active không phải False, và status hợp lệ
     teachers = await db.users.find(
         {
             "role": "teacher",
-            "is_active": True
+            "is_active": {"$ne": False},
+            "status": {"$nin": ["Nghỉ việc", "Đã nghỉ việc", "Vô hiệu hóa", "Nghi viec", "Vo hieu hoa"]}
         },
         {
             "password": 0

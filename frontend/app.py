@@ -49,6 +49,7 @@ home_page = st.Page("home.py", title=UI_LOCALES[lang]["menu_home"], default=True
 login_page = st.Page("auth/login.py", title=UI_LOCALES[lang]["auth_tab_login"])
 register_page = st.Page("auth/register.py", title=UI_LOCALES[lang]["auth_tab_register"])
 forgot_page = st.Page("auth/forgot_password.py", title="Quên Mật Khẩu" if lang == "vi" else "Forgot Password")
+giao_dich_tien_page = st.Page("pages/operator/giao_dich_tien.py", title="Giao Dịch Tiền" if lang == "vi" else "Finance Transactions",icon="💰")
 
 # Nhãn phân vùng nhóm danh mục trên menu
 section_system = "Hệ thống" if lang == "vi" else "System"
@@ -92,6 +93,7 @@ else:
     if role == "admin":
         menu_pages.extend([
             st.Page("pages/admin/dashboard.py", title="Bảng Điều Khiển Admin" if lang == "vi" else "Admin Dashboard"),
+            giao_dich_tien_page,
             st.Page("pages/admin/quan_ly_nhan_su.py", title="Quản Lý Nhân Sự" if lang == "vi" else "Staff Management"),
             st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"),
             st.Page("pages/student/trang_ca_nhan.py", title="Cài Đặt Hệ Thống" if lang == "vi" else "System Settings")
@@ -101,6 +103,7 @@ else:
     elif role == "operator":
         menu_pages.extend([
             # FIX DỨT ĐIỂM: Operator không có file dashboard.py riêng, sử dụng đúng các trang chức năng cốt lõi của họ
+            giao_dich_tien_page,
             st.Page("pages/operator/xep_lich.py", title="Xếp Lịch Dạy" if lang == "vi" else "Schedule Teaching"),
             st.Page("pages/operator/quan_ly_lop.py", title="Quản Lý Lớp Học" if lang == "vi" else "Class Management"), 
             st.Page("pages/operator/quan_ly_cua_hang.py", title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"),

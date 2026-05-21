@@ -9,6 +9,7 @@ from modules.notification.router import router as notification_router
 from modules.tv1_scheduling.router import router as tv1_router
 from modules.tv2_academic.router import router as tv2_router
 from modules.tv3_community.router import router as tv3_router
+from modules.finance.router import router as finance_router
 
 app = FastAPI(title="iKids Education Portal API")
 
@@ -25,7 +26,7 @@ app.add_middleware(
 # Auth & Notifications
 app.include_router(auth_router)
 app.include_router(notification_router)
-
+app.include_router(finance_router)
 # TV1: Lịch dạy & Vận hành
 app.include_router(tv1_router)
 

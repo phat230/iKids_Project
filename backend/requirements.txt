@@ -1,11 +1,14 @@
 fastapi
 uvicorn
 motor
+pymongo
+dnspython
 fastapi-mail
 PyJWT
 bcrypt
-google-generativeai
+passlib[bcrypt]
+google-genai
 python-dotenv
-streamlit
-streamlit-quill
+python-multipart
+pydantic-settings
 requests

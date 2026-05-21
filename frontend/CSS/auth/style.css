@@ -1,7 +1,5 @@
 /* =========================================================
-   1. CẤU HÌNH MẶC ĐỊNH CHO ĐIỆN THOẠI (Màn hình dọc)
-   - Hình nền phủ kín toàn bộ khoảng trắng.
-   - Chuyển chữ sang màu SÁNG để nổi bật trên nền anime tối.
+   1. CẤU HÌNH HÌNH NỀN & PHÔNG NỀN CHUNG
    ========================================================= */
 .stApp {
     background-image: url("/app/static/anh_mobile.jpg") !important; 
@@ -11,75 +9,13 @@
     background-repeat: no-repeat !important;
 }
 
-/* --- MÀU CHỮ TRÊN ĐIỆN THOẠI: CHUYỂN SANG MÀU TRẮNG + ĐỔ BÓNG --- */
-.stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
-    color: #ffffff !important; 
-    font-weight: 600 !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important; /* Bóng đen sâu để đọc rõ chữ */
-}
-
-.auth-title {
-    color: #ffffff !important;
-    font-weight: 800;
-    font-size: 28px;
-    margin-bottom: 5px;
-    padding-bottom: 0;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8) !important;
-}
-
-.auth-subtitle {
-    color: #e2e8f0 !important; /* Xám trắng sáng */
-    font-size: 15px;
-    margin-bottom: 20px;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
-}
-
-/* Màu chữ hiển thị trong thanh menu Sidebar điện thoại */
-[data-testid="stSidebar"] * {
-    color: #ffffff !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-
-/* =========================================================
-   2. CẤU HÌNH RIÊNG CHO MÁY TÍNH & LAPTOP (Màn hình từ 768px trở lên)
-   - Đổi hình nền laptop sang dạng co giãn khít màn hình.
-   - ÉP MÀU CHỮ VỀ MẶC ĐỊNH (MÀU ĐEN) như bạn mong muốn.
-   ========================================================= */
 @media screen and (min-width: 768px) {
     .stApp {
-        background-image: url("/app/static/logo.png") !important; 
+        background-image: url("/app/static/anh_laptop.jpg") !important; 
         background-size: 100% 100% !important; 
-        background-position: center center !important;
-    }
-
-    /* --- MÀU CHỮ TRÊN MÁY TÍNH: QUAY VỀ MÀU ĐEN --- */
-    .stTextInput label, div[data-testid="stMarkdownContainer"] p, .stCaption {
-        color: #0f172a !important; 
-        font-weight: 500 !important;
-        text-shadow: none !important; /* Xóa bỏ bóng chữ */
-    }
-
-    .auth-title {
-        color: #1e293b !important;
-        text-shadow: none !important;
-    }
-
-    .auth-subtitle {
-        color: #64748b !important;
-        text-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #0f172a !important; /* Menu Sidebar màu đen mặc định */
-        text-shadow: none !important;
     }
 }
 
-
-/* =========================================================
-   3. CÁC THÀNH PHẦN GIAO DIỆN DÙNG CHUNG (KHÔNG THAY ĐỔI)
-   ========================================================= */
 header[data-testid="stHeader"] {
     background: transparent !important;
 }
@@ -89,36 +25,225 @@ header[data-testid="stHeader"] {
     margin-bottom: 20px;
     margin-top: 40px;
 }
-
-/* Nâng cấp Nút bấm (Button) */
-.stButton > button {
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    transition: all 0.3s ease !important;
-    width: 100% !important; 
+ 
+/* =========================================================
+   2. CẤU HÌNH MÀU CHỮ TIÊU ĐỀ & FORM
+   ========================================================= */
+.auth-title {
+    color: #ff6a00 !important; 
+    font-weight: 800;
+    font-size: 30px;
+    margin-bottom: 8px;
+    padding-bottom: 0;
+    text-shadow: 0 0 10px rgba(255, 106, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+ 
+.auth-subtitle {
+    color: #00f0ff !important; 
+    font-size: 15px;
+    margin-bottom: 25px;
+    font-weight: 500;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.8) !important;
 }
 
-/* Nút phụ mờ hơn để nhường chỗ cho nút chính */
-.btn-outline .stButton > button {
-    background-color: transparent !important;
-    border: 1px solid #cbd5e1 !important;
-    color: #475569 !important;
-}
-.btn-outline .stButton > button:hover {
-    border-color: #3b82f6 !important;
-    color: #3b82f6 !important;
-    background-color: #eff6ff !important;
+.stTextInput label, div[data-testid="stWidgetLabel"] p {
+    color: #ff9d00 !important; 
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    text-shadow: 0 0 6px rgba(255, 157, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.9) !important;
 }
 
-/* Làm đẹp ô nhập liệu (Input) */
-.stTextInput > div > div > input {
+div[data-testid="stMarkdownContainer"] p, .stCaption {
+    color: #ffffff !important; 
+    font-weight: 500 !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* =========================================================
+   3. KHUNG FORM & HIỆU ỨNG VIỀN XOAY GOOGLE AI 
+   ========================================================= */
+
+/* Bước 1: Xóa hoàn toàn viền của st.container bọc ngoài để tránh bị 2 viền chồng nhau */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Bước 2: Áp dụng hiệu ứng AI vào thẳng Form chứa toàn bộ input và nút bấm */
+[data-testid="stForm"] {
+    position: relative;
+    background: transparent !important; 
+    border: none !important; 
+    border-radius: 20px !important;
+    padding: 30px !important;
+    overflow: hidden; /* Cắt phần ánh sáng dư ở góc bo tròn */
+    
+    /* Đổ bóng 3D */
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+    
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: form-zoom-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+}
+
+/* Form nảy lên 3D khi lia chuột vào */
+[data-testid="stForm"]:hover {
+    transform: translateY(-6px) !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Lớp 1 (Dưới cùng): Vòng ánh sáng Google AI */
+[data-testid="stForm"]::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    
+    background: conic-gradient(
+        transparent, 
+        transparent 70%, 
+        #4285f4 75%, 
+        #ea4335 82%, 
+        #fbbc04 89%, 
+        #34a853 100%
+    );
+    animation: google-ai-spin 2.5s linear infinite;
+    z-index: 0;
+    
+    /* Ẩn đi, chỉ hiện khi lia chuột */
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+/* Bật sáng vòng AI khi lia chuột vào Form */
+[data-testid="stForm"]:hover::before {
+    opacity: 1;
+}
+
+/* Lớp 2 (Nằm đè lên ánh sáng): Mặt kính tối che lại, chừa 3px làm viền */
+[data-testid="stForm"]::after {
+    content: "";
+    position: absolute;
+    inset: 3px; /* Độ dày viền sáng là 3px */
+    background: rgba(15, 23, 42, 0.8) !important; /* Màu kính nền */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 17px; /* Trừ hao góc bo so với lớp ngoài */
+    z-index: 1;
+}
+
+/* Đảm bảo toàn bộ Input và Nút bấm nằm nổi trên lớp kính nền */
+[data-testid="stForm"] > * {
+    position: relative;
+    z-index: 2 !important;
+}
+
+/* =========================================================
+   ANIMATION KEYFRAMES
+   ========================================================= */
+@keyframes form-zoom-in {
+    0% { opacity: 0; transform: scale(0.8) translateY(30px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes google-ai-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =========================================================
+   4. CÁC THÀNH PHẦN KHÁC (NÚT BẤM & INPUT) - ĐÃ FIX CHỮ TRÙNG NỀN
+   ========================================================= */
+/* Nhắm mục tiêu chính xác vào phần tử input gõ chữ */
+.stTextInput input,
+.stTextInput > div > div > input,
+div[data-testid="stTextInputRootElement"] input {
+    color: #ffffff !important; /* Ép buộc chữ gõ vào LUÔN LUÔN là màu trắng */
+    -webkit-text-fill-color: #ffffff !important; /* Fix lỗi trên một số trình duyệt Chrome/Safari */
+    background-color: rgba(15, 23, 42, 0.6) !important; /* Chuyển nền ô input sang màu kính tối (thay vì trắng mờ) để chữ trắng nổi bật lên */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     border-radius: 8px !important;
     padding: 12px 14px !important;
-    color: #0f172a !important; /* Chữ điền vào ô luôn luôn là màu đen dễ đọc */
-    background-color: white !important;
-    border: 1px solid #cbd5e1 !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease;
 }
-.stTextInput > div > div > input:focus {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 1px #3b82f6 !important;
+
+/* Hiệu ứng khi click chuột vào ô để gõ (Focus) */
+.stTextInput input:focus,
+.stTextInput > div > div > input:focus,
+div[data-testid="stTextInputRootElement"]:focus-within input {
+    color: #00f0ff !important; /* Khi gõ, chữ chuyển sang màu xanh Cyan neon cực kỳ dễ nhìn */
+    -webkit-text-fill-color: #00f0ff !important;
+    border-color: #ff6a00 !important; /* Viền đổi sang màu cam phát sáng */
+    box-shadow: 0 0 12px rgba(255, 106, 0, 0.6) !important;
+    background-color: rgba(15, 23, 42, 0.85) !important; /* Nền tối đậm hơn để tăng độ tương phản */
+}
+
+/* Xử lý cho phần chữ gợi ý (Placeholder như: "Nhập email của bạn...") */
+.stTextInput input::placeholder,
+div[data-testid="stTextInputRootElement"] input::placeholder {
+    color: rgba(255, 255, 255, 0.4) !important; /* Màu chữ gợi ý mờ vừa phải, không bị trùng */
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.4) !important;
+}
+/* =========================================================
+5. MENU SIDEBAR (ĐỒNG BỘ HIỆU ỨNG DARK/NEON VỚI AUTH FORM)
+========================================================= */
+/* Cấu hình nền kính mờ tối cho Sidebar để lộ nhẹ hình nền phía sau */
+[data-testid="stSidebar"] {
+    background-color: rgba(15, 23, 42, 0.85) !important; /* Màu kính tối đồng bộ với Form */
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important; /* Viền kính mỏng */
+}
+
+/* Định dạng toàn bộ chữ mặc định trong Sidebar sang màu trắng sáng */
+[data-testid="stSidebar"] *, [data-testid="stSidebar"] p {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Tiêu đề lớn trong Sidebar phát sáng màu Cam Neon */
+[data-testid="stSidebar"] h1, 
+[data-testid="stSidebar"] h2, 
+[data-testid="stSidebar"] h3 {
+    color: #ff6a00 !important;
+    font-weight: 800 !important;
+    text-shadow: 0 0 10px rgba(255, 106, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Các nhãn tiêu đề của Widget (như Selectbox, Radio, Input) phát sáng Vàng Cam */
+[data-testid="stSidebar"] label, 
+[data-testid="stSidebar"] div[data-testid="stWidgetLabel"] p {
+    color: #ff9d00 !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 6px rgba(255, 157, 0, 0.5) !important;
+}
+
+/* Tùy chỉnh các nút bấm điều hướng (Menu ứng dụng) trong Sidebar */
+[data-testid="stSidebarNav"] ul li div a {
+    background-color: transparent !important;
+    border-radius: 8px !important;
+    margin: 4px 0 !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Hiệu ứng khi rê chuột (Hover) hoặc khi Menu đó đang được chọn (Active) */
+[data-testid="stSidebarNav"] ul li div a:hover,
+[data-testid="stSidebarNav"] ul li div[data-is-active="true"] a {
+    background-color: rgba(0, 240, 255, 0.12) !important; /* Nền xanh Cyan mờ */
+    color: #00f0ff !important; /* Chữ chuyển sang Cyan phát sáng */
+    border-left: 4px solid #00f0ff !important; /* Tạo vạch màu bên trái định vị */
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.6) !important;
+    padding-left: 12px !important; /* Đẩy chữ nhẹ sang phải tạo hiệu ứng động */
+}
+
+/* Bo góc các ô input hoặc selectbox nếu có nằm trong sidebar */
+[data-testid="stSidebar"] .stSelectbox > div > div {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
 }
