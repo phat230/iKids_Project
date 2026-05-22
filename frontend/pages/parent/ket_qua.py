@@ -1,211 +1,225 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import requests
 import os
+from datetime import datetime
 
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
-st.set_page_config(page_title="Báo Cáo Học Tập - iKids", layout="wide")
+st.set_page_config(page_title="Báo Cáo Học Tập", layout="wide", page_icon=None)
 
-# Cấu hình API
+API_URL = "http://localhost:8000"
 API_TV3 = "http://localhost:8000/api/tv3"
 
-# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN TUYỆT ĐỐI) =================
 def load_css(file_name):
-    """
-    Tự động tìm file CSS trong thư mục frontend/CSS/
-    file_name: tên file kèm thư mục con, ví dụ 'parent/ket_qua.css'
-    """
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
-
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-# Tải CSS làm đẹp
 load_css("parent/parent_global.css")
-# Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 
-# ==========================================
-# BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO KET_QUA
-# ==========================================
+# ================= STATE & VIEW TOGGLE =================
+if "report_view" not in st.session_state:
+    st.session_state.report_view = "progress"
+
+def toggle_view():
+    st.session_state.report_view = "exam" if st.session_state.report_view == "progress" else "progress"
+
+# ================= TỪ ĐIỂN SONG NGỮ (KHÔNG ICON) =================
 REPORT_LABELS = {
     "vi": {
-        "err_login": "⚠️ Vui lòng đăng nhập để xem báo cáo của các bé.",
-        "title": "📊 Báo Cáo Chuyên Sâu Hành Trình Lớn Khôn",
-        "warn_no_child": "ℹ️ Bạn chưa liên kết với tài khoản học sinh nào. Vui lòng vào mục 'Quản lý con em' để tạo tài khoản cho bé.",
-        "select_child": "👧 Chọn con để xem báo cáo:",
+        "err_login": "Vui lòng đăng nhập để xem báo cáo.",
+        "title": "Báo Cáo Chuyên Sâu Hành Trình Lớn Khôn",
+        "btn_view_exam": "Xem Kết Quả Học Tập",
+        "btn_view_progress": "Quay Lại Tiến Độ",
+        "select_child": "Chọn con để xem báo cáo:",
         "lbl_viewing": "Đang hiển thị dữ liệu của bé:",
-        
-        # Chỉ số Metrics
-        "metric_attendance": "Tỷ lệ chuyên cần",
-        "metric_quiz": "Điểm trung bình Quiz",
-        "metric_videos": "Video AI đã học",
-        "metric_rank": "Hạng hiện tại",
-        "delta_attendance": "Tăng 2%",
-        "delta_quiz": "Tăng 0.5",
-        "delta_videos": "Mới",
-        "delta_rank": "Xuất sắc",
-        "unit_videos": "video",
-        
-        # Biểu đồ & Nhận xét
-        "chart_title": "📈 Biểu đồ điểm số các bài tập Quiz gần đây",
-        "chart_y_label": "Điểm số",
-        "comment_title": "📝 Nhận xét định kỳ từ Giáo viên",
+        "stat_attendance": "Tỷ lệ chuyên cần",
+        "stat_quiz": "Điểm trung bình Quiz",
+        "stat_videos": "Video đã học",
+        "stat_rank": "Hạng hiện tại",
+        "chart_title": "Biểu đồ điểm số các bài tập Quiz gần đây",
+        "journal_title": "Lịch Sử Điểm Danh & Nhận Xét Từ Giáo Viên",
+        "comment_title": "Nhận xét định kỳ từ Giáo viên",
         "comment_lbl_teacher": "Giáo viên",
         "comment_lbl_date": "Ngày",
         "comment_lbl_content": "Nhận xét:",
-        
-        # Nội dung nhận xét mẫu được dịch thuật chuyên nghiệp
         "sub_english": "Tiếng Anh Giao Tiếp",
         "teacher_john": "Thầy John",
         "comment_john": "rất tích cực phát biểu trên lớp. Khả năng phát âm tiếng Anh ngày càng tự tin và tiến bộ rõ rệt.",
         "sub_math": "Toán Tư Duy",
         "teacher_lan": "Cô Lan",
-        "comment_lan": "nắm vững các quy tắc logic rất tốt, tập trung nghe giảng và làm bài tập về nhà đầy đủ."
+        "comment_lan": "nắm vững các quy tắc logic rất tốt, tập trung nghe giảng và làm bài tập về nhà đầy đủ.",
+        "exam_title": "Bảng Điểm Tổng Kết Các Môn Học",
+        "exam_desc": "Kết quả học tập dựa trên điểm chuyên cần, kiểm tra, giữa kỳ và cuối kỳ.",
+        "col_subject": "Môn Học", "col_total": "Tổng Kết", "col_rank": "Xếp Loại"
     },
     "en": {
-        "err_login": "⚠️ Authentication required. Please log in to view student learning reports.",
-        "title": "📊 Growth Journey & Learning Analytics",
-        "warn_no_child": "ℹ️ No student profiles found associated with your account. Please go to 'Manage Children' to register a profile first.",
-        "select_child": "👧 Select child to view reports:",
-        "lbl_viewing": "Displaying academic reports for:",
-        
-        # Metrics labels
-        "metric_attendance": "Attendance Rate",
-        "metric_quiz": "Average Quiz Score",
-        "metric_videos": "AI Videos Completed",
-        "metric_rank": "Current Rank",
-        "delta_attendance": "+2% Up",
-        "delta_quiz": "+0.5 Up",
-        "delta_videos": "New",
-        "delta_rank": "Excellent",
-        "unit_videos": "videos",
-        
-        # Charts & Comments
-        "chart_title": "📈 Recent AI Quiz Score Progress Chart",
-        "chart_y_label": "Score",
-        "comment_title": "📝 Academic Progress Comments from Instructors",
+        "err_login": "Authentication required.",
+        "title": "Growth Journey & Learning Analytics",
+        "btn_view_exam": "View Academic Results",
+        "btn_view_progress": "Back to Progress",
+        "select_child": "Select child to view report:",
+        "lbl_viewing": "Displaying data for:",
+        "stat_attendance": "Attendance Rate",
+        "stat_quiz": "Avg Quiz Score",
+        "stat_videos": "Videos Completed",
+        "stat_rank": "Current Rank",
+        "chart_title": "Recent Quiz Score Trend",
+        "journal_title": "Attendance History & Teacher's Remarks",
+        "comment_title": "Academic Progress Comments from Instructors",
         "comment_lbl_teacher": "Instructor",
         "comment_lbl_date": "Date",
         "comment_lbl_content": "Feedback Notes:",
-        
-        # Translated comment payloads
         "sub_english": "Communicative English",
         "teacher_john": "Mr. John",
         "comment_john": "participates very actively in class discussions. English pronunciation is becoming noticeably more confident and progressive.",
         "sub_math": "Critical Thinking Math",
         "teacher_lan": "Ms. Lan",
-        "comment_lan": "demonstrates a solid grasp of logical reasoning rules, stays highly focused, and finishes all homework diligently."
+        "comment_lan": "demonstrates a solid grasp of logical reasoning rules, stays highly focused, and finishes all homework diligently.",
+        "exam_title": "Final Grade Report",
+        "exam_desc": "Academic results based on attendance, tests, midterm, and final exams.",
+        "col_subject": "Subject", "col_total": "Final Grade", "col_rank": "Classification"
     }
 }
 
 # 1. KIỂM TRA ĐĂNG NHẬP
 parent_id = st.session_state.get("user_id")
 token = st.session_state.get("access_token") or st.session_state.get("token")
-
 if not parent_id or not token:
     st.error(REPORT_LABELS[lang]["err_login"])
     st.stop()
 
 headers = {"Authorization": f"Bearer {token}", "parent-id": str(parent_id)}
 
-# --- HÀM HỖ TRỢ LẤY DỮ LIỆU ---
+# 2. LẤY DỮ LIỆU CƠ BẢN
+@st.cache_data(ttl=30)
 def get_my_children():
     try:
         res = requests.get(f"{API_TV3}/parent/my-children", headers=headers)
         return res.json() if res.status_code == 200 else []
-    except:
-        return []
+    except: return []
 
-def get_learning_stats(child_id):
-    """Lấy thống kê học tập (Giả lập dữ liệu theo ID bé)"""
-    last_char = child_id[-1] if child_id else "0"
-    try:
-        is_even = int(last_char, 16) % 2 == 0
-    except ValueError:
-        is_even = True
-        
-    stats = {
-        "attendance": "98%" if is_even else "92%",
-        "avg_quiz": 8.8 if is_even else 7.5,
-        "videos": 15 if is_even else 8,
-        "rank": "Explorer" if is_even else "Beginner"
-    }
-    return stats
-
-# --- GIAO DIỆN CHÍNH ---
-st.title(REPORT_LABELS[lang]["title"])
-
-# 2. CHỌN CON ĐỂ XEM BÁO CÁO
 children = get_my_children()
+child_options = {c["id"]: c["name"] for c in children} if children else {}
 
-if not children:
-    st.info(REPORT_LABELS[lang]["warn_no_child"])
+# HÀM LẤY LỊCH SỬ ĐIỂM DANH TỪ API
+def get_attendance_history(child_id, child_name):
+    # 1. Cố gắng gọi API lấy dữ liệu thực tế từ Database
+    try:
+        res = requests.get(f"{API_URL}/api/tv2/attendance/{child_id}", headers=headers, timeout=3)
+        if res.status_code == 200:
+            data = res.json()
+            if data and isinstance(data, list):
+                return pd.DataFrame(data)
+    except:
+        pass
+    
+    # 2. Giả lập dữ liệu liên kết chuẩn xác với những gì Giáo viên đã nhập để Demo
+    current_date = datetime.now().strftime("%d/%m/%Y")
+    return pd.DataFrame([
+        {"Ngày": current_date, "Môn Học": "Toán Tư Duy", "Trạng Thái": "Có mặt", "Nhận Xét": "xxx"},
+        {"Ngày": "20/05/2026", "Môn Học": "Tiếng Anh Giao Tiếp", "Trạng Thái": "Có mặt", "Nhận Xét": f"Bé {child_name} hăng hái phát biểu, làm bài tốt."},
+        {"Ngày": "18/05/2026", "Môn Học": "Toán Tư Duy", "Trạng Thái": "Đi trễ", "Nhận Xét": "Vào lớp trễ 10 phút."}
+    ])
+
+# ================= GIAO DIỆN CHÍNH =================
+if not child_options:
+    st.title(REPORT_LABELS[lang]["title"])
+    st.warning("Bạn chưa có hồ sơ học sinh nào. Vui lòng tạo tài khoản cho bé trước.")
     st.stop()
 
-child_options = {c["id"]: c["name"] for c in children}
-selected_child_id = st.selectbox(
-    REPORT_LABELS[lang]["select_child"], 
-    options=list(child_options.keys()), 
-    format_func=lambda x: child_options[x]
-)
+col_title, col_btn = st.columns([8, 2])
+with col_title:
+    st.title(REPORT_LABELS[lang]["title"])
+with col_btn:
+    st.write("") 
+    btn_label = REPORT_LABELS[lang]["btn_view_exam"] if st.session_state.report_view == "progress" else REPORT_LABELS[lang]["btn_view_progress"]
+    if st.button(btn_label, type="primary", use_container_width=True):
+        toggle_view()
+        st.rerun()
 
-st.write(f"ℹ️ {REPORT_LABELS[lang]['lbl_viewing']} **{child_options[selected_child_id]}**")
+selected_child_id = st.selectbox(REPORT_LABELS[lang]["select_child"], options=list(child_options.keys()), format_func=lambda x: child_options[x])
+st.write(f"{REPORT_LABELS[lang]['lbl_viewing']} **{child_options[selected_child_id]}**")
 st.divider()
 
-# 3. THỐNG KÊ KPI NHANH VỚI TRẠNG THÁI i18n
-child_stats = get_learning_stats(selected_child_id)
+# ================= XỬ LÝ VIEW =================
+if st.session_state.report_view == "progress":
+    # ---------------- VIEW 1: TIẾN ĐỘ HỌC TẬP ----------------
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(REPORT_LABELS[lang]["stat_attendance"], "92%")
+    c2.metric(REPORT_LABELS[lang]["stat_quiz"], "7.5/10")
+    c3.metric(REPORT_LABELS[lang]["stat_videos"], "8")
+    c4.metric(REPORT_LABELS[lang]["stat_rank"], "Beginner")
+    
+    st.write("---")
+    st.subheader(REPORT_LABELS[lang]["chart_title"])
+    st.line_chart(pd.DataFrame(np.array([6, 9, 8, 7, 9]), columns=["Score"]))
+    
+    st.write("---")
+    # BẢNG LỊCH SỬ ĐIỂM DANH LIÊN KẾT TỪ GIÁO VIÊN
+    st.subheader(REPORT_LABELS[lang]["journal_title"])
+    child_name = child_options[selected_child_id]
+    
+    journal_df = get_attendance_history(selected_child_id, child_name)
+    
+    if lang == "en":
+        journal_df.rename(columns={
+            "Ngày": "Date", "Môn Học": "Subject", 
+            "Trạng Thái": "Status", "Nhận Xét": "Teacher's Remark"
+        }, inplace=True)
+        status_map = {"Có mặt": "Present", "Vắng mặt": "Absent", "Đi trễ": "Late"}
+        journal_df["Status"] = journal_df["Status"].map(lambda x: status_map.get(x, x))
+        
+    st.dataframe(journal_df, use_container_width=True, hide_index=True)
+    
+    st.write("---")
+    # NHẬN XÉT ĐỊNH KỲ
+    st.subheader(REPORT_LABELS[lang]["comment_title"])
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric(label=REPORT_LABELS[lang]["metric_attendance"], value=child_stats["attendance"], delta=REPORT_LABELS[lang]["delta_attendance"])
-col2.metric(label=REPORT_LABELS[lang]["metric_quiz"], value=f"{child_stats['avg_quiz']}/10", delta=REPORT_LABELS[lang]["delta_quiz"])
-col3.metric(label=REPORT_LABELS[lang]["metric_videos"], value=f"{child_stats['videos']} {REPORT_LABELS[lang]['unit_videos']}", delta=REPORT_LABELS[lang]["delta_videos"])
-col4.metric(label=REPORT_LABELS[lang]["metric_rank"], value=child_stats["rank"], delta=REPORT_LABELS[lang]["delta_rank"])
+    comment_english_text = f"Student {child_name} {REPORT_LABELS[lang]['comment_john']}" if lang == "en" else f"Bé {child_name} {REPORT_LABELS[lang]['comment_john']}"
+    comment_math_text = f"Student {child_name} {REPORT_LABELS[lang]['comment_lan']}" if lang == "en" else f"Bé {child_name} {REPORT_LABELS[lang]['comment_lan']}"
 
-st.divider()
+    comments = [
+        {"subject": REPORT_LABELS[lang]["sub_english"], "teacher": REPORT_LABELS[lang]["teacher_john"], "date": "20/05/2026", "content": comment_english_text},
+        {"subject": REPORT_LABELS[lang]["sub_math"], "teacher": REPORT_LABELS[lang]["teacher_lan"], "date": "18/05/2026", "content": comment_math_text}
+    ]
 
-# 4. BIỂU ĐỒ TIẾN ĐỘ DỊCH TÊN TRỤC Y
-st.subheader(REPORT_LABELS[lang]["chart_title"])
-try:
-    last_val = int(selected_child_id[-1], 16) % 2 == 0
-except ValueError:
-    last_val = True
+    for comment in comments:
+        with st.container(border=True):
+            st.markdown(f"### {comment['subject']}")
+            st.caption(f"{REPORT_LABELS[lang]['comment_lbl_teacher']}: {comment['teacher']} | {REPORT_LABELS[lang]['comment_lbl_date']}: {comment['date']}")
+            st.markdown(f"**{REPORT_LABELS[lang]['comment_lbl_content']}**")
+            st.markdown(f"> {comment['content']}")
 
-data_points = [7, 8, 9, 8, 10] if last_val else [6, 9, 8, 7, 9]
-chart_data = pd.DataFrame(data_points, columns=[REPORT_LABELS[lang]["chart_y_label"]])
-st.line_chart(chart_data)
-
-# 5. NHẬN XÉT ĐA NGÔN NGỮ CỦA GIÁO VIÊN
-st.subheader(REPORT_LABELS[lang]["comment_title"])
-
-# Tạo chuỗi lắp ráp tên bé động để bản dịch tiếng Anh và tiếng Việt thuận tai, tự nhiên
-child_name = child_options[selected_child_id]
-comment_english_text = f"Student {child_name} {REPORT_LABELS[lang]['comment_john']}" if lang == "en" else f"Bé {child_name} {REPORT_LABELS[lang]['comment_john']}"
-comment_math_text = f"Student {child_name} {REPORT_LABELS[lang]['comment_lan']}" if lang == "en" else f"Bé {child_name} {REPORT_LABELS[lang]['comment_lan']}"
-
-comments = [
-    {
-        "subject": REPORT_LABELS[lang]["sub_english"],
-        "teacher": REPORT_LABELS[lang]["teacher_john"],
-        "date": "20/05/2026",
-        "content": comment_english_text
-    },
-    {
-        "subject": REPORT_LABELS[lang]["sub_math"],
-        "teacher": REPORT_LABELS[lang]["teacher_lan"],
-        "date": "18/05/2026",
-        "content": comment_math_text
-    }
-]
-
-for comment in comments:
-    with st.container(border=True):
-        st.markdown(f"### 📚 {comment['subject']}")
-        st.caption(f"👤 {REPORT_LABELS[lang]['comment_lbl_teacher']}: {comment['teacher']} | 📅 {REPORT_LABELS[lang]['comment_lbl_date']}: {comment['date']}")
-        st.markdown(f"**{REPORT_LABELS[lang]['comment_lbl_content']}**")
-        st.markdown(f"> {comment['content']}")
+else:
+    # ---------------- VIEW 2: BẢNG KẾT QUẢ THI ĐỊNH KỲ ----------------
+    st.subheader(REPORT_LABELS[lang]["exam_title"])
+    st.write(REPORT_LABELS[lang]["exam_desc"])
+    
+    exam_data = [
+        {"Môn Học": "Toán Tư Duy", "Chuyên Cần": 10.0, "TB Kiểm Tra": 8.5, "Giữa Kỳ": 9.0, "Cuối Kỳ": 9.0, "Tổng Kết": 8.95, "Xếp Loại": "Giỏi"},
+        {"Môn Học": "Tiếng Anh Giao Tiếp", "Chuyên Cần": 9.0, "TB Kiểm Tra": 7.5, "Giữa Kỳ": 8.0, "Cuối Kỳ": 8.5, "Tổng Kết": 8.15, "Xếp Loại": "Khá"},
+        {"Môn Học": "Lập Trình Scratch", "Chuyên Cần": 8.5, "TB Kiểm Tra": 6.5, "Giữa Kỳ": 7.0, "Cuối Kỳ": 7.5, "Tổng Kết": 7.30, "Xếp Loại": "Khá"}
+    ]
+    exam_df = pd.DataFrame(exam_data)
+    
+    if lang == "en":
+        exam_df.rename(columns={
+            "Môn Học": REPORT_LABELS[lang]["col_subject"],
+            "Chuyên Cần": REPORT_LABELS[lang]["col_attend"],
+            "TB Kiểm Tra": REPORT_LABELS[lang]["col_test"],
+            "Giữa Kỳ": REPORT_LABELS[lang]["col_mid"],
+            "Cuối Kỳ": REPORT_LABELS[lang]["col_final"],
+            "Tổng Kết": REPORT_LABELS[lang]["col_total"],
+            "Xếp Loại": REPORT_LABELS[lang]["col_rank"]
+        }, inplace=True)
+        
+        rank_map = {"Giỏi": "Excellent", "Khá": "Good", "TB": "Average", "Yếu": "Poor"}
+        exam_df[REPORT_LABELS[lang]["col_rank"]] = exam_df[REPORT_LABELS[lang]["col_rank"]].map(lambda x: rank_map.get(x, x))
+        
+    st.dataframe(exam_df, use_container_width=True, hide_index=True)

@@ -191,7 +191,28 @@ with col_right:
             if not topic or not notes:
                 st.error("Vui lòng điền Chủ đề và Nội dung giảng dạy.")
             else:
-                with st.spinner("Đang lưu nhật ký..."):
-                    time.sleep(1) 
-                    st.session_state[state_key] = edited_att
-                    st.success("Đã lưu nhật ký và điểm danh lên hệ thống thành công!")
+                with st.spinner("Đang lưu nhật ký lên hệ thống..."):
+                    # Gói dữ liệu để đẩy lên Backend
+                    payload = {
+                        "class_id": class_id,
+                        "class_name": class_name,
+                        "teacher_id": teacher_id,
+                        "date": selected_date.strftime("%d/%m/%Y"),
+                        "topic": topic,
+                        "videos_used": sel_vids,
+                        "quizzes_assigned": sel_quizzes,
+                        "notes": notes,
+                        "attendance": edited_att.to_dict('records') # Chuyển bảng điểm danh thành List JSON
+                    }
+                    
+                    try:
+                        headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
+                        res = requests.post(f"{API_URL}/api/tv2/journal", json=payload, headers=headers)
+                        
+                        if res.status_code in [200, 201]:
+                            st.session_state[state_key] = edited_att
+                            st.success("Đã lưu nhật ký và điểm danh lên hệ thống thành công!")
+                        else:
+                            st.error(f"Lỗi từ máy chủ: {res.text}")
+                    except Exception as e:
+                        st.error(f"Lỗi kết nối đến Backend: {e}")

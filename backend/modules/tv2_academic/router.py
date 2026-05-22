@@ -48,6 +48,54 @@ async def submit_teaching_journal(journal: TeachingJournalModel):
     # 2. Chỗ này sau này TV1 và TV3 sẽ viết thêm logic cộng EXP dựa trên nhật ký này
     return {"message": "Đã lưu nhật ký giảng dạy và điểm danh thành công!", "id": str(result.inserted_id)}
 
+# --- API MỚI BỔ SUNG: LẤY LỊCH SỬ ĐIỂM DANH CHO PHỤ HUYNH ---
+@router.get("/attendance/{child_id}")
+async def get_student_attendance(child_id: str):
+    """API lấy lịch sử điểm danh của một học sinh cụ thể từ bảng journals"""
+    # Lấy các nhật ký giảng dạy, sắp xếp mới nhất lên đầu
+    cursor = db["journals"].find().sort("created_at", -1)
+    history = []
+    
+    async for journal in cursor:
+        att_list = journal.get("attendance", [])
+        if not isinstance(att_list, list):
+            continue
+            
+        # Tìm học sinh trong mảng attendance của ca dạy này
+        for att in att_list:
+            sid = att.get("Mã HS") or att.get("student_id") or att.get("id")
+            if sid == child_id:
+                # 1. Trích xuất ngày
+                created_at = journal.get("created_at")
+                if isinstance(created_at, datetime):
+                    date_str = created_at.strftime("%d/%m/%Y")
+                else:
+                    date_str = journal.get("date", datetime.now().strftime("%d/%m/%Y"))
+                    
+                # 2. Trích xuất môn học/chủ đề
+                subject = journal.get("subject") or journal.get("topic") or journal.get("class_name", "Chưa rõ môn học")
+                
+                # 3. Trích xuất trạng thái
+                status = "Có mặt" # Mặc định
+                if att.get("Có mặt") is True: status = "Có mặt"
+                elif att.get("Vắng") is True or att.get("Vắng mặt") is True: status = "Vắng mặt"
+                elif att.get("Đi trễ") is True: status = "Đi trễ"
+                elif "status" in att: status = att["status"]
+                
+                # 4. Trích xuất nhận xét
+                remark = att.get("Nhận Xét (Tùy chọn)") or att.get("Nhận Xét") or att.get("remark") or ""
+                
+                history.append({
+                    "Ngày": date_str,
+                    "Môn Học": subject,
+                    "Trạng Thái": status,
+                    "Nhận Xét": remark
+                })
+                break # Đã tìm thấy học sinh trong ca dạy này thì bỏ qua các dòng khác của ca đó
+                
+    return history
+# -------------------------------------------------------------
+
 @router.post("/generate-quiz")
 async def generate_quiz(request: AIQuizRequest):
     """API gọi Gemini AI thật để sinh câu hỏi trắc nghiệm (Đã Bọc Thép Cứng)"""
