@@ -317,3 +317,26 @@ async def complete_video(username: str, payload: VideoCompleteModel):
         upsert=True 
     )
     return {"message": "Đã lưu kết quả xem video!"}
+# ================= API QUẢN LÝ ĐIỂM SỐ THỰC TẾ =================
+
+@router.post("/grades")
+async def save_student_grades(payload: dict):
+    """API lưu điểm từ Giáo viên vào Database (Sử dụng Upsert để cập nhật hoặc tạo mới)"""
+    class_id = payload.get("class_id")
+    grades = payload.get("grades", [])
+    
+    for g in grades:
+        student_id = g.get("student_id")
+        # Upsert: Nếu học sinh đã có điểm ở lớp này rồi thì ghi đè, chưa có thì tạo mới
+        await db["grades"].update_one(
+            {"class_id": class_id, "student_id": student_id},
+            {"$set": g},
+            upsert=True
+        )
+    return {"message": "Đã lưu điểm thành công!"}
+
+@router.get("/grades/{student_id}")
+async def get_student_grades(student_id: str):
+    """API cho Phụ huynh lấy bảng điểm thực tế của học sinh"""
+    grades = await db["grades"].find({"student_id": student_id}, {"_id": 0}).to_list(100)
+    return grades

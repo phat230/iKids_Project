@@ -31,7 +31,6 @@ GRADING_LABELS = {
 
 st.set_page_config(page_title="Ghi Điểm Học Tập", page_icon=None, layout="wide")
 
-# ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
@@ -43,7 +42,6 @@ def load_css(file_name):
 load_css("teacher/teacher_global.css")
 API_URL = "http://127.0.0.1:8000"
 
-# ================= LẤY THÔNG TIN GIÁO VIÊN =================
 def get_teacher_info():
     if "user_info" in st.session_state:
         info = st.session_state.user_info
@@ -57,7 +55,6 @@ teacher_id, teacher_name = get_teacher_info()
 if "used_permissions" not in st.session_state:
     st.session_state.used_permissions = []
 
-# ================= API DỮ LIỆU =================
 @st.cache_data(ttl=5)
 def get_my_classes(t_id):
     try:
@@ -75,18 +72,34 @@ def get_class_students(class_id):
         return []
     except: return []
 
-# ================= GIAO DIỆN CHÍNH =================
 st.title(GRADING_LABELS[lang]["title"])
 st.markdown(GRADING_LABELS[lang]["desc"])
 
-# --- BƯỚC 1: CHỌN LỚP HỌC ---
 my_classes = get_my_classes(teacher_id)
 
 if not my_classes:
     st.info(GRADING_LABELS[lang]["info_no_class"])
     st.stop()
 
-class_options = {str(c.get("id", c.get("_id"))): f"{c.get('class_name')} - {c.get('subject')}" for c in my_classes}
+try:
+    headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
+    res_sched = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=5)
+    schedules = res_sched.json() if res_sched.status_code == 200 else []
+except:
+    schedules = []
+
+schedule_subject_map = {}
+for s in schedules:
+    c_id = str(s.get("class_id", ""))
+    subj = s.get("subject", "")
+    if c_id and subj:
+        schedule_subject_map[c_id] = subj
+
+class_options = {}
+for c in my_classes:
+    c_id = str(c.get("id", c.get("_id")))
+    subj = schedule_subject_map.get(c_id, c.get("subject", "Chưa xác định"))
+    class_options[c_id] = f"{c.get('class_name')} - {subj}"
 
 col_filter, col_empty = st.columns([1, 1])
 with col_filter:
@@ -94,7 +107,6 @@ with col_filter:
 
 st.divider()
 
-# --- BƯỚC 2: DỮ LIỆU HỌC SINH ---
 real_students = get_class_students(selected_class_id)
 
 if not real_students:
@@ -104,8 +116,6 @@ if not real_students:
         {GRADING_LABELS[lang]["col_id"]: "HS002_DEMO", GRADING_LABELS[lang]["input_name"]: "Trần Thị B (Demo)"},
     ]
 
-# ================= KIỂM TRA QUYỀN TRUY CẬP TỪ ADMIN =================
-# Lấy danh sách yêu cầu để kiểm tra trạng thái phê duyệt
 try:
     pending_reqs = requests.get(f"{API_URL}/pending-requests", timeout=5).json()
     history_reqs = requests.get(f"{API_URL}/request-history", timeout=5).json()
@@ -115,7 +125,6 @@ except:
 
 class_full_name = class_options[selected_class_id]
 
-# Lọc các đơn "Xin cấp quyền nhập điểm" của Giáo viên này cho Lớp này
 my_grade_reqs = [
     r for r in all_reqs 
     if r.get("teacher_id") == teacher_id 
@@ -123,7 +132,6 @@ my_grade_reqs = [
     and class_full_name in r.get("details", "")
 ]
 
-# Sắp xếp để lấy đơn mới nhất
 def parse_date(date_str):
     try: return datetime.strptime(date_str, "%d/%m/%Y %H:%M")
     except: return datetime.min
@@ -140,12 +148,10 @@ if latest_req:
         is_pending = True
     elif latest_req.get("status") == "approved":
         req_id = latest_req.get("id")
-        # Kiểm tra xem quyền này đã bị sử dụng (thu hồi) chưa
         if req_id not in st.session_state.used_permissions:
             is_approved = True
             active_req_id = req_id
 
-# ================= XỬ LÝ BẢNG ĐIỂM (EXCEL-LIKE) =================
 st.markdown("#### Bảng Nhập Điểm Thành Phần (Thang điểm 10)")
 
 if "grades_data_class" not in st.session_state or st.session_state.grades_data_class != selected_class_id:
@@ -156,10 +162,31 @@ if "grades_data_class" not in st.session_state or st.session_state.grades_data_c
     df_st["Giữa Kỳ"] = 0.0
     df_st["Cuối Kỳ"] = 0.0
     
+    # Kéo điểm cũ từ Database về nếu đã có
+    try:
+        subject_name = class_options[selected_class_id].split(" - ")[-1]
+        for idx, row in df_st.iterrows():
+            sid = str(row["Mã HS"])
+            res_grades = requests.get(f"{API_URL}/api/tv2/grades/{sid}", timeout=3)
+            if res_grades.status_code == 200:
+                grades_db = res_grades.json()
+                # Tìm đúng môn học
+                for g in grades_db:
+                    if g.get("class_id") == selected_class_id:
+                        df_st.at[idx, "Chuyên Cần"] = g.get("chuyen_can", 10.0)
+                        df_st.at[idx, "KT 1"] = g.get("kt_1", 0.0)
+                        df_st.at[idx, "KT 2"] = g.get("kt_2", 0.0)
+                        df_st.at[idx, "KT 3"] = g.get("kt_3", 0.0)
+                        df_st.at[idx, "KT 4"] = g.get("kt_4", 0.0)
+                        df_st.at[idx, "KT 5"] = g.get("kt_5", 0.0)
+                        df_st.at[idx, "Giữa Kỳ"] = g.get("giua_ky", 0.0)
+                        df_st.at[idx, "Cuối Kỳ"] = g.get("cuoi_ky", 0.0)
+    except:
+        pass
+    
     st.session_state.grades_data = df_st
     st.session_state.grades_data_class = selected_class_id
 
-# Phân nhánh hiển thị: Mở khóa (Data Editor) hoặc Khóa (Chỉ đọc)
 if is_approved:
     st.success("Quyền nhập/sửa điểm đang được mở. Vui lòng ghi nhận lên hệ thống sau khi hoàn tất.")
     edited_df = st.data_editor(
@@ -196,13 +223,11 @@ else:
             except:
                 st.error("Lỗi kết nối đến máy chủ.")
 
-# ================= TỰ ĐỘNG TÍNH TOÁN =================
 st.markdown("#### Bảng Điểm Tổng Kết Môn Học")
 
 kt_cols = [f"KT {i}" for i in range(1, 6)]
 edited_df["TB Kiểm Tra"] = edited_df[kt_cols].mean(axis=1).fillna(0)
 
-# Trọng số mặc định chạy ngầm (Không hiển thị ra UI)
 midterm_weight = 30
 final_weight = 70
 weight_gk = midterm_weight / 100
@@ -227,23 +252,52 @@ edited_df["Xếp Loại"] = edited_df["ĐIỂM TỔNG KẾT"].apply(xep_loai)
 display_cols = ["Mã HS", "Tên Học Sinh", "Chuyên Cần", "TB Kiểm Tra", "Giữa Kỳ", "Cuối Kỳ", "ĐIỂM TỔNG KẾT", "Xếp Loại"]
 st.dataframe(edited_df[display_cols], use_container_width=True, hide_index=True)
 
-# ================= LƯU & XUẤT BÁO CÁO =================
 c_btn1, c_btn2 = st.columns([2, 8])
 
-# Nút Lưu chỉ hiện khi đang được cấp quyền
 if is_approved:
     with c_btn1:
         if st.button("Ghi Nhận Lên Hệ Thống", type="primary", use_container_width=True):
-            with st.spinner("Đang lưu trữ..."):
-                time.sleep(1) 
-                st.session_state.grades_data = edited_df.drop(columns=["TB Kiểm Tra", "ĐIỂM TỔNG KẾT", "Xếp Loại"])
+            with st.spinner("Đang lưu trữ lên cơ sở dữ liệu..."):
+                # ================= ĐÓNG GÓI DỮ LIỆU ĐIỂM GỬI LÊN BACKEND =================
+                subject_name = class_options[selected_class_id].split(" - ")[-1]
+                grades_payload = []
                 
-                # Thu hồi quyền sau khi lưu thành công
-                st.session_state.used_permissions.append(active_req_id)
+                for _, row in edited_df.iterrows():
+                    grades_payload.append({
+                        "student_id": str(row["Mã HS"]),
+                        "student_name": str(row["Tên Học Sinh"]),
+                        "subject": subject_name,
+                        "chuyen_can": float(row["Chuyên Cần"]),
+                        "kt_1": float(row["KT 1"]),
+                        "kt_2": float(row["KT 2"]),
+                        "kt_3": float(row["KT 3"]),
+                        "kt_4": float(row["KT 4"]),
+                        "kt_5": float(row["KT 5"]),
+                        "giua_ky": float(row["Giữa Kỳ"]),
+                        "cuoi_ky": float(row["Cuối Kỳ"]),
+                        "tb_kiem_tra": float(row["TB Kiểm Tra"]),
+                        "tong_ket": float(row["ĐIỂM TỔNG KẾT"]),
+                        "xep_loai": str(row["Xếp Loại"])
+                    })
                 
-                st.success("Đã đồng bộ điểm số lên Cơ sở dữ liệu của trung tâm!")
-                time.sleep(1)
-                st.rerun()
+                payload = {
+                    "class_id": selected_class_id,
+                    "teacher_id": teacher_id,
+                    "grades": grades_payload
+                }
+                
+                try:
+                    res = requests.post(f"{API_URL}/api/tv2/grades", json=payload, timeout=5)
+                    if res.status_code == 200:
+                        st.session_state.grades_data = edited_df.drop(columns=["TB Kiểm Tra", "ĐIỂM TỔNG KẾT", "Xếp Loại"])
+                        st.session_state.used_permissions.append(active_req_id)
+                        st.success("Đã đồng bộ điểm số lên Cơ sở dữ liệu của trung tâm thành công!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error("Lỗi từ máy chủ khi lưu điểm.")
+                except Exception as e:
+                    st.error(f"Lỗi kết nối Backend: {e}")
 
 with c_btn2:
     current_date = datetime.now().strftime("%d%m%Y")
