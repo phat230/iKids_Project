@@ -11,6 +11,7 @@ st.set_page_config(page_title="Quản Lý Con Em - iKids", layout="wide")
 # Cấu hình URL Backend
 API_AUTH = "http://localhost:8000/api/auth"
 API_TV3 = "http://localhost:8000/api/tv3"
+API_FINANCE = "http://localhost:8000/api/finance"
 
 # ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
@@ -51,6 +52,7 @@ CHILD_MGMT_LABELS = {
         "tab_list": "📋 Danh sách con em",
         "tab_approve": "🛍️ Phê duyệt mua sắm",
         "tab_add": "➕ Tạo tài khoản mới",
+        "tab_history": "📜 Lịch sử giao dịch",
         
         # Tab 1: Danh sách con
         "sub_children_list": "Các con đang theo học",
@@ -108,6 +110,7 @@ CHILD_MGMT_LABELS = {
         "tab_list": "📋 Children Directory",
         "tab_approve": "🛍️ Purchase Requests",
         "tab_add": "➕ Link New Profile",
+        "tab_history": "📜 Transaction History",
         
         # Tab 1: Children Directory
         "sub_children_list": "Enrolled Children Profiles",
@@ -191,6 +194,12 @@ def fetch_purchase_requests():
         return res.json() if res.status_code == 200 else []
     except:
         return []
+def fetch_transaction_history():
+    try:
+        res = requests.get(f"{API_FINANCE}/parent/history", headers=headers)
+        return res.json() if res.status_code == 200 else []
+    except:
+        return []
 
 # ================= HIỂN THỊ SỐ DƯ VÍ PHỤ HUYNH VÀ ĐIỀU HƯỚNG NẠP TIỀN =================
 parent_profile = fetch_parent_profile()
@@ -208,10 +217,11 @@ with st.container(border=True):
 st.write("")
 
 # --- GIAO DIỆN CÁC TÁC VỤ ---
-tab_list, tab_approve, tab_add = st.tabs([
+tab_list, tab_approve, tab_add, tab_history = st.tabs([
     CHILD_MGMT_LABELS[lang]["tab_list"], 
     CHILD_MGMT_LABELS[lang]["tab_approve"], 
-    CHILD_MGMT_LABELS[lang]["tab_add"]
+    CHILD_MGMT_LABELS[lang]["tab_add"],
+    CHILD_MGMT_LABELS[lang]["tab_history"]
 ])
 
 # ==========================================
@@ -363,3 +373,74 @@ with tab_add:
                             st.error(f"{CHILD_MGMT_LABELS[lang]['err_failed_create']} {err_detail}")
                 except Exception:
                     st.error(CHILD_MGMT_LABELS[lang]["err_connection"])
+
+# ==========================================
+# TAB 4: LỊCH SỬ GIAO DỊCH
+# ==========================================
+with tab_history:
+    st.subheader("📜 Lịch sử giao dịch của phụ huynh và con")
+
+    history = fetch_transaction_history()
+    df = pd.DataFrame(history)
+
+    if df.empty:
+        st.info("Chưa có lịch sử giao dịch.")
+    else:
+        st.dataframe(df, use_container_width=True)
+
+        st.divider()
+
+        col1, col2, col3 = st.columns(3)
+
+        total_records = len(df)
+
+        total_amount = 0
+        if "amount" in df.columns:
+            total_amount += pd.to_numeric(df["amount"], errors="coerce").fillna(0).sum()
+
+        if "price" in df.columns:
+            total_amount += pd.to_numeric(df["price"], errors="coerce").fillna(0).sum()
+
+        if "total_amount" in df.columns:
+            total_amount += pd.to_numeric(df["total_amount"], errors="coerce").fillna(0).sum()
+
+        col1.metric("Tổng số giao dịch", total_records)
+        col2.metric("Tổng giá trị", f"{total_amount:,.0f} VNĐ")
+
+        if "group" in df.columns:
+            col3.metric("Nhóm giao dịch", df["group"].nunique())
+
+        st.divider()
+
+        st.subheader("📊 Biểu đồ lịch sử giao dịch")
+
+        if "group" in df.columns:
+            chart_count = df.groupby("group").size().reset_index(name="Số lượng")
+            st.bar_chart(chart_count.set_index("group"))
+
+        money_col = None
+        for col in ["amount", "price", "total_amount"]:
+            if col in df.columns:
+                money_col = col
+                break
+
+        if money_col and "group" in df.columns:
+            df[money_col] = pd.to_numeric(df[money_col], errors="coerce").fillna(0)
+            chart_money = df.groupby("group")[money_col].sum().reset_index()
+            st.bar_chart(chart_money.set_index("group"))
+
+        st.divider()
+
+        from io import BytesIO
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Lich_su_giao_dich")
+
+        st.download_button(
+            "📥 Xuất Excel lịch sử giao dịch",
+            data=output.getvalue(),
+            file_name="lich_su_giao_dich_phu_huynh.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
