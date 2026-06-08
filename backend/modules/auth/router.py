@@ -1,17 +1,79 @@
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from fastapi import APIRouter, Depends, HTTPException, Header
 from core.database import get_db
 from core.security import get_current_user, verify_password, get_password_hash 
 from .schemas import UserCreate, UserLogin, TokenResponse, OTPVerifyRequest
 from .services import register_user, login_user, create_student_by_parent, verify_registration_otp
-from bson import ObjectId # Import để xử lý ép kiểu chuỗi sang ObjectId của MongoDB
+from bson import ObjectId
 import random
 from datetime import datetime, timedelta
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+# Hàm gửi Email thực tế đọc từ cấu hình .env
+def send_email_otp(target_email: str, otp_code: str) -> bool:
+    """Hàm gửi mã OTP qua Gmail SMTP sử dụng cấu hình từ .env"""
+    smtp_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("MAIL_PORT", 587))
+    sender_email = os.getenv("MAIL_USERNAME")
+    sender_password = os.getenv("MAIL_PASSWORD")
+    
+    if not sender_email or not sender_password:
+        print("❌ Lỗi: Chưa cấu hình MAIL_USERNAME hoặc MAIL_PASSWORD trong file .env")
+        return False
 
-@router.post("/register")
+    # Tạo bố cục Email
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = target_email
+    msg['Subject'] = "[iKids Learning] Mã OTP Xác Thực"
+    
+    body = f"""
+    Chào bạn,
+    
+    Bạn đã gửi yêu cầu xác thực trên ứng dụng iKids Learning.
+    Mã xác thực OTP của bạn là: {otp_code}
+    
+    Mã này có hiệu lực trong vòng 5 phút. Vui lòng không chia sẻ mã này cho bất kỳ ai.
+    
+    Trân trọng,
+    Đội ngũ iKids.
+    """
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
+    
+    # Kết nối Server Gmail và gửi
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls() # Bật bảo mật đường truyền
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, target_email, msg.as_string())
+        server.quit()
+        print(f"📧 [SMTP] Đã gửi thư chứa OTP thành công tới: {target_email}")
+        return True
+    except Exception as e:
+        print(f"❌ [SMTP] Gửi mail thất bại: {e}")
+        return False
+
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+@router.get("/admin/stats")
+async def get_admin_stats(current_admin = Depends(get_current_user)):
+    """API giả lập trả về dữ liệu thống kê cho Admin Dashboard"""
+    # Kiểm tra quyền Admin
+    if current_admin["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Chỉ Admin mới xem được thống kê")
+        
+    # Trả về số liệu ảo tạm thời để Flutter có dữ liệu hiển thị
+    return {
+        "total_students": 150,
+        "total_teachers": 12,
+        "active_courses": 5,
+        "revenue_this_month": "50,000,000 VND"
+    }
+
 async def register(user: UserCreate, db = Depends(get_db)):
     """API Đăng ký tài khoản mới (Giai đoạn 1: Lưu thông tin tạm, kích hoạt gửi OTP)"""
+    # Bạn cũng có thể gọi send_email_otp() ở trong services.py của hàm register_user nếu muốn
     return await register_user(db, user)
 
 @router.post("/verify-registration-otp")
@@ -27,10 +89,10 @@ async def login(user: UserLogin, db = Depends(get_db)):
 @router.post("/parent/create-student")
 async def api_create_student_by_parent(
     student_data: UserCreate, 
-    parent_id: str = Header(...), # Lấy ID phụ huynh từ Header
+    parent_id: str = Header(...),
     db = Depends(get_db)
 ):
-    """API để Phụ huynh tạo tài khoản cho con (Tự động kích hoạt & kiểm tra giới hạn tuổi học sinh)"""
+    """API để Phụ huynh tạo tài khoản cho con"""
     return await create_student_by_parent(db, parent_id, student_data)
 
 @router.get("/admin/staff-list")
@@ -41,19 +103,16 @@ async def get_staff_list(
     if current_admin["role"] != "admin":
         raise HTTPException(status_code=403, detail="Quyền hạn không đủ")
     
-    # Lấy danh sách user có role là giáo viên hoặc vận hành
     staff = await db.users.find(
         {"role": {"$in": ["teacher", "operator"]}}
     ).to_list(length=100)
     
-    # Chuyển đổi ObjectId thành string để trả về JSON
     for s in staff:
         s["_id"] = str(s["_id"])
-        # Đảm bảo nếu trường subjects chưa có trong bản ghi cũ thì tự gán mảng rỗng để tránh lỗi Frontend
         if "subjects" not in s or s["subjects"] is None:
             s["subjects"] = []
         if "password" in s:
-            del s["password"] # Bảo mật: không trả về mật khẩu
+            del s["password"] 
     
     return staff
 
@@ -66,11 +125,8 @@ async def create_staff(
     if current_admin["role"] != "admin":
         raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền này")
     
-    # Các tài khoản do Admin trực tiếp tạo ra cho nhân sự có thể bỏ qua bước xác thực hoặc tự động kích hoạt
-    # Thiết lập mặc định sang student_data để ghi đè hoặc giữ nguyên tùy theo cấu hình nhóm bạn mong muốn
     result = await register_user(db, staff_data)
     
-    # Nếu admin tạo hộ thì có thể tự động kích hoạt luôn không bắt nhân viên quét OTP từ đầu
     await db.users.update_one(
         {"email": staff_data.email.strip().lower()},
         {"$set": {"is_active": True}, "$unset": {"otp_code": "", "otp_expires_at": ""}}
@@ -78,7 +134,6 @@ async def create_staff(
     
     return {"message": f"Đã tạo tài khoản {staff_data.role} thành công và kích hoạt sẵn."}
 
-# API cập nhật thông tin nhân sự (Dành cho Admin sửa nhân viên)
 @router.put("/admin/update-staff/{staff_id}")
 async def update_staff(
     staff_id: str,
@@ -90,7 +145,6 @@ async def update_staff(
         raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền chỉnh sửa thông tin nhân sự")
     
     try:
-        # Lọc các trường an toàn được phép cập nhật và bổ sung "subjects", "phone_number", "birth_date"
         update_data = {
             k: v for k, v in staff_data.items() 
             if k in ["name", "role", "email", "phone_number", "birth_date", "is_active", "subjects"]
@@ -116,7 +170,6 @@ async def change_own_password(
     db = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """API bảo mật cho phép TẤT CẢ các tài khoản tự thay đổi mật khẩu chính mình"""
     old_password = payload.get("old_password")
     new_password = payload.get("new_password")
     
@@ -143,7 +196,6 @@ async def update_own_profile(
     db = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """API cho phép người dùng tự chỉnh sửa thông tin cá nhân mở rộng công khai"""
     update_data = {
         k: v for k, v in payload.items() 
         if k in ["name", "phone_number", "birth_date", "facebook", "hobbies"]
@@ -160,7 +212,7 @@ async def update_own_profile(
 
 @router.post("/forgot-password")
 async def forgot_password(payload: dict, db = Depends(get_db)):
-    """API Bước 1: Tạo mã OTP khôi phục dựa vào Email"""
+    """API Bước 1: Tạo mã OTP khôi phục dựa vào Email và gửi Email thật"""
     email = payload.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp địa chỉ Email")
@@ -177,12 +229,13 @@ async def forgot_password(payload: dict, db = Depends(get_db)):
         {"$set": {"reset_otp": otp, "otp_expiry": expiry}}
     )
     
-    print(f"\n==================================================")
-    print(f"📩 [MÃ OTP KHÔI PHỤC iKids] Gửi đến hòm thư: {email}")
-    print(f"👉 MÃ XÁC THỰC LÀ: {otp}")
-    print(f"==================================================\n")
+    # Gọi hàm gửi Email thực tế ở đây
+    mail_sent = send_email_otp(email, otp)
     
-    return {"status": "success", "message": "Mã OTP khôi phục đã được gửi."}
+    if not mail_sent:
+        raise HTTPException(status_code=500, detail="Hệ thống không thể gửi email lúc này. Vui lòng kiểm tra lại cấu hình hệ thống.")
+    
+    return {"status": "success", "message": "Mã OTP khôi phục đã được gửi vào hòm thư của bạn."}
 
 @router.post("/verify-reset")
 async def verify_reset(payload: dict, db = Depends(get_db)):
@@ -212,4 +265,6 @@ async def verify_reset(payload: dict, db = Depends(get_db)):
             "$unset": {"reset_otp": "", "otp_expiry": ""}
         }
     )
+
+    
     return {"status": "success", "message": "Mật khẩu thay đổi thành công!"}
