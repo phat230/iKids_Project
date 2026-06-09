@@ -270,28 +270,59 @@ async def toggle_video_like(video_id: str, payload: LikeModel):
 
 @router.get("/student/{username}/profile")
 async def get_student_profile(username: str):
-    """Lấy thông tin profile học sinh (EXP, bài đã làm) từ DB"""
-    profile = await db["students"].find_one({"username": username}, {"_id": 0})
+    """
+    Lấy thông tin profile học sinh (EXP, bài đã làm) từ DB
+    ĐÃ FIX: Tìm theo cả 'username', 'email', hoặc 'name' để đồng bộ Web và Mobile.
+    """
+    # 1. Thử tìm kiếm bao quát (Tránh lỗi do Web gọi 'Student' còn Mobile gọi 'Học sinh')
+    # Giả định username truyền lên thực chất có thể là email đăng nhập (an toàn nhất)
+    profile = await db["students"].find_one({
+        "$or": [
+            {"username": username}, 
+            {"email": username},
+            {"name": username},
+            {"full_name": username}
+        ]
+    }, {"_id": 0})
+    
     if not profile:
         return {"username": username, "exp": 0, "completed_tasks": []}
     return profile
 
 @router.post("/student/{username}/submit-quiz")
 async def submit_quiz(username: str, payload: QuizSubmitModel):
-    """Lưu kết quả làm bài và cộng EXP vĩnh viễn vào DB"""
-    # Cập nhật Profile: Cộng EXP và Thêm mã bài vào mảng đã làm (upsert=True để tự tạo nếu user chưa có trong bảng)
+    """Lưu kết quả làm bài và cộng EXP vĩnh viễn vào DB (Đã bọc thép chặn làm lại)"""
+    
+    # 1. TÌM KIẾM ĐỒNG BỘ GIỐNG HÀM GET
+    student = await db["students"].find_one({
+        "$or": [
+            {"username": username}, 
+            {"email": username},
+            {"name": username},
+            {"full_name": username}
+        ]
+    })
+    
+    # Nếu tìm thấy user, dùng username gốc của DB để làm mỏ neo cập nhật
+    anchor_username = student["username"] if student and "username" in student else username
+    
+    # 2. KIỂM TRA BẢO MẬT CHẶN GIAN LẬN
+    if student and payload.quiz_id in student.get("completed_tasks", []):
+        raise HTTPException(status_code=400, detail="⛔ Bạn đã hoàn thành bài tập này rồi! Không thể làm lại để cày EXP.")
+
+    # 3. LƯU DỮ LIỆU: Cập nhật dựa trên mỏ neo để đảm bảo Web và Mobile gom chung 1 cục
     await db["students"].update_one(
-        {"username": username},
+        {"username": anchor_username},
         {
-            "$push": {"completed_tasks": payload.quiz_id},
+            "$addToSet": {"completed_tasks": payload.quiz_id}, 
             "$inc": {"exp": payload.exp_earned}
         },
         upsert=True 
     )
     
-    # Lưu vào lịch sử điểm số (tùy chọn để mốt thống kê)
+    # 4. Lưu vào lịch sử điểm số 
     await db["quiz_results"].insert_one({
-        "username": username,
+        "username": anchor_username,
         "quiz_id": payload.quiz_id,
         "score": payload.score,
         "exp_earned": payload.exp_earned,
@@ -308,32 +339,21 @@ class VideoCompleteModel(BaseModel):
 @router.post("/student/{username}/complete-video")
 async def complete_video(username: str, payload: VideoCompleteModel):
     """Lưu kết quả xem video và cộng EXP vĩnh viễn vào DB"""
+    # Đồng bộ tìm kiếm tương tự
+    student = await db["students"].find_one({
+        "$or": [{"username": username}, {"email": username}, {"name": username}]
+    })
+    anchor_username = student["username"] if student and "username" in student else username
+    
     await db["students"].update_one(
-        {"username": username},
+        {"username": anchor_username},
         {
-            "$push": {"completed_tasks": payload.video_id},
+            "$addToSet": {"completed_tasks": payload.video_id}, # Sửa từ $push thành $addToSet
             "$inc": {"exp": payload.exp_earned}
         },
         upsert=True 
     )
     return {"message": "Đã lưu kết quả xem video!"}
-# ================= API QUẢN LÝ ĐIỂM SỐ THỰC TẾ =================
-
-@router.post("/grades")
-async def save_student_grades(payload: dict):
-    """API lưu điểm từ Giáo viên vào Database (Sử dụng Upsert để cập nhật hoặc tạo mới)"""
-    class_id = payload.get("class_id")
-    grades = payload.get("grades", [])
-    
-    for g in grades:
-        student_id = g.get("student_id")
-        # Upsert: Nếu học sinh đã có điểm ở lớp này rồi thì ghi đè, chưa có thì tạo mới
-        await db["grades"].update_one(
-            {"class_id": class_id, "student_id": student_id},
-            {"$set": g},
-            upsert=True
-        )
-    return {"message": "Đã lưu điểm thành công!"}
 
 @router.get("/grades/{student_id}")
 async def get_student_grades(student_id: str):

@@ -16,7 +16,7 @@ async def get_my_dashboard(
     if current_user["role"] not in ["student", "parent"]:
         raise HTTPException(status_code=403, detail="Chỉ học sinh và phụ huynh được xem trang này.")
     
-    student_id = int(current_user["user_id"]) # Lấy ID từ Token, không lấy từ URL nữa để bảo mật
+    student_id = str(current_user["user_id"])
     
     profile = await db.gamification_profiles.find_one({"student_id": student_id})
     transactions = await db.coin_transactions.find({"student_id": student_id}).sort("created_at", -1).to_list(length=5)

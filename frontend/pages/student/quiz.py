@@ -7,30 +7,19 @@ import os
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Trạm Quiz AI", page_icon="📝", layout="wide")
 
-# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+# ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
-    """
-    Tự động tìm file CSS trong thư mục frontend/CSS/
-    file_name: tên file kèm thư mục con, ví dụ 'student/quiz.css'
-    """
-    current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
+    current_dir = os.path.dirname(os.path.abspath(__file__)) 
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
 
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-# Tải CSS làm đẹp cho trang Quiz
 load_css("student/student_global.css")
-# Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 
-# ==========================================
-# BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO STUDENT QUIZ
-# ==========================================
 QUIZ_LABELS = {
     "vi": {
         "title": "📝 Trạm Quiz AI",
@@ -41,22 +30,20 @@ QUIZ_LABELS = {
         "lbl_reward": "Phần thưởng:",
         "btn_completed": "✅ Đã hoàn thành",
         "btn_start": "▶ Bắt đầu làm",
+        "btn_sync": "🔄 Làm mới dữ liệu",
         "btn_back_dashboard": "⬅️ Quay lại Bảng Điều Khiển",
-        
-        # Màn hình làm bài
         "btn_back_list": "⬅ Trở về danh sách bộ đề",
         "lbl_quiz_title": "Đề Bài:",
         "info_quiz_hint": "💡 Hãy đọc kỹ câu hỏi và chọn đáp án chính xác nhất. Cần tích đủ tất cả các câu mới có thể nộp bài.",
         "lbl_question_prefix": "Câu",
         "select_option_lbl": "Chọn đáp án:",
         "btn_submit_quiz": "🏆 Nộp Bài & Nhận Thưởng",
-        
-        # Thông báo phản hồi kết quả
-        "err_unanswered": "⚠️ Bạn chưa chọn đáp án cho tất cả các câu. Vui lòng kéo lên kiểm tra và điền đầy đủ trước khi nộp!",
+        "err_unanswered": "⚠️ Bạn chưa chọn đáp án cho tất cả các câu. Vui lòng kéo lên kiểm tra!",
+        "err_duplicate": "⛔ Bạn đã hoàn thành bài tập này trên thiết bị khác rồi! Không thể nhận điểm hai lần.",
         "err_save_toast": "⚠️ Có lỗi khi lưu dữ liệu lên server:",
         "success_grading": "🎉 Chấm xong! Bạn làm đúng {}/{} câu. **Điểm: {}/10**",
         "info_exp_reward": "🚀 Chúc mừng! Bạn nhận được +{} EXP! Đang quay lại trang chủ...",
-        "err_connection": "⚠️ Mất kết nối đến Backend Database. Hãy đảm bảo Uvicorn đang chạy! Chi tiết lỗi:"
+        "err_connection": "⚠️ Mất kết nối đến Backend Database."
     },
     "en": {
         "title": "📝 AI Quiz Station",
@@ -67,58 +54,63 @@ QUIZ_LABELS = {
         "lbl_reward": "Reward Value:",
         "btn_completed": "✅ Completed",
         "btn_start": "▶ Start Quiz",
+        "btn_sync": "🔄 Refresh Data",
         "btn_back_dashboard": "⬅️ Back to Dashboard",
-        
-        # In-quiz screen
         "btn_back_list": "⬅ Back to Quiz List",
         "lbl_quiz_title": "Quiz Title:",
-        "info_quiz_hint": "💡 Please read each question carefully and select the most accurate option. All questions must be answered to submit.",
+        "info_quiz_hint": "💡 Please read each question carefully and select the most accurate option.",
         "lbl_question_prefix": "Question",
         "select_option_lbl": "Select an answer:",
         "btn_submit_quiz": "🏆 Submit & Claim Rewards",
-        
-        # Response feedbacks
-        "err_unanswered": "⚠️ You haven't answered all the questions yet. Please scroll up to verify and complete all fields before submitting!",
+        "err_unanswered": "⚠️ You haven't answered all the questions yet!",
+        "err_duplicate": "⛔ You have already completed this quiz on another device!",
         "err_save_toast": "⚠️ Error occurred while synchronizing metrics to server data:",
         "success_grading": "🎉 Grading completed! You got {}/{} correct. **Score: {}/10**",
-        "info_exp_reward": "🚀 Congratulations! You earned +{} EXP! Navigating back to main deck...",
-        "err_connection": "⚠️ Unable to establish a connection to Backend Database. Please verify that Uvicorn is active! Error details:"
+        "info_exp_reward": "🚀 Congratulations! You earned +{} EXP! Navigating back...",
+        "err_connection": "⚠️ Unable to establish a connection to Backend Database."
     }
 }
 
-# ================= HÀM LẤY TÊN USER =================
+# ================= HÀM LẤY ĐỊNH DANH (CHỐT ĐỒNG BỘ BẰNG EMAIL) =================
 def get_current_username():
-    """Tự động tìm tên tài khoản thật từ hệ thống đăng nhập"""
-    if "username" in st.session_state and st.session_state.username: return st.session_state.username
-    if "full_name" in st.session_state and st.session_state.full_name: return st.session_state.full_name
+    """Ép Web dùng 'email' để làm khóa chính đồng bộ với Mobile"""
     if "user_info" in st.session_state and isinstance(st.session_state.user_info, dict):
-        return st.session_state.user_info.get("full_name", st.session_state.user_info.get("name", "Student"))
+        # Lấy Email, nếu rỗng thì dự phòng lấy ID hoặc Name
+        return st.session_state.user_info.get("email", st.session_state.user_info.get("id", st.session_state.user_info.get("name", "Student")))
+    
+    if "email" in st.session_state and st.session_state.email: return st.session_state.email
+    if "username" in st.session_state and st.session_state.username: return st.session_state.username
     return "Student"
 
 real_name = get_current_username()
 encoded_name = urllib.parse.quote(real_name)
 
-# ================= ĐỒNG BỘ PROFILE TỪ DATABASE =================
-try:
-    prof_res = requests.get(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/profile", timeout=5)
-    if prof_res.status_code == 200:
-        st.session_state.student_profile = prof_res.json()
-    else:
-        st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
-except Exception:
-    if "student_profile" not in st.session_state:
+# ================= HÀM ĐỒNG BỘ MẠNH =================
+def fetch_latest_data():
+    try:
+        prof_res = requests.get(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/profile", timeout=5)
+        if prof_res.status_code == 200:
+            st.session_state.student_profile = prof_res.json()
+        else:
+            st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
+    except:
         st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
 
-# ================= GỌI API BACKEND ĐỂ LẤY DANH SÁCH BÀI TẬP =================
-try:
-    response = requests.get("http://127.0.0.1:8000/api/tv2/quizzes", timeout=5)
-    if response.status_code == 200:
-        saved_quizzes = response.json()
-    else:
-        saved_quizzes = []
-except Exception as e:
-    st.error(f"{QUIZ_LABELS[lang]['err_connection']} {e}")
-    saved_quizzes = []
+    try:
+        quiz_res = requests.get("http://127.0.0.1:8000/api/tv2/quizzes", timeout=5)
+        if quiz_res.status_code == 200:
+            quizzes = quiz_res.json()
+            for i, q in enumerate(quizzes):
+                if 'id' not in q or not q['id']:
+                    q['id'] = f"quiz_backup_id_{i}"
+            st.session_state.all_quizzes = quizzes
+        else:
+            st.session_state.all_quizzes = []
+    except:
+        st.session_state.all_quizzes = []
+
+if "student_profile" not in st.session_state or "all_quizzes" not in st.session_state:
+    fetch_latest_data()
 
 if "selected_quiz" not in st.session_state:
     st.session_state.selected_quiz = None
@@ -130,13 +122,21 @@ if st.session_state.selected_quiz is None:
     st.title(QUIZ_LABELS[lang]["title"])
     st.write(QUIZ_LABELS[lang]["subtitle"])
     
-    st.markdown(f"🏅 **{QUIZ_LABELS[lang]['lbl_total_exp']}** `{st.session_state.student_profile.get('exp', 0)} EXP`")
+    col_exp, col_sync = st.columns([5, 1])
+    with col_exp:
+        st.markdown(f"🏅 **{QUIZ_LABELS[lang]['lbl_total_exp']}** `{st.session_state.student_profile.get('exp', 0)} EXP`")
+    with col_sync:
+        if st.button(QUIZ_LABELS[lang]["btn_sync"], use_container_width=True, type="secondary"):
+            fetch_latest_data() 
+            st.rerun()
 
+    saved_quizzes = st.session_state.get('all_quizzes', [])
+    
     if not saved_quizzes:
         st.info(QUIZ_LABELS[lang]["info_empty_quizzes"])
     else:
-        for i, q in enumerate(saved_quizzes):
-            quiz_id = q.get('id', f"quiz_backup_id_{i}")
+        for q in saved_quizzes:
+            quiz_id = q['id']
             is_completed = quiz_id in st.session_state.student_profile.get('completed_tasks', [])
             
             with st.container():
@@ -173,6 +173,7 @@ else:
 
     if st.button(QUIZ_LABELS[lang]["btn_back_list"]):
         st.session_state.selected_quiz = None
+        fetch_latest_data() 
         st.rerun()
 
     st.markdown(f"## 📝 {QUIZ_LABELS[lang]['lbl_quiz_title']} {q.get('title')}")
@@ -182,7 +183,6 @@ else:
         user_answers = {}
         for idx, question in enumerate(questions):
             st.markdown(f"**{QUIZ_LABELS[lang]['lbl_question_prefix']} {idx + 1}: {question['question']}**")
-            
             user_answers[idx] = st.radio(
                 label=QUIZ_LABELS[lang]["select_option_lbl"], 
                 options=question['options'], 
@@ -202,24 +202,30 @@ else:
                 score = round((correct_count / num_questions) * 10, 1) if num_questions > 0 else 0
                 earned_exp = 50 + (correct_count * 10)
                 
-                # BẮN API XUỐNG DATABASE ĐỂ LƯU KẾT QUẢ VĨNH VIỄN
                 submit_payload = {
                     "quiz_id": quiz_id,
                     "exp_earned": earned_exp,
                     "score": score
                 }
+                
                 try:
-                    requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
+                    res = requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
+                    
+                    if res.status_code == 200 or res.status_code == 201:
+                        st.success(QUIZ_LABELS[lang]["success_grading"].format(correct_count, num_questions, score))
+                        st.balloons()
+                        st.info(QUIZ_LABELS[lang]["info_exp_reward"].format(earned_exp))
+                        time.sleep(3)
+                        st.session_state.selected_quiz = None
+                        fetch_latest_data() 
+                        st.rerun()
+                    elif res.status_code == 400:
+                        st.error(QUIZ_LABELS[lang]["err_duplicate"])
+                        time.sleep(3)
+                        st.session_state.selected_quiz = None
+                        fetch_latest_data() 
+                        st.rerun()
+                    else:
+                        st.error(f"Lỗi Server: {res.text}")
                 except Exception as e:
                     st.toast(f"{QUIZ_LABELS[lang]['err_save_toast']} {e}")
-
-                st.session_state.student_profile['exp'] += earned_exp
-                st.session_state.student_profile['completed_tasks'].append(quiz_id)
-                
-                st.success(QUIZ_LABELS[lang]["success_grading"].format(correct_count, num_questions, score))
-                st.balloons()
-                st.info(QUIZ_LABELS[lang]["info_exp_reward"].format(earned_exp))
-                
-                time.sleep(3)
-                st.session_state.selected_quiz = None
-                st.rerun()

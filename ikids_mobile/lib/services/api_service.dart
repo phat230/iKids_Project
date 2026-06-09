@@ -19,6 +19,7 @@ class ApiService {
       final data = jsonDecode(response.body);
       await _storage.write(key: 'jwt_token', value: data['access_token']);
       await _storage.write(key: 'role', value: data['user_info']['role']);
+      await _storage.write(key: 'user_id', value: data['user_info']['_id'] ?? data['user_info']['id']);
       return data;
     } else {
       final error = jsonDecode(response.body);
