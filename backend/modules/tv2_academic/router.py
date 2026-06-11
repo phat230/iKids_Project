@@ -5,6 +5,7 @@ import google.generativeai as genai
 from pydantic import BaseModel
 import os
 from datetime import datetime
+from bson import ObjectId
 
 # Import database từ core
 from core.database import database as db
@@ -266,53 +267,70 @@ async def toggle_video_like(video_id: str, payload: LikeModel):
         )
     return {"message": "Đã cập nhật lượt thích"}
 
-# ================= CÁC API MỚI CHO TRẠM QUIZ AI =================
+# ================= CÁC API MỚI CHO TRẠM QUIZ AI (ĐÃ NÂNG CẤP CHỐNG TRÙNG BẰNG ID) =================
 
 @router.get("/student/{username}/profile")
 async def get_student_profile(username: str):
     """
     Lấy thông tin profile học sinh (EXP, bài đã làm) từ DB
-    ĐÃ FIX: Tìm theo cả 'username', 'email', hoặc 'name' để đồng bộ Web và Mobile.
+    ĐÃ FIX: Ép tìm kiếm bằng ObjectId để chia tách 100% tài khoản.
     """
-    # 1. Thử tìm kiếm bao quát (Tránh lỗi do Web gọi 'Student' còn Mobile gọi 'Học sinh')
-    # Giả định username truyền lên thực chất có thể là email đăng nhập (an toàn nhất)
-    profile = await db["students"].find_one({
-        "$or": [
-            {"username": username}, 
-            {"email": username},
-            {"name": username},
-            {"full_name": username}
-        ]
-    }, {"_id": 0})
+    query_conditions = [
+        {"username": username}, 
+        {"email": username},
+        {"name": username},
+        {"full_name": username}
+    ]
+    
+    # Nếu username truyền lên là một chuỗi 24 ký tự hợp lệ (ObjectID của Mongo)
+    if len(username) == 24:
+        try:
+            query_conditions.append({"_id": ObjectId(username)})
+        except:
+            pass
+
+    profile = await db["students"].find_one({"$or": query_conditions}, {"_id": 0})
     
     if not profile:
         return {"username": username, "exp": 0, "completed_tasks": []}
     return profile
 
+
 @router.post("/student/{username}/submit-quiz")
 async def submit_quiz(username: str, payload: QuizSubmitModel):
-    """Lưu kết quả làm bài và cộng EXP vĩnh viễn vào DB (Đã bọc thép chặn làm lại)"""
+    """Lưu kết quả làm bài và cộng EXP vĩnh viễn vào DB (Đã fix mỏ neo bằng ID)"""
+    query_conditions = [
+        {"username": username}, 
+        {"email": username},
+        {"name": username},
+        {"full_name": username}
+    ]
     
-    # 1. TÌM KIẾM ĐỒNG BỘ GIỐNG HÀM GET
-    student = await db["students"].find_one({
-        "$or": [
-            {"username": username}, 
-            {"email": username},
-            {"name": username},
-            {"full_name": username}
-        ]
-    })
+    if len(username) == 24:
+        try:
+            query_conditions.append({"_id": ObjectId(username)})
+        except:
+            pass
+
+    student = await db["students"].find_one({"$or": query_conditions})
     
-    # Nếu tìm thấy user, dùng username gốc của DB để làm mỏ neo cập nhật
-    anchor_username = student["username"] if student and "username" in student else username
-    
-    # 2. KIỂM TRA BẢO MẬT CHẶN GIAN LẬN
+    # CHỐT CHẶN: Dùng ID thật của DB để làm mỏ neo lưu trữ. Nếu không có thì tạo mới dựa trên ID truyền lên.
+    if student:
+        anchor_query = {"_id": student["_id"]}
+        anchor_username = str(student["_id"])
+    else:
+        if len(username) == 24:
+            anchor_query = {"_id": ObjectId(username)}
+        else:
+            anchor_query = {"username": username}
+        anchor_username = username
+        
     if student and payload.quiz_id in student.get("completed_tasks", []):
         raise HTTPException(status_code=400, detail="⛔ Bạn đã hoàn thành bài tập này rồi! Không thể làm lại để cày EXP.")
 
-    # 3. LƯU DỮ LIỆU: Cập nhật dựa trên mỏ neo để đảm bảo Web và Mobile gom chung 1 cục
+    # LƯU DỮ LIỆU CHUẨN XÁC VÀO ĐÚNG TÀI KHOẢN
     await db["students"].update_one(
-        {"username": anchor_username},
+        anchor_query,
         {
             "$addToSet": {"completed_tasks": payload.quiz_id}, 
             "$inc": {"exp": payload.exp_earned}
@@ -320,7 +338,7 @@ async def submit_quiz(username: str, payload: QuizSubmitModel):
         upsert=True 
     )
     
-    # 4. Lưu vào lịch sử điểm số 
+    # Lưu lịch sử
     await db["quiz_results"].insert_one({
         "username": anchor_username,
         "quiz_id": payload.quiz_id,
@@ -331,24 +349,42 @@ async def submit_quiz(username: str, payload: QuizSubmitModel):
     
     return {"message": "Lưu kết quả thành công!"}
 
+
 # Model nhận dữ liệu hoàn thành Video
 class VideoCompleteModel(BaseModel):
     video_id: str
     exp_earned: int
 
+
 @router.post("/student/{username}/complete-video")
 async def complete_video(username: str, payload: VideoCompleteModel):
-    """Lưu kết quả xem video và cộng EXP vĩnh viễn vào DB"""
-    # Đồng bộ tìm kiếm tương tự
-    student = await db["students"].find_one({
-        "$or": [{"username": username}, {"email": username}, {"name": username}]
-    })
-    anchor_username = student["username"] if student and "username" in student else username
+    """Lưu kết quả xem video và cộng EXP vĩnh viễn vào DB (Đã fix mỏ neo bằng ID)"""
+    query_conditions = [
+        {"username": username}, 
+        {"email": username}, 
+        {"name": username}
+    ]
+    
+    if len(username) == 24:
+        try:
+            query_conditions.append({"_id": ObjectId(username)})
+        except:
+            pass
+
+    student = await db["students"].find_one({"$or": query_conditions})
+    
+    if student:
+        anchor_query = {"_id": student["_id"]}
+    else:
+        if len(username) == 24:
+            anchor_query = {"_id": ObjectId(username)}
+        else:
+            anchor_query = {"username": username}
     
     await db["students"].update_one(
-        {"username": anchor_username},
+        anchor_query,
         {
-            "$addToSet": {"completed_tasks": payload.video_id}, # Sửa từ $push thành $addToSet
+            "$addToSet": {"completed_tasks": payload.video_id}, 
             "$inc": {"exp": payload.exp_earned}
         },
         upsert=True 

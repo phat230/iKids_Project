@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart'; // Thêm thư viện quản lý bộ nhớ
 import '../../services/api_service.dart';
 import 'exercise_screen.dart';
 import 'video_screen.dart';
@@ -17,6 +18,7 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   int _selectedIndex = 0;
   final ApiService _apiService = ApiService();
+  final _storage = const FlutterSecureStorage(); // Khởi tạo công cụ dọn dẹp bộ nhớ
   
   // Controllers cho form cập nhật thông tin cá nhân
   final _nameController = TextEditingController(text: "Học sinh iKids");
@@ -35,7 +37,13 @@ class _StudentDashboardState extends State<StudentDashboard> {
   ];
 
   Future<void> _handleLogout() async {
+    // 1. CHỐT CHẶN: Xóa sạch toàn bộ dữ liệu tài khoản cũ lưu trong máy
+    await _storage.deleteAll();
+    
+    // 2. Gọi API logout nếu cần
     await _apiService.logout();
+    
+    // 3. Văng ra màn hình đăng nhập
     if (mounted) {
       Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     }

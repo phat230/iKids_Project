@@ -39,7 +39,7 @@ QUIZ_LABELS = {
         "select_option_lbl": "Chọn đáp án:",
         "btn_submit_quiz": "🏆 Nộp Bài & Nhận Thưởng",
         "err_unanswered": "⚠️ Bạn chưa chọn đáp án cho tất cả các câu. Vui lòng kéo lên kiểm tra!",
-        "err_duplicate": "⛔ Bạn đã hoàn thành bài tập này trên thiết bị khác rồi! Không thể nhận điểm hai lần.",
+        "err_duplicate": "⛔ Bạn đã hoàn thành bài tập này rồi! Không thể nhận điểm hai lần.",
         "err_save_toast": "⚠️ Có lỗi khi lưu dữ liệu lên server:",
         "success_grading": "🎉 Chấm xong! Bạn làm đúng {}/{} câu. **Điểm: {}/10**",
         "info_exp_reward": "🚀 Chúc mừng! Bạn nhận được +{} EXP! Đang quay lại trang chủ...",
@@ -58,28 +58,30 @@ QUIZ_LABELS = {
         "btn_back_dashboard": "⬅️ Back to Dashboard",
         "btn_back_list": "⬅ Back to Quiz List",
         "lbl_quiz_title": "Quiz Title:",
-        "info_quiz_hint": "💡 Please read each question carefully and select the most accurate option.",
+        "info_quiz_hint": "💡 Please read question carefully.",
         "lbl_question_prefix": "Question",
         "select_option_lbl": "Select an answer:",
-        "btn_submit_quiz": "🏆 Submit & Claim Rewards",
+        "btn_submit_quiz": "🏆 Submit",
         "err_unanswered": "⚠️ You haven't answered all the questions yet!",
-        "err_duplicate": "⛔ You have already completed this quiz on another device!",
-        "err_save_toast": "⚠️ Error occurred while synchronizing metrics to server data:",
+        "err_duplicate": "⛔ You have already completed this quiz!",
+        "err_save_toast": "⚠️ Error occurred:",
         "success_grading": "🎉 Grading completed! You got {}/{} correct. **Score: {}/10**",
-        "info_exp_reward": "🚀 Congratulations! You earned +{} EXP! Navigating back...",
-        "err_connection": "⚠️ Unable to establish a connection to Backend Database."
+        "info_exp_reward": "🚀 Congratulations! You earned +{} EXP!",
+        "err_connection": "⚠️ Unable to establish a connection."
     }
 }
 
-# ================= HÀM LẤY ĐỊNH DANH (CHỐT ĐỒNG BỘ BẰNG EMAIL) =================
+# ================= HÀM LẤY ĐỊNH DANH (ÉP DÙNG ID ĐỘC NHẤT) =================
 def get_current_username():
-    """Ép Web dùng 'email' để làm khóa chính đồng bộ với Mobile"""
+    """Tuyệt đối ưu tiên dùng 'user_id' để làm khóa chính tránh trùng lặp điểm"""
+    # Lấy chính xác user_id đã lưu trong auth_state.py lúc đăng nhập
+    if "user_id" in st.session_state and st.session_state.user_id:
+        return str(st.session_state.user_id)
+        
     if "user_info" in st.session_state and isinstance(st.session_state.user_info, dict):
-        # Lấy Email, nếu rỗng thì dự phòng lấy ID hoặc Name
-        return st.session_state.user_info.get("email", st.session_state.user_info.get("id", st.session_state.user_info.get("name", "Student")))
+        return str(st.session_state.user_info.get("id", st.session_state.user_info.get("email", "Student")))
     
     if "email" in st.session_state and st.session_state.email: return st.session_state.email
-    if "username" in st.session_state and st.session_state.username: return st.session_state.username
     return "Student"
 
 real_name = get_current_username()
@@ -109,7 +111,13 @@ def fetch_latest_data():
     except:
         st.session_state.all_quizzes = []
 
-if "student_profile" not in st.session_state or "all_quizzes" not in st.session_state:
+# ================= CHỐT CHẶN: PHÁT HIỆN ĐỔI TÀI KHOẢN ĐỂ TẢI LẠI =================
+# Khi đăng xuất, hàm logout_user() xóa trắng session, nên lúc đăng nhập lại
+# last_logged_in_user sẽ khác encoded_name hiện tại -> Ép tải lại dữ liệu mới tinh.
+if "last_logged_in_user" not in st.session_state or st.session_state.last_logged_in_user != encoded_name:
+    fetch_latest_data()
+    st.session_state.last_logged_in_user = encoded_name 
+elif "student_profile" not in st.session_state or "all_quizzes" not in st.session_state:
     fetch_latest_data()
 
 if "selected_quiz" not in st.session_state:

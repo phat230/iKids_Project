@@ -8,6 +8,7 @@ class ApiService {
   final _storage = const FlutterSecureStorage();
 
   // 1. Hàm Đăng nhập
+  // 1. Hàm Đăng nhập (Đã sửa để lưu user_info cho Mobile)
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiUrl}/api/auth/login'),
@@ -17,16 +18,21 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      
+      // LƯU CÁC THÔNG TIN VÀO BỘ NHỚ
       await _storage.write(key: 'jwt_token', value: data['access_token']);
       await _storage.write(key: 'role', value: data['user_info']['role']);
-      await _storage.write(key: 'user_id', value: data['user_info']['_id'] ?? data['user_info']['id']);
+      await _storage.write(key: 'user_id', value: (data['user_info']['_id'] ?? data['user_info']['id']).toString());
+      
+      // BỔ SUNG DÒNG NÀY: Lưu toàn bộ user_info để các màn hình khác (như bài tập) dùng
+      await _storage.write(key: 'user_info', value: jsonEncode(data['user_info']));
+      
       return data;
     } else {
       final error = jsonDecode(response.body);
       throw Exception(error['detail'] ?? 'Đăng nhập thất bại: ${response.statusCode}');
     }
   }
-
   // 2. Hàm Đăng ký (Giai đoạn 1)
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
     final response = await http.post(

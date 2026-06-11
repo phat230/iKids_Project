@@ -436,7 +436,6 @@ async def update_contact(payload: dict = Body(...), db = Depends(get_db)):
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi cập nhật liên hệ: {str(e)}")
-    """Tự động dịch thông tin liên hệ tĩnh (Địa chỉ, mô tả phòng tuyển sinh...)"""
     try:
         address_vi = payload.get("address", "").strip()
         description_vi = payload.get("description", "").strip()
