@@ -8,7 +8,6 @@ class ApiService {
   final _storage = const FlutterSecureStorage();
 
   // 1. Hàm Đăng nhập
-  // 1. Hàm Đăng nhập (Đã sửa để lưu user_info cho Mobile)
   Future<Map<String, dynamic>> login(String email, String password) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiUrl}/api/auth/login'),
@@ -19,12 +18,9 @@ class ApiService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       
-      // LƯU CÁC THÔNG TIN VÀO BỘ NHỚ
       await _storage.write(key: 'jwt_token', value: data['access_token']);
       await _storage.write(key: 'role', value: data['user_info']['role']);
       await _storage.write(key: 'user_id', value: (data['user_info']['_id'] ?? data['user_info']['id']).toString());
-      
-      // BỔ SUNG DÒNG NÀY: Lưu toàn bộ user_info để các màn hình khác (như bài tập) dùng
       await _storage.write(key: 'user_info', value: jsonEncode(data['user_info']));
       
       return data;
@@ -33,6 +29,7 @@ class ApiService {
       throw Exception(error['detail'] ?? 'Đăng nhập thất bại: ${response.statusCode}');
     }
   }
+
   // 2. Hàm Đăng ký (Giai đoạn 1)
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
     final response = await http.post(
@@ -79,7 +76,7 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Lỗi khi gửi yêu cầu khôi phục');
   }
 
-  // 4.1 Hàm MỚI: Đặt lại mật khẩu (Gửi OTP và MK mới lên Backend)
+  // 4.1 Đặt lại mật khẩu (Gửi OTP và MK mới)
   Future<bool> resetPassword(String email, String otp, String newPassword) async {
     final response = await http.post(
       Uri.parse('${AppConfig.apiUrl}/api/auth/verify-reset'),
@@ -97,7 +94,7 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Lỗi khi đặt lại mật khẩu');
   }
 
-  // 5. Hàm GET có Token (Dùng cho mọi API được bảo mật)
+  // 5. Hàm GET có Token
   Future<dynamic> getAuthorized(String endpoint) async {
     String? token = await _storage.read(key: 'jwt_token');
     
@@ -117,8 +114,32 @@ class ApiService {
       throw Exception('Lỗi hệ thống: ${response.statusCode}');
     }
   }
+
+  // --- HÀM ĐỔI MẬT KHẨU TỪ TRANG CÁ NHÂN MÀ FLUTTER ĐANG BÁO THIẾU ---
+  Future<bool> changePassword(String oldPassword, String newPassword) async {
+    String? token = await _storage.read(key: 'jwt_token');
+    
+    final response = await http.put(
+      Uri.parse('${AppConfig.apiUrl}/api/auth/profile/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'old_password': oldPassword,
+        'new_password': newPassword
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['detail'] ?? 'Đổi mật khẩu thất bại');
+    }
+  }
   
-  // 6. Hàm Đăng xuất (Dọn dẹp bộ nhớ)
+  // 6. Hàm Đăng xuất
   Future<void> logout() async {
     await _storage.deleteAll();
   }
