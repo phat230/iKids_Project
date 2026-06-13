@@ -1,21 +1,22 @@
 import streamlit as st
 import pandas as pd
+import requests
 import os
 from utils.role_guard import require_role
 
 # 1. Lính gác: Chỉ cho phép tài khoản học sinh truy cập trang này
 require_role(["student"])
 
-# ================= HÀM ĐỌC FILE CSS (SỬA LỖI ĐƯỜNG DẪN) =================
+# Cấu hình API Backend
+API_URL = "http://localhost:8000"
+
+# ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
     """
     Tự động tìm file CSS trong thư mục frontend/CSS/
     file_name: tên file kèm thư mục con, ví dụ 'student/ket_qua.css'
     """
-    # Lấy đường dẫn tuyệt đối đến thư mục chứa file ket_qua.py hiện tại
-    current_dir = os.path.dirname(os.path.abspath(__file__)) # frontend/pages/student
-    
-    # Tìm đường dẫn đến thư mục CSS (lùi 2 cấp rồi vào CSS/)
+    current_dir = os.path.dirname(os.path.abspath(__file__)) 
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
 
@@ -38,84 +39,111 @@ STUDENT_REPORT_LABELS = {
         "title": "📊 Bảng Điểm Cá Nhân",
         "subtitle": "Theo dõi sự tiến bộ của bạn qua từng bài kiểm tra và các kỳ thi nhé!",
         "sub_ai": "🤖 Phân Tích Từ Hệ Thống AI",
-        "ai_comment": "💡 **AI Nhận xét:** Bạn đang làm rất tốt môn Kỹ Năng Sống và Anh Văn! Tuy nhiên, điểm môn Khoa Học đang hơi thấp. Hãy vào mục **Bài Tập AI** để ôn luyện thêm phần này, vừa cải thiện điểm số vừa nhận thêm thật nhiều iKids Xu nhé!",
+        "no_grades": "Hiện tại bạn chưa có điểm tổng kết nào được ghi nhận. Hãy cố gắng học tập nhé!",
         
-        # Tiêu đề cột DataFrame
-        "col_subject": "Môn học",
-        "col_midterm": "Điểm Giữa Kỳ",
-        "col_final": "Điểm Cuối Kỳ",
-        "col_grade": "Đánh giá",
-        
-        # Dữ liệu nội mảng động
-        "sub_math": "Toán Tư Duy",
-        "sub_english": "Anh Văn",
-        "sub_science": "Khoa Học",
-        "sub_skills": "Kỹ Năng Sống",
-        "not_available": "Chưa có",
-        "grade_good": "Khá",
-        "grade_excellent": "Tốt",
-        "grade_needs_improvement": "Cần cố gắng",
-        "grade_outstanding": "Xuất sắc"
+        # Tiêu đề cột DataFrame đồng bộ với DB
+        "col_subject": "Môn Học",
+        "col_attend": "Chuyên Cần",
+        "col_test": "TB Kiểm Tra",
+        "col_midterm": "Giữa Kỳ",
+        "col_final": "Cuối Kỳ",
+        "col_total": "Tổng Kết",
+        "col_rank": "Xếp Loại"
     },
     "en": {
         "title": "📊 My Report Card",
         "subtitle": "Track your academic growth and exam grades throughout the semester!",
         "sub_ai": "🤖 AI Insights & Recommendations",
-        "ai_comment": "💡 **AI Feedback:** You are performing excellently in Life Skills and English! However, your Science score has room for improvement. Head over to the **AI Quizzes** section to practice more, level up your scores, and earn lots of iKids Coins! 🪙",
+        "no_grades": "No grades have been recorded for you yet. Keep up the good work!",
         
         # DataFrame Table Header Config
-        "col_subject": "Course Subject",
-        "col_midterm": "Midterm Grade",
-        "col_final": "Final Exam Grade",
-        "col_grade": "Performance Evaluation",
-        
-        # Inner array cell items data mapped
-        "sub_math": "Critical Thinking Math",
-        "sub_english": "English Language",
-        "sub_science": "Science Experiments",
-        "sub_skills": "Essential Life Skills",
-        "not_available": "N/A",
-        "grade_good": "Good",
-        "grade_excellent": "Very Good",
-        "grade_needs_improvement": "Needs Improvement",
-        "grade_outstanding": "Outstanding"
+        "col_subject": "Subject",
+        "col_attend": "Attendance",
+        "col_test": "Avg Test",
+        "col_midterm": "Midterm",
+        "col_final": "Final",
+        "col_total": "Final Grade",
+        "col_rank": "Rank"
     }
 }
+
+# ================= LẤY THÔNG TIN ĐĂNG NHẬP =================
+student_id = st.session_state.get("user_id")
+token = st.session_state.get("access_token") or st.session_state.get("token")
+
+if not student_id or not token:
+    st.error("Vui lòng đăng nhập để xem điểm.")
+    st.stop()
+
+headers = {"Authorization": f"Bearer {token}"}
+
+# ================= GỌI API LẤY ĐIỂM THẬT =================
+@st.cache_data(ttl=30)
+def get_my_real_grades(sid):
+    try:
+        res = requests.get(f"{API_URL}/api/tv2/grades/{sid}", headers=headers, timeout=5)
+        if res.status_code == 200:
+            return res.json()
+    except Exception as e:
+        st.error(f"Lỗi kết nối máy chủ: {e}")
+    return []
+
+real_grades = get_my_real_grades(student_id)
 
 # ================= GIAO DIỆN CHÍNH =================
 st.title(STUDENT_REPORT_LABELS[lang]["title"])
 st.write(STUDENT_REPORT_LABELS[lang]["subtitle"])
 st.divider()
 
-# 2. Dữ liệu mảng học thuật thích ứng linh hoạt theo ngôn ngữ hiển thị
-data = {
-    STUDENT_REPORT_LABELS[lang]["col_subject"]: [
-        STUDENT_REPORT_LABELS[lang]["sub_math"], 
-        STUDENT_REPORT_LABELS[lang]["sub_english"], 
-        STUDENT_REPORT_LABELS[lang]["sub_science"], 
-        STUDENT_REPORT_LABELS[lang]["sub_skills"]
-    ],
-    STUDENT_REPORT_LABELS[lang]["col_midterm"]: [8.5, 9.0, 7.5, 10.0],
-    STUDENT_REPORT_LABELS[lang]["col_final"]: [
-        STUDENT_REPORT_LABELS[lang]["not_available"], 
-        STUDENT_REPORT_LABELS[lang]["not_available"], 
-        STUDENT_REPORT_LABELS[lang]["not_available"], 
-        STUDENT_REPORT_LABELS[lang]["not_available"]
-    ],
-    STUDENT_REPORT_LABELS[lang]["col_grade"]: [
-        STUDENT_REPORT_LABELS[lang]["grade_good"], 
-        STUDENT_REPORT_LABELS[lang]["grade_excellent"], 
-        STUDENT_REPORT_LABELS[lang]["grade_needs_improvement"], 
-        STUDENT_REPORT_LABELS[lang]["grade_outstanding"]
-    ]
-}
+if not real_grades:
+    st.info(STUDENT_REPORT_LABELS[lang]["no_grades"])
+else:
+    # 1. Đóng gói dữ liệu thật vào DataFrame
+    formatted_grades = []
+    for g in real_grades:
+        formatted_grades.append({
+            STUDENT_REPORT_LABELS[lang]["col_subject"]: g.get("subject", "N/A"),
+            STUDENT_REPORT_LABELS[lang]["col_attend"]: g.get("chuyen_can", 0),
+            STUDENT_REPORT_LABELS[lang]["col_test"]: g.get("tb_kiem_tra", 0),
+            STUDENT_REPORT_LABELS[lang]["col_midterm"]: g.get("giua_ky", 0),
+            STUDENT_REPORT_LABELS[lang]["col_final"]: g.get("cuoi_ky", 0),
+            STUDENT_REPORT_LABELS[lang]["col_total"]: g.get("tong_ket", 0),
+            STUDENT_REPORT_LABELS[lang]["col_rank"]: g.get("xep_loai", "N/A")
+        })
+    
+    df = pd.DataFrame(formatted_grades)
+    
+    # Dịch "Xếp loại" nếu ở chế độ tiếng Anh
+    if lang == "en":
+        rank_map = {"Giỏi": "Excellent", "Khá": "Good", "TB": "Average", "Yếu": "Poor"}
+        df[STUDENT_REPORT_LABELS[lang]["col_rank"]] = df[STUDENT_REPORT_LABELS[lang]["col_rank"]].map(lambda x: rank_map.get(x, x))
+    
+    # Hiển thị bảng điểm
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.divider()
 
-# 3. Hiển thị bảng dữ liệu đẹp mắt (Tự động thích ứng đầu cột dynamic)
-df = pd.DataFrame(data)
-st.dataframe(df, use_container_width=True, hide_index=True)
-
-st.divider()
-
-# 4. Góc phân tích thông minh của AI (Smart Recommendation)
-st.subheader(STUDENT_REPORT_LABELS[lang]["sub_ai"])
-st.info(STUDENT_REPORT_LABELS[lang]["ai_comment"])
+    # 2. Phân tích AI linh động dựa trên dữ liệu thật
+    st.subheader(STUDENT_REPORT_LABELS[lang]["sub_ai"])
+    
+    # Tìm môn cao điểm nhất và thấp điểm nhất
+    best_subject = max(real_grades, key=lambda x: x.get("tong_ket", 0))
+    weakest_subject = min(real_grades, key=lambda x: x.get("tong_ket", 10))
+    
+    if lang == "vi":
+        ai_comment = (
+            f"💡 **AI Nhận xét:** Xin chúc mừng, bạn đang học rất xuất sắc môn **{best_subject.get('subject')}** "
+            f"với số điểm tổng kết là **{best_subject.get('tong_ket')}**! 🎉\n\n"
+            f"Tuy nhiên, môn **{weakest_subject.get('subject')}** của bạn đang cần chú ý hơn một chút "
+            f"(Điểm hiện tại: {weakest_subject.get('tong_ket')}). Hãy vào mục **Bài Tập AI** để ôn luyện thêm phần này, "
+            f"vừa cải thiện điểm số vừa nhận thêm thật nhiều iKids Xu nhé! 🪙"
+        )
+    else:
+        ai_comment = (
+            f"💡 **AI Feedback:** Congratulations, you are performing excellently in **{best_subject.get('subject')}** "
+            f"with a final grade of **{best_subject.get('tong_ket')}**! 🎉\n\n"
+            f"However, your **{weakest_subject.get('subject')}** score requires a bit more attention "
+            f"(Current score: {weakest_subject.get('tong_ket')}). Head over to the **AI Quizzes** section to practice more, "
+            f"level up your scores, and earn lots of iKids Coins! 🪙"
+        )
+        
+    st.info(ai_comment)

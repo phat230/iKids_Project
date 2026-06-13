@@ -3,6 +3,7 @@ import requests
 import time
 import urllib.parse
 import os
+import pandas as pd
 
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Trạm Quiz AI", page_icon="📝", layout="wide")
@@ -42,8 +43,11 @@ QUIZ_LABELS = {
         "err_duplicate": "⛔ Bạn đã hoàn thành bài tập này rồi! Không thể nhận điểm hai lần.",
         "err_save_toast": "⚠️ Có lỗi khi lưu dữ liệu lên server:",
         "success_grading": "🎉 Chấm xong! Bạn làm đúng {}/{} câu. **Điểm: {}/10**",
-        "info_exp_reward": "🚀 Chúc mừng! Bạn nhận được +{} EXP! Đang quay lại trang chủ...",
-        "err_connection": "⚠️ Mất kết nối đến Backend Database."
+        "info_exp_reward": "🚀 Chúc mừng! Bạn nhận được +{} EXP!",
+        "err_connection": "⚠️ Mất kết nối đến Backend Database.",
+        "chart_title": "📊 Biểu Đồ Kết Quả Làm Bài",
+        "btn_finish_review": "Hoàn Tất & Quay Lại",
+        "stat_progress": "📈 Tiến Độ Hoàn Thành Bài Tập"
     },
     "en": {
         "title": "📝 AI Quiz Station",
@@ -67,14 +71,15 @@ QUIZ_LABELS = {
         "err_save_toast": "⚠️ Error occurred:",
         "success_grading": "🎉 Grading completed! You got {}/{} correct. **Score: {}/10**",
         "info_exp_reward": "🚀 Congratulations! You earned +{} EXP!",
-        "err_connection": "⚠️ Unable to establish a connection."
+        "err_connection": "⚠️ Unable to establish a connection.",
+        "chart_title": "📊 Quiz Result Analysis",
+        "btn_finish_review": "Finish & Return",
+        "stat_progress": "📈 Task Completion Progress"
     }
 }
 
 # ================= HÀM LẤY ĐỊNH DANH (ÉP DÙNG ID ĐỘC NHẤT) =================
 def get_current_username():
-    """Tuyệt đối ưu tiên dùng 'user_id' để làm khóa chính tránh trùng lặp điểm"""
-    # Lấy chính xác user_id đã lưu trong auth_state.py lúc đăng nhập
     if "user_id" in st.session_state and st.session_state.user_id:
         return str(st.session_state.user_id)
         
@@ -111,9 +116,6 @@ def fetch_latest_data():
     except:
         st.session_state.all_quizzes = []
 
-# ================= CHỐT CHẶN: PHÁT HIỆN ĐỔI TÀI KHOẢN ĐỂ TẢI LẠI =================
-# Khi đăng xuất, hàm logout_user() xóa trắng session, nên lúc đăng nhập lại
-# last_logged_in_user sẽ khác encoded_name hiện tại -> Ép tải lại dữ liệu mới tinh.
 if "last_logged_in_user" not in st.session_state or st.session_state.last_logged_in_user != encoded_name:
     fetch_latest_data()
     st.session_state.last_logged_in_user = encoded_name 
@@ -123,10 +125,13 @@ elif "student_profile" not in st.session_state or "all_quizzes" not in st.sessio
 if "selected_quiz" not in st.session_state:
     st.session_state.selected_quiz = None
 
+if "quiz_result_view" not in st.session_state:
+    st.session_state.quiz_result_view = None
+
 # -------------------------------------------------------------------------
-# MÀN HÌNH 1: DANH SÁCH BỘ ĐỀ
+# MÀN HÌNH 1: DANH SÁCH BỘ ĐỀ & TIẾN ĐỘ
 # -------------------------------------------------------------------------
-if st.session_state.selected_quiz is None:
+if st.session_state.selected_quiz is None and st.session_state.quiz_result_view is None:
     st.title(QUIZ_LABELS[lang]["title"])
     st.write(QUIZ_LABELS[lang]["subtitle"])
     
@@ -139,13 +144,25 @@ if st.session_state.selected_quiz is None:
             st.rerun()
 
     saved_quizzes = st.session_state.get('all_quizzes', [])
+    completed_list = st.session_state.student_profile.get('completed_tasks', [])
     
+    # Biểu đồ Tiến độ hoàn thành
+    if saved_quizzes:
+        st.write("---")
+        st.subheader(QUIZ_LABELS[lang]["stat_progress"])
+        total_q = len(saved_quizzes)
+        done_q = len([q for q in saved_quizzes if q['id'] in completed_list])
+        progress_pct = int((done_q / total_q) * 100) if total_q > 0 else 0
+        
+        st.progress(progress_pct / 100, text=f"{progress_pct}% ({done_q}/{total_q})")
+        st.write("---")
+
     if not saved_quizzes:
         st.info(QUIZ_LABELS[lang]["info_empty_quizzes"])
     else:
         for q in saved_quizzes:
             quiz_id = q['id']
-            is_completed = quiz_id in st.session_state.student_profile.get('completed_tasks', [])
+            is_completed = quiz_id in completed_list
             
             with st.container():
                 col_info, col_btn = st.columns([4, 1])
@@ -171,7 +188,40 @@ if st.session_state.selected_quiz is None:
         st.switch_page("pages/student/dashboard.py")
 
 # -------------------------------------------------------------------------
-# MÀN HÌNH 2: GIAO DIỆN LÀM BÀI FULL MÀN HÌNH
+# MÀN HÌNH 2: GIAO DIỆN XEM KẾT QUẢ BÀI TẬP BẰNG SƠ ĐỒ TRỰC QUAN
+# -------------------------------------------------------------------------
+elif st.session_state.quiz_result_view is not None:
+    result_data = st.session_state.quiz_result_view
+    
+    st.title(QUIZ_LABELS[lang]["chart_title"])
+    st.success(QUIZ_LABELS[lang]["success_grading"].format(result_data['correct'], result_data['total'], result_data['score']))
+    st.info(QUIZ_LABELS[lang]["info_exp_reward"].format(result_data['exp']))
+    st.balloons()
+    
+    st.divider()
+    
+    # Sơ đồ cột thể hiện tỷ lệ Đúng/Sai
+    chart_df = pd.DataFrame({
+        "Kết quả": ["Câu Đúng" if lang == "vi" else "Correct", "Câu Sai" if lang == "vi" else "Incorrect"],
+        "Số lượng": [result_data['correct'], result_data['total'] - result_data['correct']]
+    })
+    
+    c1, c2 = st.columns([1, 2])
+    with c1:
+        st.metric("Điểm Số", f"{result_data['score']}/10")
+        st.metric("Số câu đúng", f"{result_data['correct']}/{result_data['total']}")
+        st.metric("EXP nhận được", f"+{result_data['exp']} ⭐")
+    with c2:
+        st.bar_chart(chart_df.set_index("Kết quả"), color=["#4CAF50"])
+
+    st.divider()
+    if st.button(QUIZ_LABELS[lang]["btn_finish_review"], type="primary", use_container_width=True):
+        st.session_state.quiz_result_view = None
+        fetch_latest_data() 
+        st.rerun()
+
+# -------------------------------------------------------------------------
+# MÀN HÌNH 3: GIAO DIỆN LÀM BÀI FULL MÀN HÌNH
 # -------------------------------------------------------------------------
 else:
     q = st.session_state.selected_quiz
@@ -220,13 +270,16 @@ else:
                     res = requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
                     
                     if res.status_code == 200 or res.status_code == 201:
-                        st.success(QUIZ_LABELS[lang]["success_grading"].format(correct_count, num_questions, score))
-                        st.balloons()
-                        st.info(QUIZ_LABELS[lang]["info_exp_reward"].format(earned_exp))
-                        time.sleep(3)
+                        # Điều hướng sang màn hình Xem sơ đồ kết quả (Màn hình 2)
                         st.session_state.selected_quiz = None
-                        fetch_latest_data() 
+                        st.session_state.quiz_result_view = {
+                            "correct": correct_count,
+                            "total": num_questions,
+                            "score": score,
+                            "exp": earned_exp
+                        }
                         st.rerun()
+                        
                     elif res.status_code == 400:
                         st.error(QUIZ_LABELS[lang]["err_duplicate"])
                         time.sleep(3)

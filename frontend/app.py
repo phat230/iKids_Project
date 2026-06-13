@@ -130,6 +130,7 @@ else:
             st.Page("pages/student/quiz.py", title="Trạm Quiz AI" if lang == "vi" else "AI Quiz Station"),
             st.Page("pages/student/cua_hang.py", title="Cửa Hàng iKids" if lang == "vi" else "iKids Store"),
             st.Page("pages/student/video.py", title="Rạp Chiếu Video AI" if lang == "vi" else "AI Video Cinema"),
+            st.Page("pages/student/ket_qua.py", title="Bảng Điểm Cá Nhân" if lang == "vi" else "My Report Card"), # ĐÃ BỔ SUNG TẠI ĐÂY
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" if lang == "vi" else "My Profile")
         ])
 

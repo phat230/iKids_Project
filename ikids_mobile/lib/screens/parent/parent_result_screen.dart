@@ -23,13 +23,13 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
   List<dynamic> _children = [];
   String? _selectedChildId;
   
-  // Dữ liệu cho View 1 (Progress)
   List<dynamic> _attendanceHistory = [];
+  Map<String, dynamic> _gameProfile = {};
+  List<dynamic> _totalQuizzes = [];
   
-  // Dữ liệu cho View 2 (Exam)
   List<dynamic> _realGrades = [];
+  String? _selectedSubjectChart;
 
-  // Trạng thái View: 0 = Tiến độ (Progress), 1 = Bảng điểm (Exam)
   int _currentViewIndex = 0;
 
   final Map<String, Map<String, String>> _labels = {
@@ -38,36 +38,46 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       "err_login": "Vui lòng đăng nhập để xem báo cáo.",
       "select_child": "Đang hiển thị dữ liệu của bé:",
       "warn_no_child": "Bạn chưa có hồ sơ học sinh nào.",
-      "view_progress": "Tiến độ học tập",
-      "view_exam": "Điểm tổng kết",
+      "view_progress": "Phân tích Tiến độ",
+      "view_exam": "Bảng điểm",
       "stat_attendance": "Tỷ lệ chuyên cần",
-      "stat_quiz": "TB điểm Quiz",
-      "stat_videos": "Video đã học",
+      "stat_quiz": "TB Kiểm Tra",
+      "stat_quiz_progress": "Tiến độ bài tập",
       "stat_rank": "Hạng hiện tại",
-      "chart_title": "Biểu đồ điểm Quiz gần đây",
-      "journal_title": "Lịch Sử Điểm Danh & Nhận Xét",
+      "chart_title_1": "Điểm Tổng Kết Các Môn",
+      "chart_title_2": "Tỷ Lệ Làm Bài Tập",
+      "line_chart_title": "Sơ Đồ Tiến Trình Môn:",
+      "journal_title": "Lịch Sử Điểm Danh",
       "no_journal": "Chưa có lịch sử điểm danh.",
-      "exam_title": "Bảng Điểm Tổng Kết Môn Học",
-      "exam_desc": "Kết quả học tập dựa trên điểm chuyên cần, kiểm tra, giữa kỳ và cuối kỳ.",
+      "exam_title": "Bảng Điểm Tổng Kết",
+      "exam_desc": "Kết quả đánh giá dựa trên điểm thành phần, giữa kỳ và cuối kỳ.",
       "no_grades": "Bé chưa có điểm tổng kết nào được ghi nhận.",
+      "ai_title": "🤖 AI Phân Tích & Tư Vấn",
+      "lbl_done": "Đã làm",
+      "lbl_missing": "Chưa làm",
     },
     "en": {
       "title": "Learning Analytics",
       "err_login": "Authentication required.",
       "select_child": "Displaying data for:",
       "warn_no_child": "No student profiles found.",
-      "view_progress": "Learning Progress",
+      "view_progress": "Progress Analytics",
       "view_exam": "Final Grades",
       "stat_attendance": "Attendance Rate",
-      "stat_quiz": "Avg Quiz Score",
-      "stat_videos": "Videos Completed",
+      "stat_quiz": "Avg Test Score",
+      "stat_quiz_progress": "Quizzes Done",
       "stat_rank": "Current Rank",
-      "chart_title": "Recent Quiz Score Trend",
-      "journal_title": "Attendance & Remarks History",
+      "chart_title_1": "Final Grades Overview",
+      "chart_title_2": "Homework Completion",
+      "line_chart_title": "Score Progression for:",
+      "journal_title": "Attendance History",
       "no_journal": "No attendance history available.",
       "exam_title": "Final Grade Report",
-      "exam_desc": "Academic results based on attendance, tests, midterm, and final exams.",
+      "exam_desc": "Evaluations based on component, midterm, and final scores.",
       "no_grades": "No grades recorded for this student yet.",
+      "ai_title": "🤖 AI Insights",
+      "lbl_done": "Completed",
+      "lbl_missing": "Pending",
     }
   };
 
@@ -88,8 +98,8 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       if (_token.isEmpty || _parentId.isEmpty) return;
 
       final headers = {"Authorization": "Bearer $_token", "parent-id": _parentId};
-
       final childrenRes = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/parent/my-children'), headers: headers);
+      
       if (childrenRes.statusCode == 200) {
         _children = jsonDecode(utf8.decode(childrenRes.bodyBytes));
         if (_children.isNotEmpty) {
@@ -104,18 +114,62 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
     }
   }
 
+  // ĐÃ SỬA CHỮA HOÀN TOÀN: Logic quét đa tầng (ID và Email) y hệt như Web
   Future<void> _fetchChildData(String childId) async {
     final headers = {"Authorization": "Bearer $_token", "parent-id": _parentId};
     try {
-      // Gọi API Điểm danh
-      final attRes = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/attendance/$childId'), headers: headers);
-      if (attRes.statusCode == 200) _attendanceHistory = jsonDecode(utf8.decode(attRes.bodyBytes));
+      final childData = _children.firstWhere((c) => c['id'].toString() == childId, orElse: () => {});
+      final childEmail = childData['email'] ?? '';
+
+      // 1. Fetch nhanh các dữ liệu nền
+      final resAtt = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/attendance/$childId'), headers: headers);
+      final resGrades = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/grades/$childId'), headers: headers);
+      final resProfileTV3 = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/gamification/profile/$childId'), headers: headers);
+      final resQuizzes = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/quizzes'), headers: headers);
+      
+      final responses = await Future.wait([resAtt, resGrades, resProfileTV3, resQuizzes]);
+
+      if (responses[0].statusCode == 200) _attendanceHistory = jsonDecode(utf8.decode(responses[0].bodyBytes));
       else _attendanceHistory = [];
 
-      // Gọi API Bảng điểm
-      final gradeRes = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/grades/$childId'), headers: headers);
-      if (gradeRes.statusCode == 200) _realGrades = jsonDecode(utf8.decode(gradeRes.bodyBytes));
-      else _realGrades = [];
+      if (responses[1].statusCode == 200) {
+        _realGrades = jsonDecode(utf8.decode(responses[1].bodyBytes));
+        if (_realGrades.isNotEmpty) _selectedSubjectChart = _realGrades[0]['subject'];
+      } else {
+        _realGrades = [];
+        _selectedSubjectChart = null;
+      }
+
+      if (responses[3].statusCode == 200) _totalQuizzes = jsonDecode(utf8.decode(responses[3].bodyBytes));
+      else _totalQuizzes = [];
+
+      Map<String, dynamic> tv3Prof = {};
+      if (responses[2].statusCode == 200) tv3Prof = jsonDecode(utf8.decode(responses[2].bodyBytes));
+
+      // 2. KHẮC PHỤC LỖI TẠI ĐÂY: Quét chéo tìm "completed_tasks" qua ID trước, nếu không có mới qua Email
+      List<dynamic> compTasks = [];
+      List<String> keysToTest = [childId]; 
+      if (childEmail.isNotEmpty) keysToTest.add(childEmail);
+
+      for (String key in keysToTest) {
+        final encodedKey = Uri.encodeComponent(key);
+        try {
+          final resProfTV2 = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/student/$encodedKey/profile'), headers: headers);
+          if (resProfTV2.statusCode == 200) {
+            final tv2Prof = jsonDecode(utf8.decode(resProfTV2.bodyBytes));
+            if (tv2Prof.containsKey('completed_tasks') && (tv2Prof['completed_tasks'] as List).isNotEmpty) {
+              compTasks = tv2Prof['completed_tasks'];
+              break; // Dừng quét khi đã tìm thấy dữ liệu đúng
+            }
+          }
+        } catch(e) {
+          debugPrint("Bỏ qua quét: $key");
+        }
+      }
+      
+      // Nếu TV2 có dữ liệu thì ghi đè vào, không thì giữ nguyên của TV3 (phòng hờ)
+      tv3Prof['completed_tasks'] = compTasks.isNotEmpty ? compTasks : (tv3Prof['completed_tasks'] ?? []);
+      _gameProfile = tv3Prof;
 
     } catch (e) {
       debugPrint("Lỗi Fetch Child Data: $e");
@@ -148,7 +202,6 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
           ? Center(child: Text(labels["warn_no_child"]!))
           : Column(
               children: [
-                // 1. HEADER CHỌN HỌC SINH
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
@@ -183,7 +236,6 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                   ),
                 ),
                 
-                // 2. THANH CHUYỂN ĐỔI VIEW (TOGGLE BUTTONS)
                 Padding(
                   padding: const EdgeInsets.all(15.0),
                   child: Container(
@@ -221,7 +273,6 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                   ),
                 ),
 
-                // 3. NỘI DUNG VIEW
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -233,12 +284,37 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
     );
   }
 
-  // ================= VIEW 1: TIẾN ĐỘ HỌC TẬP =================
   Widget _buildProgressView(Map<String, String> labels) {
+    String attRate = "N/A";
+    if (_attendanceHistory.isNotEmpty) {
+      int present = _attendanceHistory.where((att) => att['Trạng Thái'] == 'Có mặt').length;
+      attRate = "${((present / _attendanceHistory.length) * 100).toStringAsFixed(0)}%";
+    }
+
+    String avgScore = "N/A";
+    if (_realGrades.isNotEmpty) {
+      double total = _realGrades.fold(0, (sum, item) => sum + (item['tb_kiem_tra'] ?? 0).toDouble());
+      avgScore = "${(total / _realGrades.length).toStringAsFixed(1)}/10";
+    }
+
+    // ĐÃ KHẮC PHỤC LOGIC ĐẾM: Xử lý fallback ID bài tập
+    List<dynamic> compTasks = _gameProfile['completed_tasks'] ?? [];
+    int totalQuizCount = _totalQuizzes.length;
+    int doneQuizCount = _totalQuizzes.where((q) {
+      String qId = q['id']?.toString() ?? q['_id']?.toString() ?? '';
+      if (qId.isEmpty) {
+        int idx = _totalQuizzes.indexOf(q);
+        qId = "quiz_backup_id_$idx"; // Khớp y hệt fallback của Streamlit Web
+      }
+      return compTasks.contains(qId);
+    }).length;
+    String quizStr = "$doneQuizCount/$totalQuizCount";
+
+    String rank = _gameProfile['rank'] ?? "Beginner";
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 4 Thẻ chỉ số tổng quan (Grid)
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -247,48 +323,163 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
           mainAxisSpacing: 10,
           childAspectRatio: 2,
           children: [
-            _buildStatCard(labels["stat_attendance"]!, "92%", Icons.event_available, Colors.green),
-            _buildStatCard(labels["stat_quiz"]!, "7.5/10", Icons.quiz, Colors.orange),
-            _buildStatCard(labels["stat_videos"]!, "8", Icons.play_circle, Colors.red),
-            _buildStatCard(labels["stat_rank"]!, "Beginner", Icons.military_tech, Colors.purple),
+            _buildStatCard(labels["stat_attendance"]!, attRate, Icons.event_available, Colors.green),
+            _buildStatCard(labels["stat_quiz"]!, avgScore, Icons.score, Colors.blue),
+            _buildStatCard(labels["stat_quiz_progress"]!, quizStr, Icons.quiz, Colors.orange),
+            _buildStatCard(labels["stat_rank"]!, rank, Icons.military_tech, Colors.purple),
           ],
         ),
         
         const SizedBox(height: 25),
-        Text(labels["chart_title"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 15),
         
-        // Biểu đồ Điểm số
+        // --- SƠ ĐỒ CỘT: ĐIỂM TỔNG KẾT ---
+        Text(labels["chart_title_1"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 15),
+        _realGrades.isEmpty 
+          ? Center(child: Text(labels["no_grades"]!))
+          : Container(
+              height: 250,
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)]),
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: 10,
+                  barTouchData: BarTouchData(enabled: true),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (double value, TitleMeta meta) {
+                          int idx = value.toInt();
+                          if (idx >= 0 && idx < _realGrades.length) {
+                            String sub = _realGrades[idx]['subject'] ?? '';
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(sub, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                            );
+                          }
+                          return const Text('');
+                        },
+                      ),
+                    ),
+                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28)),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: _realGrades.asMap().entries.map((e) {
+                    return BarChartGroupData(
+                      x: e.key,
+                      barRods: [
+                        BarChartRodData(
+                          toY: (e.value['tong_ket'] ?? 0).toDouble(),
+                          color: Colors.blue,
+                          width: 20,
+                          borderRadius: BorderRadius.circular(4),
+                        )
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        
+        const SizedBox(height: 25),
+
+        // --- SƠ ĐỒ VÒNG: TỶ LỆ LÀM BÀI TẬP ---
+        Text(labels["chart_title_2"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 15),
         Container(
           height: 200,
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)]),
-          child: LineChart(
-            LineChartData(
-              gridData: const FlGridData(show: false),
-              titlesData: const FlTitlesData(rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)), topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false))),
-              borderData: FlBorderData(show: false),
-              minX: 0, maxX: 4, minY: 0, maxY: 10,
-              lineBarsData: [
-                LineChartBarData(
-                  spots: const [FlSpot(0, 6), FlSpot(1, 9), FlSpot(2, 8), FlSpot(3, 7), FlSpot(4, 9)],
-                  isCurved: true,
-                  color: Colors.amber[700],
-                  barWidth: 4,
-                  isStrokeCapRound: true,
-                  dotData: const FlDotData(show: true),
-                  belowBarData: BarAreaData(show: true, color: Colors.amber.withOpacity(0.2)),
-                ),
-              ],
-            ),
-          ),
+          child: totalQuizCount == 0
+            ? const Center(child: Text("Hệ thống chưa có bộ đề Quiz nào."))
+            : Row(
+                children: [
+                  Expanded(
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                        sections: [
+                          PieChartSectionData(
+                            color: Colors.green,
+                            value: doneQuizCount.toDouble(),
+                            title: "$doneQuizCount",
+                            radius: 30,
+                            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          PieChartSectionData(
+                            color: Colors.redAccent,
+                            value: (totalQuizCount - doneQuizCount).toDouble(),
+                            title: "${totalQuizCount - doneQuizCount}",
+                            radius: 30,
+                            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [const Icon(Icons.circle, color: Colors.green, size: 14), const SizedBox(width: 5), Text(labels["lbl_done"]!)]),
+                      const SizedBox(height: 10),
+                      Row(children: [const Icon(Icons.circle, color: Colors.redAccent, size: 14), const SizedBox(width: 5), Text(labels["lbl_missing"]!)]),
+                    ],
+                  )
+                ],
+              ),
         ),
+
+        const SizedBox(height: 25),
+
+        // --- SƠ ĐỒ ĐƯỜNG: TIẾN TRÌNH ---
+        if (_realGrades.isNotEmpty) ...[
+          Row(
+            children: [
+              Expanded(child: Text(labels["line_chart_title"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              Container(
+                height: 35,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(color: Colors.amber[50], borderRadius: BorderRadius.circular(8)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedSubjectChart,
+                    style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                    items: _realGrades.map((g) => DropdownMenuItem<String>(value: g['subject']?.toString(), child: Text(g['subject'] ?? ''))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedSubjectChart = val);
+                    },
+                  ),
+                ),
+              )
+            ],
+          ),
+          const SizedBox(height: 15),
+          Container(
+            height: 220,
+            padding: const EdgeInsets.only(right: 20, left: 10, top: 20, bottom: 10),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)]),
+            child: _buildLineChartData(),
+          ),
+          const SizedBox(height: 25),
+        ],
+
+        // --- NHẬN XÉT AI ---
+        Text(labels["ai_title"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        _buildAICommentSection(labels),
         
         const SizedBox(height: 25),
+
+        // --- LỊCH SỬ ĐIỂM DANH ---
         Text(labels["journal_title"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 10),
-
-        // Lịch sử điểm danh (Timeline/List)
         _attendanceHistory.isEmpty 
           ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(labels["no_journal"]!)))
           : ListView.builder(
@@ -297,14 +488,9 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
               itemCount: _attendanceHistory.length,
               itemBuilder: (context, index) {
                 final att = _attendanceHistory[index];
-                
                 String statusVi = att['Trạng Thái'] ?? 'Có mặt';
-                String statusEn = statusVi == "Có mặt" ? "Present" : (statusVi == "Vắng mặt" ? "Absent" : "Late");
-                String displayStatus = _lang == "en" ? statusEn : statusVi;
-
-                Color statusColor = displayStatus.contains("Có") || displayStatus.contains("Present") 
-                  ? Colors.green 
-                  : (displayStatus.contains("Vắng") || displayStatus.contains("Absent") ? Colors.red : Colors.orange);
+                String displayStatus = _lang == "en" ? (statusVi == "Có mặt" ? "Present" : (statusVi == "Vắng mặt" ? "Absent" : "Late")) : statusVi;
+                Color statusColor = displayStatus.contains("Có") || displayStatus.contains("Present") ? Colors.green : (displayStatus.contains("Vắng") || displayStatus.contains("Absent") ? Colors.red : Colors.orange);
 
                 return Card(
                   elevation: 1,
@@ -327,6 +513,98 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
               },
             ),
         const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildLineChartData() {
+    final subData = _realGrades.firstWhere((g) => g['subject'] == _selectedSubjectChart, orElse: () => {});
+    if (subData.isEmpty) return const Center(child: Text("Không có dữ liệu"));
+
+    List<FlSpot> spots = [
+      FlSpot(0, (subData['kt_1'] ?? 0).toDouble()),
+      FlSpot(1, (subData['kt_2'] ?? 0).toDouble()),
+      FlSpot(2, (subData['kt_3'] ?? 0).toDouble()),
+      FlSpot(3, (subData['kt_4'] ?? 0).toDouble()),
+      FlSpot(4, (subData['kt_5'] ?? 0).toDouble()),
+      FlSpot(5, (subData['giua_ky'] ?? 0).toDouble()),
+      FlSpot(6, (subData['cuoi_ky'] ?? 0).toDouble()),
+    ];
+
+    List<String> xLabels = ["KT1", "KT2", "KT3", "KT4", "KT5", "GK", "CK"];
+
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        titlesData: FlTitlesData(
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              getTitlesWidget: (value, meta) {
+                int idx = value.toInt();
+                if (idx >= 0 && idx < xLabels.length) {
+                  return Padding(padding: const EdgeInsets.only(top: 5), child: Text(xLabels[idx], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)));
+                }
+                return const Text('');
+              }
+            )
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 0, maxX: 6, minY: 0, maxY: 10,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: Colors.orange,
+            barWidth: 4,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: true),
+            belowBarData: BarAreaData(show: true, color: Colors.orange.withOpacity(0.1)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAICommentSection(Map<String, String> labels) {
+    if (_realGrades.isEmpty) {
+      return Container(padding: const EdgeInsets.all(15), decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(10)), child: const Text("Chưa có đủ dữ liệu để AI phân tích."));
+    }
+
+    var bestSub = _realGrades.reduce((a, b) => (a["tong_ket"] ?? 0) > (b["tong_ket"] ?? 0) ? a : b);
+    var weakSub = _realGrades.reduce((a, b) => (a["tong_ket"] ?? 0) < (b["tong_ket"] ?? 0) ? a : b);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green[200]!)),
+          child: Row(
+            children: [
+              const Icon(Icons.thumb_up, color: Colors.green),
+              const SizedBox(width: 10),
+              Expanded(child: Text(_lang == "vi" ? "🎯 Ưu điểm: Bé học tốt nhất môn ${bestSub['subject']} (${bestSub['tong_ket']}/10)." : "🎯 Strength: Excelling in ${bestSub['subject']} (${bestSub['tong_ket']}/10).")),
+            ],
+          )
+        ),
+        if (bestSub['subject'] != weakSub['subject']) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange[200]!)),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                const SizedBox(width: 10),
+                Expanded(child: Text(_lang == "vi" ? "⚠️ Cần chú ý: Môn ${weakSub['subject']} đang thấp nhất (${weakSub['tong_ket']}/10). Phụ huynh đôn đốc bé làm bài tập trên Trạm Quiz AI nhé!" : "⚠️ Area for Growth: ${weakSub['subject']} is currently ${weakSub['tong_ket']}/10. Encourage practicing quizzes!")),
+              ],
+            )
+          )
+        ]
       ],
     );
   }
@@ -369,9 +647,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                 String rankEn = {"Giỏi": "Excellent", "Khá": "Good", "TB": "Average", "Yếu": "Poor"}[rankVi] ?? rankVi;
                 String displayRank = _lang == "en" ? rankEn : rankVi;
 
-                Color rankColor = displayRank.contains("Giỏi") || displayRank.contains("Excellent") 
-                  ? Colors.green 
-                  : (displayRank.contains("Khá") || displayRank.contains("Good") ? Colors.blue : Colors.orange);
+                Color rankColor = displayRank.contains("Giỏi") || displayRank.contains("Excellent") ? Colors.green : (displayRank.contains("Khá") || displayRank.contains("Good") ? Colors.blue : Colors.orange);
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 15),
