@@ -27,7 +27,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
   String? _selectedChildIdForEnroll;
   Map<String, String> _scheduleSubjectMap = {};
 
-  // Bộ từ điển ngôn ngữ chuẩn đồng bộ 100% với file python chon_lop.py
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Đăng Ký Lớp Học Cho Con",
@@ -109,7 +108,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
         "Content-Type": "application/json"
       };
 
-      // 1. Gọi danh sách con em của phụ huynh này
       final childrenRes = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/parent/my-children'), headers: headers);
       if (childrenRes.statusCode == 200) {
         _children = jsonDecode(utf8.decode(childrenRes.bodyBytes));
@@ -118,7 +116,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
         }
       }
 
-      // 2. Lấy dữ liệu các lớp học công khai & lịch học từ lõi hệ thống
       final publicRes = await http.get(Uri.parse('${AppConfig.apiUrl}/classes/public'));
       if (publicRes.statusCode == 200) {
         _publicClasses = jsonDecode(utf8.decode(publicRes.bodyBytes));
@@ -151,7 +148,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     }
   }
 
-  // Hàm xử lý gửi gói Payload đăng ký học lên FastAPI
   Future<void> _enrollClass(String classId) async {
     if (_selectedChildIdForEnroll == null) return;
     
@@ -170,14 +166,14 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
         }),
       ).timeout(const Duration(seconds: 10));
 
-      if (mounted) Navigator.pop(context); // Tắt loading spinner
+      if (mounted) Navigator.pop(context);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("${_labels[_lang]!['success_enrolled']}"),
           backgroundColor: Colors.green,
         ));
-        _initData(); // Làm mới lại dữ liệu từ DB
+        _initData();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("${_labels[_lang]!['err_failed_enroll']}"),
@@ -225,12 +221,10 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
                         Text(labels["subtitle"]!, style: TextStyle(color: Colors.grey[700], fontSize: 13, fontStyle: FontStyle.italic)),
                         const SizedBox(height: 15),
                         
-                        // Tiêu đề khối thời khóa biểu dạng lưới
                         Text(labels["expander_schedule"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
                         Text(labels["expander_desc"]!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         const SizedBox(height: 10),
 
-                        // Giao diện chuyển đổi tab giữa các con để xem TKB biệt lập
                         if (_children.length > 1)
                           TabBar(
                             isScrollable: true,
@@ -243,20 +237,18 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
                         SizedBox(
                           height: 320,
                           child: TabBarView(
-                            physics: const NeverScrollableScrollPhysics(), // Cuộn lưới ngang thủ công
+                            physics: const NeverScrollableScrollPhysics(),
                             children: _children.map((c) => _buildTimetableGrid(c['id'])).toList(),
                           ),
                         ),
 
                         const Divider(height: 30),
                         
-                        // KHỐI ĐĂNG KÝ MÔN HỌC MỚI
                         Text(labels["sub_enroll_section"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo)),
                         const SizedBox(height: 10),
                         Text(labels["select_child_global"]!, style: const TextStyle(fontSize: 13)),
                         const SizedBox(height: 5),
                         
-                        // Selector chọn bé nhận lớp học mới
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey[400]!), borderRadius: BorderRadius.circular(8)),
@@ -279,13 +271,11 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     );
   }
 
-  // ================= RENDER LƯỚI THỜI KHÓA BIỂU MINI ĐỒNG BỘ CHUẨN WEB =================
   Widget _buildTimetableGrid(String childId) {
     final labels = _labels[_lang]!;
     final displayDays = _lang == "vi" ? _daysOfWeekVi : _daysOfWeekEn;
     final sessions = [labels["session_morning"]!, labels["session_afternoon"]!, labels["session_evening"]!];
 
-    // Cấu trúc map phân phối các lớp học vào slot thời gian tương ứng
     Map<String, Map<String, List<Map<String, dynamic>>>> matrix = {
       for (var s in ["SÁNG", "CHIỀU", "TỐI"]) s: {for (var d in _daysOfWeekVi) d: []}
     };
@@ -295,7 +285,10 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     for (var cls in _allClasses) {
       List studentsInClass = (cls["student_ids"] as List<dynamic>?) ?? [];
       if (studentsInClass.contains(childId)) {
-        String cId = cls.get("id", cls.get("_id", ""));
+        
+        // ĐÃ KHẮC PHỤC LỖI .get() CUỐI CÙNG TẠI ĐÂY
+        String cId = cls["id"]?.toString() ?? cls["_id"]?.toString() ?? "";
+        
         var sched = _schedules.firstWhere((s) => s["class_id"]?.toString() == cId, orElse: () => null);
         
         if (sched != null) {
@@ -328,7 +321,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
       return Center(child: Text(labels["info_no_schedule"]!, style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)));
     }
 
-    // Trả về bảng lưới bọc Scroll ngang bảo vệ giao diện chống tràn màn hình điện thoại
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(top: 10),
@@ -357,23 +349,38 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
                   ListCellCardData? slotClasses = matrix[rawSession]![dayVi];
                   if (slotClasses == null || slotClasses.isEmpty) return const DataCell(Text(""));
                   
-                  return DataCell(Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: slotClasses.map<Widget>((c) => Container(
-                      padding: const EdgeInsets.all(4),
-                      margin: const EdgeInsets.only(bottom: 2),
-                      decoration: BoxDecoration(color: Colors.blue[50], border: Border.all(color: Colors.blue, width: 3), borderRadius: BorderRadius.circular(4)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c["class_name"], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue)),
-                          Text(c["subject"], style: const TextStyle(fontSize: 9, color: Colors.black87)),
-                          Text(c["time"], style: const TextStyle(fontSize: 8, color: Colors.grey)),
-                        ],
+                  // ĐÃ KHẮC PHỤC LỖI OVERFLOW TRÀN VIỀN TẠI ĐÂY BẰNG CÁCH BỌC SCROLL VÀ GIỚI HẠN DÒNG
+                  return DataCell(
+                    Container(
+                      alignment: Alignment.centerLeft,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: slotClasses.map<Widget>((c) => Container(
+                            width: 100, 
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            margin: const EdgeInsets.only(bottom: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue[50], 
+                              border: const Border(left: BorderSide(color: Colors.blue, width: 3)), 
+                              borderRadius: BorderRadius.circular(2)
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(c["class_name"], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                Text(c["subject"], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9, color: Colors.black87)),
+                                Text(c["time"], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 8, color: Colors.grey)),
+                              ],
+                            ),
+                          )).toList(),
+                        ),
                       ),
-                    )).toList(),
-                  ));
+                    ),
+                  );
                 }).toList()
               ]);
             }).toList(),
@@ -383,14 +390,12 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     );
   }
 
-  // ================= DANH SÁCH LỚP ĐANG MỞ (ẨN ĐI LỚP CON ĐANG HỌC) =================
   Widget _buildAvailableClassesList() {
     final labels = _labels[_lang]!;
     if (_publicClasses.isEmpty) {
       return Center(child: Text(labels["info_empty_classes"]!));
     }
 
-    // Tiến hành lọc ẩn lớp dựa trên ID của học sinh đang được lựa chọn giống Web
     final availableClasses = _publicClasses.where((cls) {
       List studentIds = cls["student_ids"] ?? [];
       return !studentIds.contains(_selectedChildIdForEnroll);
@@ -460,11 +465,4 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
   }
 }
 
-// Lớp bổ trợ Extension giúp đọc Map dữ liệu mượt hơn tránh lỗi Null-Safety
-extension MapGetExt on Map {
-  dynamic get(String key, [dynamic fallback]) => this.containsKey(key) ? this[key] : fallback;
-}
 typedef ListCellCardData = List<Map<String, dynamic>>;
-class BorderValueSide extends BorderSide {
-  const BorderValueSide({super.color, super.width}) : super(style: BorderStyle.solid);
-}
