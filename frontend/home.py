@@ -6,7 +6,9 @@ import time
 from streamlit_quill import st_quill
 from deep_translator import GoogleTranslator
 
-API_URL = "http://localhost:8000/api/tv3"
+# FIX 1: Lấy API_URL linh hoạt từ biến môi trường
+BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = f"{BACKEND_URL}/api/tv3"
 
 # ================= 1. HÀM HỖ TRỢ =================
 def load_css(file_path):
@@ -137,13 +139,13 @@ if is_operator:
     st.info(UI_LABELS[current_lang]["preview_info"])
     
     with st.container(border=True):
-        preview_img = "https://via.placeholder.com/600x400"
+        # FIX 2: Thay thế ảnh preview mặc định
+        preview_img = "static/anh_laptop.jpg" 
         if uploaded_about_imgs:
             preview_img = uploaded_about_imgs[0]
         elif about_data.get('images'):
             preview_img = about_data.get('images')[0]
 
-        # ĐÃ SỬA: Xóa bỏ dòng tiêu đề lớn h2 gây trùng lặp lặp ở khu vực xem trước
         if about_layout == "Ảnh TRÁI - Chữ PHẢI":
             cp1, cp2 = st.columns([1, 1])
             cp1.image(preview_img, width=about_img_width)
@@ -161,11 +163,10 @@ else:
     
     layout = about_data.get('layout', 'left')
     images = about_data.get('images', [])
-    img_main = images[0] if images else "https://via.placeholder.com/600x400"
+    # FIX 3: Thay thế ảnh hiển thị mặc định cho người xem
+    img_main = images[0] if images else "static/anh_laptop.jpg"
     i_width = int(about_data.get('img_width', 500))
 
-    # ĐÃ SỬA: Xóa bỏ hoàn toàn dòng lệnh st.markdown(f"## {about_title_display}") tại đây
-    
     if layout == "left":
         c1, c2 = st.columns([1, 1])
         c1.image(img_main, width=i_width)
@@ -242,7 +243,13 @@ if display_posts:
     for p in display_posts:
         p_id = p.get('id', p.get('_id'))
         with st.container(border=True):
-            img_p = p.get('image_url') or "https://via.placeholder.com/400"
+            # FIX 4: Thay thế ảnh hiển thị mặc định của tin tức
+            img_p = p.get('image_url') or "static/anh_laptop.jpg"
+            
+            # Xử lý trường hợp ảnh upload bị lỗi đường dẫn tương đối
+            if img_p.startswith("static/") and not os.path.exists(img_p):
+                img_p = "static/anh_laptop.jpg" # Fallback an toàn
+
             p_width = int(p.get('img_width', 400))
             
             p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
