@@ -1,9 +1,17 @@
+import os
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
-# Đảm bảo URL khớp với cấu hình FastAPI của bạn
-API_URL = "http://localhost:8000/api/tv3"
-API_AUTH_URL = "http://localhost:8000/api/auth"
+# Tải file .env (nếu chạy local)
+load_dotenv()
+
+# Lấy URL từ biến môi trường, mặc định về localhost nếu không tìm thấy
+BASE_URL = os.getenv("API_URL", "http://localhost:8000")
+
+# Cấu hình đường dẫn dựa trên BASE_URL
+API_URL = f"{BASE_URL}/api/tv3"
+API_AUTH_URL = f"{BASE_URL}/api/auth"
 
 # --- 1. HỆ THỐNG GAMIFICATION & PROFILE ---
 

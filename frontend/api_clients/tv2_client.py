@@ -1,9 +1,12 @@
 # frontend/api_clients/tv2_client.py
+import os
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
-BASE_URL = "http://localhost:8000/academic" # Đổi lại port nếu backend của ông chạy port khác
+load_dotenv()
 
+BASE_URL = f"{os.getenv('API_URL', 'http://localhost:8000')}/academic"
 def get_headers():
     """Lấy token từ session state để xác thực"""
     token = st.session_state.get("access_token")
@@ -19,7 +22,7 @@ def submit_journal(journal_data: dict):
             json=journal_data,
             headers=get_headers()
         )
-        response.raise_for_status() # Ném lỗi nếu status code không phải 2xx
+        response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"Lỗi kết nối máy chủ: {e}")
@@ -55,10 +58,11 @@ def save_quiz(quiz_data: dict):
         return None
     
 def assign_quiz_to_class(data: dict):
-    """Gửi yêu cầu giao bài tập lên Backend"""
+    """Gửi yêu cầu giao bài tập lên Backend (Đã sửa lỗi localhost)"""
     try:
+        # Sử dụng f-string với BASE_URL để đồng bộ
         response = requests.post(
-            "http://localhost:8000/academic/assign-quiz", 
+            f"{BASE_URL}/assign-quiz", 
             json=data,
             headers=get_headers()
         )
