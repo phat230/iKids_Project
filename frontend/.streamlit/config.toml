@@ -1,9 +1,21 @@
+# 1. Cấu hình Theme
 [theme]
-# Ép hệ thống luôn sử dụng giao diện nền trắng
-base="light"
+base = "light"
+primaryColor = "#3b82f6"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8fafc"
+textColor = "#0f172a"
 
-# (Tùy chọn) Bạn có thể cấu hình luôn màu chủ đạo của hệ thống tại đây
-primaryColor="#3b82f6"
-backgroundColor="#ffffff"
-secondaryBackgroundColor="#f8fafc"
-textColor="#0f172a"
+# 2. Cấu hình Server (QUAN TRỌNG ĐỂ FIX LỖI 404)
+[server]
+enableCORS = false
+enableXsrfProtection = false
+enableStaticServing = true
+# Port 10000 là port Render chỉ định cho bạn
+port = 10000 
+address = "0.0.0.0"
+
+[browser]
+gatherUsageStats = false
+# Dòng này cực kỳ quan trọng để Streamlit biết nó đang chạy ở đâu
+serverAddress = "ikids-frontend-api.onrender.com"

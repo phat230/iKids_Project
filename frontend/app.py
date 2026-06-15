@@ -154,10 +154,10 @@ else:
         welcome_txt = "Chào" if lang == "vi" else "Welcome"
         st.write(f"### {welcome_txt}, {user.get('full_name', user.get('name', 'Member'))}! ")
         
-        avatar_url = user.get("avatar_url")
+        BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
         if avatar_url:
             if avatar_url.startswith("/"):
-                st.image(f"http://localhost:8000{avatar_url}", width=100)
+               st.image(f"{BACKEND_URL}{avatar_url}", width=100)
             else:
                 st.image(avatar_url, width=100)
         else:

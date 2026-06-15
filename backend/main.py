@@ -13,7 +13,7 @@ from modules.finance.router import router as finance_router
 
 app = FastAPI(title="iKids Education Portal API")
 
-# 1. CẤU HÌNH CORS (Quan trọng để Streamlit không bị chặn)
+# 1. CẤU HÌNH CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,23 +22,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. ĐĂNG KÝ CÁC ROUTER (Module)
-# Auth & Notifications
-app.include_router(auth_router)
-app.include_router(notification_router)
-app.include_router(finance_router)
-# TV1: Lịch dạy & Vận hành
-app.include_router(tv1_router)
+# 2. ĐĂNG KÝ CÁC ROUTER VỚI PREFIX ĐỒNG BỘ
+# Bây giờ tất cả API đều nằm dưới namespace /api/...
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(notification_router, prefix="/api/notifications", tags=["Notifications"])
+app.include_router(finance_router, prefix="/api/finance", tags=["Finance"])
+app.include_router(tv1_router, prefix="/api/tv1", tags=["TV1 - Scheduling"])
+app.include_router(tv2_router, prefix="/api/tv2", tags=["TV2 - Academic"])
+app.include_router(tv3_router, prefix="/api/tv3", tags=["TV3 - Community"])
 
-# TV2: Học liệu & Giáo viên (Academic)
-app.include_router(tv2_router)
-
-# TV3: Phụ huynh & Cộng đồng (Community)
-# LƯU Ý: Nếu bên trong router.py của TV3 đã có "/api/tv3", thì bỏ prefix ở đây.
-# Nếu bên trong router.py chỉ để là "/posts", thì giữ nguyên prefix này.
-app.include_router(tv3_router, prefix="/api/tv3", tags=["Thành viên 3 - Community"])
-
-# 3. CẤU HÌNH STATIC FILES (Tạo thư mục nếu chưa có để tránh lỗi crash)
+# 3. CẤU HÌNH STATIC FILES
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
