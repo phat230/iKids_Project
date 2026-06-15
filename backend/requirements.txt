@@ -12,4 +12,5 @@ python-dotenv
 python-multipart
 pydantic-settings
 requests
+deep-translator
 google-generativeai
