@@ -13,6 +13,13 @@ import '../screens/teacher/teacher_dashboard.dart';
 import '../screens/parent/parent_dashboard.dart';
 import '../screens/operator/operator_dashboard.dart';
 
+// --- Import các trang Chức năng Admin & Operator ---
+import '../screens/admin/admin_staff_management_screen.dart';
+import '../screens/operator/operator_finance_screen.dart';
+import '../screens/operator/operator_store_screen.dart';
+import '../screens/operator/operator_class_screen.dart';
+import '../screens/operator/operator_schedule_screen.dart';
+
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -22,7 +29,6 @@ class AppRouter {
       case '/register':
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
       case '/forgot-password':
-        // Bỏ const ở đây vì constructor của ForgotPasswordScreen hiện tại không phải là const
         return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
 
       // 2. Nhóm Dashboard theo Role
@@ -37,7 +43,19 @@ class AppRouter {
       case '/operator':
         return MaterialPageRoute(builder: (_) => const OperatorDashboard());
 
-      // 3. Fallback (Trang không tồn tại)
+      // 3. Nhóm Chức năng Hệ thống (Admin & Operator)
+      case '/admin-staff':
+        return MaterialPageRoute(builder: (_) => const AdminStaffManagementScreen());
+      case '/operator-finance':
+        return MaterialPageRoute(builder: (_) => const OperatorFinanceScreen());
+      case '/operator-store':
+        return MaterialPageRoute(builder: (_) => const OperatorStoreScreen());
+      case '/operator-class':
+        return MaterialPageRoute(builder: (_) => const OperatorClassScreen());
+      case '/operator-schedule':
+        return MaterialPageRoute(builder: (_) => const OperatorScheduleScreen());
+
+      // 4. Fallback (Trang không tồn tại)
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

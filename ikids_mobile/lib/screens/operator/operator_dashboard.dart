@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../services/api_service.dart';
-import '../../core/config.dart';
 import '../notification/notification_screen.dart';
 
 class OperatorDashboard extends StatefulWidget {
@@ -19,17 +17,9 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
   final _storage = const FlutterSecureStorage(); 
   
   String _userId = "";
-
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  bool _isEditingProfile = false;
   bool _isLoadingProfile = true;
-
-  final List<Map<String, dynamic>> _menuItems = [
-    {"title": "Duyệt học phí", "icon": Icons.account_balance_wallet, "color": Colors.green},
-    {"title": "CSKH", "icon": Icons.support_agent, "color": Colors.orange},
-    {"title": "Cửa hàng", "icon": Icons.store, "color": Colors.purple},
-  ];
 
   @override
   void initState() {
@@ -59,13 +49,15 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
     if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
   }
 
+  // --- TAB 1: BẢNG ĐIỀU KHIỂN CHÍNH ---
   Widget _buildHomeTab() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Header xin chào
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(25),
           decoration: const BoxDecoration(
             color: Colors.orange,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
@@ -74,37 +66,98 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text("Nhân viên ${_nameController.text.split(' ').last} ⚙️", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 5),
+              const Text("Chào mừng bạn trở lại trạm điều hành!", style: TextStyle(color: Colors.white70)),
             ],
           ),
         ),
-        const SizedBox(height: 15),
+        
+        // Danh sách công cụ
         Expanded(
-          child: GridView.builder(
+          child: ListView(
             padding: const EdgeInsets.all(20),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 15, mainAxisSpacing: 15, childAspectRatio: 1.15),
-            itemCount: _menuItems.length,
-            itemBuilder: (context, index) {
-              final item = _menuItems[index];
-              return Container(
-                decoration: BoxDecoration(color: item['color'].withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: item['color'].withOpacity(0.3), width: 2)),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(item['icon'], size: 45, color: item['color']),
-                    const SizedBox(height: 8),
-                    Text(item['title'], style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: item['color'])),
-                  ],
-                ),
-              );
-            },
+            children: [
+              const Text("CÔNG CỤ QUẢN LÝ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange)),
+              const SizedBox(height: 15),
+              
+              _buildMenuCard(
+                "Quản lý Lớp học", 
+                "Tạo lớp mới, xếp danh sách học viên", 
+                Icons.class_, 
+                Colors.indigo, 
+                () => Navigator.pushNamed(context, '/operator-class')
+              ),
+              
+              _buildMenuCard(
+                "Xếp lịch & Thông báo", 
+                "Sắp xếp TKB, gửi SMS tự động", 
+                Icons.calendar_month, 
+                Colors.purple, 
+                () => Navigator.pushNamed(context, '/operator-schedule')
+              ),
+              
+              _buildMenuCard(
+                "Giao dịch & Tài chính", 
+                "Duyệt ví tiền, xuất báo cáo", 
+                Icons.account_balance_wallet, 
+                Colors.green, 
+                () => Navigator.pushNamed(context, '/operator-finance')
+              ),
+              
+              _buildMenuCard(
+                "Cửa hàng Đổi thưởng", 
+                "Quản lý kho quà tặng iKids", 
+                Icons.storefront, 
+                Colors.blue, 
+                () => Navigator.pushNamed(context, '/operator-store')
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 
+  // --- COMPONENT THẺ MENU ---
+  Widget _buildMenuCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 15),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.grey)
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- TAB 3: TRANG CÁ NHÂN ---
   Widget _buildProfileTab() {
-    if (_isLoadingProfile) return const Center(child: CircularProgressIndicator());
+    if (_isLoadingProfile) return const Center(child: CircularProgressIndicator(color: Colors.orange));
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
       child: Column(
@@ -113,7 +166,11 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
           const SizedBox(height: 25),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: const Text("Đăng xuất", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), onTap: _handleLogout),
+            child: ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red), 
+              title: const Text("Đăng xuất khỏi ca trực", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
+              onTap: _handleLogout
+            ),
           )
         ],
       ),
@@ -124,16 +181,16 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
   Widget build(BuildContext context) {
     final List<Widget> tabs = [_buildHomeTab(), const NotificationScreen(), _buildProfileTab()];
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey[100],
       body: SafeArea(child: tabs[_selectedIndex]),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.orange,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Bảng điều khiển"),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Cá nhân"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Hồ sơ"),
         ],
       ),
     );
