@@ -2,59 +2,70 @@
 
 /* --- 1. KHOẢNG CÁCH TỔNG THỂ & TYPOGRAPHY --- */
 .block-container {
-    padding-top: 1.5rem;
+    padding-top: 2rem;
     padding-bottom: 2rem;
+    max-width: 95% !important; /* Mở rộng không gian làm việc cho bảng điểm */
 }
 
-/* Tiêu đề chính các trang quản lý (Màu xám tối chuyên nghiệp) */
+/* Tiêu đề chính */
 h1 {
     color: #1e293b !important;
     font-weight: 800;
+    margin-bottom: 1rem;
 }
 
-/* Tiêu đề nhóm, phân mục (Màu xanh dương học thuật) */
+/* Tiêu đề nhóm, phân mục */
 h2, h3 {
     color: #2563eb !important;
     font-weight: 700;
 }
 
-/* Tiêu đề phụ hoặc nhãn AI Insights */
+/* Tiêu đề phụ hoặc nhãn AI */
 h4 {
     color: #0f766e !important;
     font-weight: 700;
 }
 
-/* --- 2. HỆ THỐNG NÚT BẤM (BUTTONS) GIÁO VIÊN --- */
+/* --- 2. HỆ THỐNG NÚT BẤM (BUTTONS) --- */
 .stButton > button {
     border-radius: 8px !important;
     font-weight: 600 !important;
-    transition: all 0.25s ease-in-out !important;
+    transition: all 0.2s ease-in-out !important;
+    border: 1px solid #cbd5e1 !important;
 }
 
-/* Nút chính (Lưu điểm, Giao bài, Tạo Quiz) */
+/* Nút chính (Giao bài, Lưu điểm, Soạn đề) */
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-    color: white !important;
+    color: #ffffff !important;
     border: none !important;
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
 .stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3) !important;
 }
 
-/* Nút đặc biệt: Xóa bài tập / Huỷ lệnh (Hiệu ứng hover chuyển đỏ cảnh báo) */
+/* Nút xóa / cảnh báo (Có icon ❌ hoặc 🗑️) */
+.stButton > button:has(p:contains("❌")),
+.stButton > button:has(p:contains("🗑️")),
+.stButton > button:has(p:contains("Xóa")) {
+    background-color: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1px solid #f87171 !important;
+}
+
+.stButton > button:has(p:contains("❌")):hover,
 .stButton > button:has(p:contains("🗑️")):hover,
-.stButton > button:has(div:contains("🗑️")):hover,
 .stButton > button:has(p:contains("Xóa")):hover {
     background-color: #ef4444 !important;
-    color: white !important;
-    border-color: #dc2626 !important;
+    color: #ffffff !important;
 }
 
-/* --- 3. ĐỊNH DẠNG FORM & CONTAINER NHẬP LIỆU --- */
-/* Khung bọc Form tạo Quiz AI, nhập điểm số, nhận xét nhật ký */
-div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
+/* --- 3. ĐỊNH DẠNG FORM & CONTAINER (AN TOÀN CHO STREAMLIT LAYOUT) --- */
+/* Chỉ format thẻ Form chuẩn của Streamlit */
+div[data-testid="stForm"] {
     background-color: #ffffff;
     border-radius: 12px !important;
     border: 1px solid #e2e8f0 !important;
@@ -62,27 +73,79 @@ div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
 }
 
-/* --- 4. TỐI ƯU BẢNG ĐIỂM & ĐIỂM DANH (TABLES) --- */
-/* Làm đẹp các lưới dữ liệu nhập điểm, danh sách học sinh */
-.stTable, table {
+/* Định dạng riêng cho Container (Ví dụ: Các khung câu hỏi trong Tab Xem trước) */
+div[data-testid="stVerticalBlock"] > div > div > div[style*="border"] {
+    background-color: #f8fafc;
+    border-radius: 10px !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 20px !important;
+    transition: border-color 0.2s;
+}
+
+div[data-testid="stVerticalBlock"] > div > div > div[style*="border"]:hover {
+    border-color: #94a3b8 !important;
+}
+
+/* --- 4. TỐI ƯU BẢNG ĐIỂM & ĐIỂM DANH (DATAFRAME) --- */
+.stDataFrame, .stTable {
     border-radius: 10px !important;
     overflow: hidden !important;
     border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
-thead th {
-    background-color: #f8fafc !important;
+/* Làm nổi bật thanh tiêu đề bảng */
+[data-testid="stDataFrame"] thead th {
+    background-color: #f1f5f9 !important;
     color: #334155 !important;
     font-weight: 700 !important;
+    text-transform: uppercase;
+    font-size: 0.85rem;
 }
 
-/* --- 5. TÙY CHỈNH TABS ĐIỀU HƯỚNG --- */
+/* --- 5. TÙY CHỈNH TABS ĐIỀU HƯỚNG MƯỢT MÀ --- */
+/* Khoảng cách và nền khung Tabs */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 15px;
+    gap: 8px;
+    background-color: #f8fafc;
+    padding: 5px 5px 0 5px;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 2px solid #e2e8f0;
 }
 
+/* Trạng thái mặc định của Tab */
 .stTabs [data-baseweb="tab"] {
     font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 6px 6px 0 0;
+    padding: 12px 20px;
+    border-radius: 8px 8px 0 0;
+    color: #64748b;
+    background-color: transparent;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+/* Trạng thái Active (Khi đang được chọn) */
+.stTabs [aria-selected="true"] {
+    background-color: #ffffff !important;
+    color: #2563eb !important;
+    border-top: 3px solid #2563eb !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.02);
+}
+
+/* Ẩn dòng highlight mặc định xấu xí của Streamlit */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none;
+}
+
+/* --- 6. Ô NHẬP LIỆU (INPUTS) --- */
+.stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] {
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stSelectbox div[data-baseweb="select"]:focus-within {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 1px #2563eb !important;
 }

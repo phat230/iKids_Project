@@ -4,13 +4,14 @@ import requests
 from io import BytesIO
 import altair as alt
 
-API_BASE = "http://127.0.0.1:8000/api/finance"
+# ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
+st.set_page_config(page_title="Quản lý giao dịch tiền", layout="wide")
 
+API_BASE = "http://127.0.0.1:8000/api/finance"
 
 def get_headers():
     token = st.session_state.get("access_token") or st.session_state.get("token")
     return {"Authorization": f"Bearer {token}"} if token else {}
-
 
 def check_permission():
     user = st.session_state.get("user_info", {})
@@ -19,7 +20,6 @@ def check_permission():
     if role not in ["admin", "operator"]:
         st.error("Bạn không có quyền truy cập trang này.")
         st.stop()
-
 
 def export_excel(df, file_name):
     output = BytesIO()
@@ -34,7 +34,6 @@ def export_excel(df, file_name):
         use_container_width=True
     )
 
-
 def load_all_history():
     res = requests.get(f"{API_BASE}/admin/all-history", headers=get_headers())
 
@@ -45,7 +44,6 @@ def load_all_history():
     st.write(res.text)
     return []
 
-
 def update_transaction(transaction_id, payload):
     res = requests.put(
         f"{API_BASE}/transactions/{transaction_id}",
@@ -54,14 +52,12 @@ def update_transaction(transaction_id, payload):
     )
     return res.status_code == 200
 
-
 def delete_transaction(transaction_id):
     res = requests.delete(
         f"{API_BASE}/transactions/{transaction_id}",
         headers=get_headers()
     )
     return res.status_code == 200
-
 
 def get_money_value(row):
     for col in ["amount", "price", "total_amount"]:
@@ -72,8 +68,7 @@ def get_money_value(row):
                 return 0
     return 0
 
-
-st.set_page_config(page_title="Quản lý giao dịch tiền", layout="wide")
+# Kiểm tra quyền truy cập
 check_permission()
 
 st.title("💰 Quản lý giao dịch tiền & mua dụng cụ")
@@ -320,57 +315,41 @@ with tab3:
         st.divider()
 
         if "group" in df_calc.columns:
-            st.subheader("📌 Số lượng giao dịch theo nhóm")
+            col_chart1, col_chart2 = st.columns(2)
+            
+            with col_chart1:
+                st.subheader("📌 Tỷ trọng giao dịch theo nhóm")
+                chart_count = df_calc.groupby("group").size().reset_index(name="Số lượng")
+                
+                # Sửa thành Biểu đồ Tròn (Donut Chart)
+                chart1 = alt.Chart(chart_count).mark_arc(innerRadius=60).encode(
+                    theta=alt.Theta(field="Số lượng", type="quantitative"),
+                    color=alt.Color(field="group", type="nominal", legend=alt.Legend(title="Nhóm", orient="bottom")),
+                    tooltip=[alt.Tooltip("group", title="Nhóm"), alt.Tooltip("Số lượng", title="Số giao dịch")]
+                ).properties(height=350)
+                
+                st.altair_chart(chart1, use_container_width=True)
 
-            chart_count = df_calc.groupby("group").size().reset_index(name="Số lượng")
+            with col_chart2:
+                st.subheader("💰 Tổng tiền theo nhóm")
 
-            chart1 = alt.Chart(chart_count).mark_bar().encode(
-                x="group",
-                y="Số lượng",
-                tooltip=["group", "Số lượng"]
-            )
+                def row_money(row):
+                    for col in ["amount", "price", "total_amount"]:
+                        if col in row and pd.notna(row[col]):
+                            value = float(row[col])
+                            if value != 0:
+                                return value
+                    return 0
 
-            st.altair_chart(chart1, use_container_width=True)
+                df_calc["money_value"] = df_calc.apply(row_money, axis=1)
+                chart_money = df_calc.groupby("group")["money_value"].sum().reset_index()
 
-        if "group" in df_calc.columns:
-            st.subheader("💰 Tổng tiền theo nhóm")
+                # Sửa thành Biểu đồ Cột Ngang (Horizontal Bar Chart) có sắp xếp
+                chart2 = alt.Chart(chart_money).mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4).encode(
+                    x=alt.X("money_value:Q", title="Tổng tiền (VNĐ)"),
+                    y=alt.Y("group:N", sort='-x', title="Nhóm giao dịch"),
+                    color=alt.Color("group:N", legend=None),
+                    tooltip=[alt.Tooltip("group", title="Nhóm"), alt.Tooltip("money_value:Q", title="Tổng tiền (VNĐ)", format=",.0f")]
+                ).properties(height=350)
 
-            def row_money(row):
-                for col in ["amount", "price", "total_amount"]:
-                    if col in row and pd.notna(row[col]):
-                        value = float(row[col])
-                        if value != 0:
-                            return value
-                return 0
-
-            df_calc["money_value"] = df_calc.apply(row_money, axis=1)
-
-            chart_money = df_calc.groupby("group")["money_value"].sum().reset_index()
-
-            chart2 = alt.Chart(chart_money).mark_bar().encode(
-                x="group",
-                y="money_value",
-                tooltip=["group", "money_value"]
-            )
-
-            st.altair_chart(chart2, use_container_width=True)
-
-        st.divider()
-
-        st.markdown("### 🔁 Luồng giao dịch")
-        st.code("""
-Phụ huynh
-   ├── Nạp tiền vào ví
-   ├── Chuyển tiền cho con
-   ├── Rút tiền từ tài khoản con
-   └── Mua dụng cụ học tập cho con
-
-Học sinh
-   └── Tự mua dụng cụ học tập
-
-Operator/Admin
-   ├── Xem toàn bộ lịch sử
-   ├── Sửa giao dịch
-   ├── Xóa giao dịch
-   └── Xuất báo cáo Excel
-""")
+                st.altair_chart(chart2, use_container_width=True)
