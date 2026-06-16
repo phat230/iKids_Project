@@ -25,7 +25,7 @@ def load_css(file_name):
 # Tải CSS
 load_css("shared/thong_bao.css")
 
-API_URL = "http://localhost:8000"
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # 1. KIỂM TRA ĐĂNG NHẬP
 if "token" not in st.session_state:
@@ -173,18 +173,18 @@ raw_role_vietnamese = {
 # =========================
 def fetch_inbox():
     try:
-        res = requests.get(f"{API_URL}/api/notifications/receive/{user_id}/{user_role}", timeout=5)
+        res = requests.get(f"{BACKEND_URL}/api/notifications/receive/{user_id}/{user_role}", timeout=5)
         return res.json() if res.status_code == 200 else []
     except: return []
 
 def fetch_sent():
     try:
-        res = requests.get(f"{API_URL}/api/notifications/sent/{user_id}", timeout=5)
+        res = requests.get(f"{BACKEND_URL}/api/notifications/sent/{user_id}", timeout=5)
         return res.json() if res.status_code == 200 else []
     except: return []
 
 def mark_read(noti_id):
-    try: requests.put(f"{API_URL}/api/notifications/{noti_id}/read", timeout=5)
+    try: requests.put(f"{BACKEND_URL}/api/notifications/{noti_id}/read", timeout=5)
     except: pass
 
 # =========================
@@ -278,7 +278,7 @@ with tab_compose:
                         "title": title.strip(),
                         "content": content.strip()
                     }
-                    res = requests.post(f"{API_URL}/api/notifications/send", json=payload)
+                    res = requests.post(f"{BACKEND_URL}/api/notifications/send", json=payload)
                     if res.status_code == 200:
                         st.success(NOTIF_LABELS[lang]["success_sent"])
                         st.balloons()

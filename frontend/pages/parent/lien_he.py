@@ -4,7 +4,8 @@ import time
 import os
 from datetime import date
 
-API_URL = "http://localhost:8000"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state thay vì ghi chết localhost
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Liên Hệ & Xin Nghỉ")
@@ -149,7 +150,8 @@ with tab1:
                 
                 try:
                     with st.spinner(CONTACT_LABELS[lang]["spinner_msg"]):
-                        res = requests.post(f"{API_URL}/api/tv3/contact", json=payload)
+                        # ĐÃ SỬA: Gọi API bằng BACKEND_URL
+                        res = requests.post(f"{BACKEND_URL}/api/tv3/contact", json=payload)
                         if res.status_code in [200, 201]:
                             st.success(CONTACT_LABELS[lang]["success_msg"])
                             st.balloons()
@@ -173,7 +175,8 @@ with tab2:
     
     try:
         parent_id = st.session_state.get("user_id", "unknown")
-        res_history = requests.get(f"{API_URL}/api/tv3/contact/history/{parent_id}")
+        # ĐÃ SỬA: Gọi API bằng BACKEND_URL
+        res_history = requests.get(f"{BACKEND_URL}/api/tv3/contact/history/{parent_id}")
         
         if res_history.status_code == 200 and res_history.json():
             history_data = res_history.json()

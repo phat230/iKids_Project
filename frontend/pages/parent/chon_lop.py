@@ -7,9 +7,10 @@ import time
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Đăng Ký Lớp Học", page_icon=None, layout="wide")
 
-# Cấu hình API Backend
-API_URL = "http://localhost:8000"
-API_TV3 = "http://localhost:8000/api/tv3"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state và cấu hình lại prefix chuẩn cho TV1, TV3
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+API_TV3 = f"{BACKEND_URL}/api/tv3"
 
 # ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
@@ -129,22 +130,22 @@ if not children:
 
 child_options = {c["id"]: c["name"] for c in children}
 
-# 3. LẤY TOÀN BỘ DỮ LIỆU LỚP VÀ LỊCH ĐỂ XỬ LÝ
+# 3. LẤY TOÀN BỘ DỮ LIỆU LỚP VÀ LỊCH ĐỂ XỬ LÝ (Sử dụng API_TV1)
 try:
-    res_public = requests.get(f"{API_URL}/classes/public")
+    res_public = requests.get(f"{API_TV1}/classes/public")
     public_classes = res_public.json() if res_public.status_code == 200 else []
 except Exception as e:
     st.error(f"{ENROLL_LABELS[lang]['err_connection']} {e}")
     public_classes = []
 
 try:
-    res_all = requests.get(f"{API_URL}/classes", headers=headers, timeout=5)
+    res_all = requests.get(f"{API_TV1}/classes", headers=headers, timeout=5)
     all_classes = res_all.json() if res_all.status_code == 200 else public_classes
 except:
     all_classes = public_classes
 
 try:
-    res_sched = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=5)
+    res_sched = requests.get(f"{API_TV1}/schedule/list", headers=headers, timeout=5)
     schedules = res_sched.json() if res_sched.status_code == 200 else []
 except:
     schedules = []
@@ -310,7 +311,8 @@ else:
                     if st.button(ENROLL_LABELS[lang]["btn_enroll"], key=f"btn_{class_id}", type="primary", use_container_width=True):
                         payload = {"class_id": class_id, "student_id": selected_child_id}
                         try:
-                            register_res = requests.post(f"{API_URL}/classes/register", json=payload)
+                            # ĐÃ SỬA: Đổi sang API_TV1 thay vì API_URL
+                            register_res = requests.post(f"{API_TV1}/classes/register", json=payload)
                             
                             if register_res.status_code in [200, 201]:
                                 st.success(f"{ENROLL_LABELS[lang]['success_enrolled']} **{child_options[selected_child_id]}**!")

@@ -21,7 +21,7 @@ def load_css(file_name):
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 load_css("teacher/teacher_global.css")
-# Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 lang = st.session_state.get("lang", "vi")
 
 # ================= BỘ TỪ ĐIỂN SONG NGỮ =================

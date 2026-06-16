@@ -32,7 +32,7 @@ def load_css(file_name):
 
 # Tải CSS (Chỉ truyền phần tên thư mục con và file)
 load_css("student/student_global.css")
-API_URL = "http://localhost:8000"
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")

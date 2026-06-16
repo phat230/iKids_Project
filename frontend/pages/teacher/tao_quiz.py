@@ -20,7 +20,7 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
-# Lấy cấu hình ngôn ngữ hiện hành (Mặc định "vi")
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 lang = st.session_state.get("lang", "vi")
 
 # ================= BỘ TỪ ĐIỂN SONG NGỮ =================

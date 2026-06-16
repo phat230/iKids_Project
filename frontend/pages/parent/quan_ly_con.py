@@ -8,10 +8,13 @@ import os
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Quản Lý Con Em - iKids", layout="wide")
 
-# Cấu hình URL Backend
-API_AUTH = "http://localhost:8000/api/auth"
-API_TV3 = "http://localhost:8000/api/tv3"
-API_FINANCE = "http://localhost:8000/api/finance"
+# Lấy cấu hình BACKEND_URL chung từ session_state (do app.py khởi tạo)
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+
+# ĐÃ SỬA: Cấu hình URL Backend tự động thay đổi theo hệ thống (Local hoặc Render)
+API_AUTH = f"{BACKEND_URL}/api/auth"
+API_TV3 = f"{BACKEND_URL}/api/tv3"
+API_FINANCE = f"{BACKEND_URL}/api/finance"
 
 # ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):

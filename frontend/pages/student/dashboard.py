@@ -24,7 +24,7 @@ def load_css(file_name):
 
 # Tải CSS làm đẹp cho trang Dashboard
 load_css("student/student_global.css")
-# Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 lang = st.session_state.get("lang", "vi")
 
 # ==========================================

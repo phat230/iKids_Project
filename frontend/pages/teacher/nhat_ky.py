@@ -18,7 +18,7 @@ def load_css(file_name):
 
 load_css("teacher/nhat_ky.css")
 
-API_URL = "http://127.0.0.1:8000"
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})

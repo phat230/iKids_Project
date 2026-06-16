@@ -68,7 +68,7 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
-API_URL = "http://localhost:8000"
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})

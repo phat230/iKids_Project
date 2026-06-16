@@ -12,6 +12,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# THÊM MỚI: Khởi tạo biến API_URL toàn cục cho mọi trang con dùng chung
+if "api_url" not in st.session_state:
+    st.session_state["api_url"] = os.getenv("API_URL", "http://localhost:8000")
+
 # Khởi tạo trạng thái ngôn ngữ mặc định (Bảo vệ session state)
 if "lang" not in st.session_state:
     st.session_state["lang"] = "vi"
@@ -102,7 +106,6 @@ else:
     # 2. Quyền hạn: Operator (Vận hành)
     elif role == "operator":
         menu_pages.extend([
-            # FIX DỨT ĐIỂM: Operator không có file dashboard.py riêng, sử dụng đúng các trang chức năng cốt lõi của họ
             giao_dich_tien_page,
             st.Page("pages/operator/xep_lich.py", title="Xếp Lịch Dạy" if lang == "vi" else "Schedule Teaching"),
             st.Page("pages/operator/quan_ly_lop.py", title="Quản Lý Lớp Học" if lang == "vi" else "Class Management"), 
@@ -130,7 +133,7 @@ else:
             st.Page("pages/student/quiz.py", title="Trạm Quiz AI" if lang == "vi" else "AI Quiz Station"),
             st.Page("pages/student/cua_hang.py", title="Cửa Hàng iKids" if lang == "vi" else "iKids Store"),
             st.Page("pages/student/video.py", title="Rạp Chiếu Video AI" if lang == "vi" else "AI Video Cinema"),
-            st.Page("pages/student/ket_qua.py", title="Bảng Điểm Cá Nhân" if lang == "vi" else "My Report Card"), # ĐÃ BỔ SUNG TẠI ĐÂY
+            st.Page("pages/student/ket_qua.py", title="Bảng Điểm Cá Nhân" if lang == "vi" else "My Report Card"),
             st.Page("pages/student/trang_ca_nhan.py", title="Trang Cá Nhân" if lang == "vi" else "My Profile")
         ])
 
@@ -153,13 +156,14 @@ else:
         welcome_txt = "Chào" if lang == "vi" else "Welcome"
         st.write(f"### {welcome_txt}, {user.get('full_name', user.get('name', 'Member'))}! ")
         
-        BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
+        # Lấy trực tiếp từ session_state cho đồng bộ toàn hệ thống
+        BACKEND_URL = st.session_state["api_url"]
         
         avatar_url = user.get("avatar_url") 
         
         if avatar_url:
             if avatar_url.startswith("/"):
-               st.image(f"{BACKEND_URL}{avatar_url}", width=100)
+                st.image(f"{BACKEND_URL}{avatar_url}", width=100)
             else:
                 st.image(avatar_url, width=100)
         else:

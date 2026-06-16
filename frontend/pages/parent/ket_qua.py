@@ -9,8 +9,9 @@ import urllib.parse
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Báo Cáo Học Tập", layout="wide", page_icon=None)
 
-API_URL = "http://localhost:8000"
-API_TV3 = "http://localhost:8000/api/tv3"
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_URL = BACKEND_URL
+API_TV3 = f"{BACKEND_URL}/api/tv3"
 
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))

@@ -106,8 +106,11 @@ else:
                 time_str = raw_date[:16].replace('T', ' ') if len(raw_date) >= 16 else "---"
                 st.caption(f"🕒 {time_str}")
             
-            # Hiển thị ảnh kỷ niệm
-            st.image(item.get("media_url", "https://via.placeholder.com/800x500"), use_container_width=True)
+            # ĐÃ SỬA: Xử lý an toàn triệt để cho ảnh hiển thị, loại bỏ via.placeholder
+            media_url = item.get("media_url")
+            if not media_url or "via.placeholder.com" in media_url:
+                media_url = "static/anh_laptop.jpg"
+            st.image(media_url, use_container_width=True)
             
             # Mô tả ảnh (Tự động thích ứng đa ngôn ngữ và xử lý dịch máy bù)
             memory_description = get_localized_value(item.get('description'), lang=lang, default_val=MEMORY_LABELS[lang]["no_description"])
@@ -118,7 +121,7 @@ else:
             col1, col2 = st.columns([1, 5])
             with col1:
                 likes = item.get('likes', 0)
-                m_id = item.get('_id', item.get('id'))
+                m_id = str(item.get('_id', item.get('id')))
                 # Sử dụng key động để Streamlit không bị loạn trạng thái giữa các dòng dữ liệu
                 if st.button(f"❤️ {likes}", key=f"like_{m_id}"):
                     if like_memory(m_id):
