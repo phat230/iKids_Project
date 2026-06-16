@@ -22,7 +22,7 @@ def load_css(file_name):
 
 load_css("operator/operator_global.css")
 
-API_URL = "http://localhost:8000"
+API_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # Lấy mã ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")

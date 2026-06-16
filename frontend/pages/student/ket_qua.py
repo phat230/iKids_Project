@@ -8,7 +8,7 @@ from utils.role_guard import require_role
 require_role(["student"])
 
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-
+API_URL = BACKEND_URL
 # ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
     """

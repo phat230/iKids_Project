@@ -36,6 +36,7 @@ def load_role_based_css():
 # Kích hoạt nạp CSS đồng bộ
 load_role_based_css()
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_URL = BACKEND_URL
 # Lấy cấu hình ngôn ngữ hiện hành (Mặc định "vi")
 lang = st.session_state.get("lang", "vi")
 

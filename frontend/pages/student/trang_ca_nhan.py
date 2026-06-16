@@ -29,6 +29,7 @@ def get_image_base64(image_bytes):
 
 load_css("student/student_global.css")
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_URL = BACKEND_URL
 lang = st.session_state.get("lang", "vi")
 
 # ==========================================

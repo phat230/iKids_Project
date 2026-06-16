@@ -8,9 +8,8 @@ from deep_translator import GoogleTranslator
 # Kiểm tra phân quyền truy cập
 require_role(["student"])
 
-# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state toàn cục
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-
+API_URL = BACKEND_URL
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_path = os.path.abspath(os.path.join(current_dir, "../../CSS/student/student_global.css"))

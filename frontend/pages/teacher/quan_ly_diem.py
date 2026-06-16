@@ -41,7 +41,7 @@ def load_css(file_name):
 
 load_css("teacher/teacher_global.css")
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-
+API_URL = BACKEND_URL
 def get_teacher_info():
     if "user_info" in st.session_state:
         info = st.session_state.user_info

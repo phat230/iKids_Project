@@ -69,7 +69,7 @@ def load_css(file_name):
 
 load_css("teacher/teacher_global.css")
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-
+API_URL = BACKEND_URL
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})
 teacher_id = str(user_info.get("id", user_info.get("_id", "")))

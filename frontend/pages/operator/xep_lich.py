@@ -22,9 +22,11 @@ def load_css(file_name):
         st.warning(f"Khong tim thay file CSS tai: {full_path}")
         
 load_css("operator/operator_global.css")
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
-API = "http://127.0.0.1:8000"
-TV1_API = API
+API = BACKEND_URL
+TV1_API = f"{BACKEND_URL}/api/tv1"
+TV3_API = f"{BACKEND_URL}/api/tv3"
 
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
