@@ -1,8 +1,13 @@
+import os
 import requests
 import streamlit as st
+from dotenv import load_dotenv
 
-# Đảm bảo URL chính xác với cổng Backend của bạn
-API_URL = "http://localhost:8000/api/auth"
+load_dotenv()
+
+# Lấy URL linh hoạt từ cấu hình của Render
+BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = f"{BACKEND_URL}/api/auth"
 
 def login_user(email, password):
     """Gọi API Đăng nhập và nạp đầy đủ thông tin vào Session"""
@@ -30,7 +35,7 @@ def login_user(email, password):
         return False, error_msg
         
     except requests.exceptions.ConnectionError:
-        return False, "Không thể kết nối đến Backend. Vui lòng bật Uvicorn!"
+        return False, "Không thể kết nối đến Backend. Vui lòng kiểm tra lại trạng thái Server!"
 
 def logout_user():
     """Xóa sạch phiên làm việc và quay về trang chủ"""
@@ -62,7 +67,7 @@ def register_user(name, email, password, role, phone_number=None, birth_date=Non
         
         try:
             error_msg = response.json().get("detail", "Lỗi đăng ký")
-            # Trường hợp Pydantic Validation trả về lỗi mảng (ví dụ lỗi định dạng hoặc lỗi validator tuổi)
+            # Trường hợp Pydantic Validation trả về lỗi mảng
             if isinstance(error_msg, list):
                 error_msg = error_msg[0].get("msg", "Dữ liệu nhập vào không hợp lệ.")
         except Exception:
