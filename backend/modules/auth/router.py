@@ -55,7 +55,9 @@ def send_email_otp(target_email: str, otp_code: str) -> bool:
         print(f"❌ [SMTP] Gửi mail thất bại: {e}")
         return False
 
-router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+# ĐÃ SỬA CHỮA: Bỏ tham số prefix ở đây để không bị nhân đôi đường dẫn
+router = APIRouter(tags=["Authentication"])
+
 @router.get("/admin/stats")
 async def get_admin_stats(current_admin = Depends(get_current_user)):
     """API giả lập trả về dữ liệu thống kê cho Admin Dashboard"""

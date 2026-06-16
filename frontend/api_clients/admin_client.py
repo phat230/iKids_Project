@@ -5,8 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Lấy URL Backend từ biến môi trường (Render) hoặc mặc định là localhost
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+# Lấy URL Backend từ biến môi trường
+BASE_URL = os.getenv("API_URL", "http://localhost:8000")
+
+# ĐÃ SỬA: Thêm đuôi "/api/tv1" vì API quản lý nhân sự (/staff) nằm ở module TV1
+API_URL = f"{BASE_URL}/api/tv1"
 
 def get_headers():
     """Lấy token xác thực từ session state"""

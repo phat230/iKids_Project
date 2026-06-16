@@ -148,13 +148,15 @@ else:
 
     # Khởi tạo Navigation động dựa trên mảng danh sách trang đã phân phối quyền thành công
     pg = st.navigation(menu_pages)
-    
     # Hiển thị thông tin định danh ở góc thanh Sidebar menu
     with st.sidebar:
         welcome_txt = "Chào" if lang == "vi" else "Welcome"
         st.write(f"### {welcome_txt}, {user.get('full_name', user.get('name', 'Member'))}! ")
         
         BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
+        
+        avatar_url = user.get("avatar_url") 
+        
         if avatar_url:
             if avatar_url.startswith("/"):
                st.image(f"{BACKEND_URL}{avatar_url}", width=100)
@@ -168,6 +170,5 @@ else:
         
         if st.button(UI_LOCALES[lang]['btn_logout'], key="logout_sidebar", use_container_width=True, type="primary"):
             logout_user()
-            st.rerun()
             
     pg.run()

@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BASE_URL = f"{os.getenv('API_URL', 'http://localhost:8000')}/academic"
+# ĐÃ SỬA: Đổi "/academic" thành "/api/tv2" để khớp với Backend
+BASE_URL = f"{os.getenv('API_URL', 'http://localhost:8000')}/api/tv2"
+
 def get_headers():
     """Lấy token từ session state để xác thực"""
     token = st.session_state.get("access_token")
@@ -58,9 +60,8 @@ def save_quiz(quiz_data: dict):
         return None
     
 def assign_quiz_to_class(data: dict):
-    """Gửi yêu cầu giao bài tập lên Backend (Đã sửa lỗi localhost)"""
+    """Gửi yêu cầu giao bài tập lên Backend"""
     try:
-        # Sử dụng f-string với BASE_URL để đồng bộ
         response = requests.post(
             f"{BASE_URL}/assign-quiz", 
             json=data,

@@ -4,7 +4,8 @@ from core.security import get_current_user
 from bson import ObjectId
 from datetime import datetime
 
-router = APIRouter(prefix="/api/finance", tags=["Finance"])
+# ĐÃ SỬA: Xóa bỏ prefix="/api/finance"
+router = APIRouter(tags=["Finance"])
 
 
 def only_admin_operator(user):

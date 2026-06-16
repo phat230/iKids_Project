@@ -3,7 +3,8 @@ from core.database import get_db
 from .models import NotificationCreate
 from .services import create_notification, get_notifications, get_sent_notifications, mark_notification_as_read
 
-router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
+# ĐÃ SỬA: Xóa bỏ prefix="/api/notifications"
+router = APIRouter(tags=["Notifications"])
 
 @router.post("/send")
 async def send_notification(noti: NotificationCreate, db = Depends(get_db)):

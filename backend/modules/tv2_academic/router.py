@@ -12,8 +12,7 @@ from core.database import database as db
 # Import models (đảm bảo ông đã định nghĩa các Class này trong file models.py)
 from .models import TeachingJournalModel, VideoAIModel, QuizModel, QuizAssignmentModel
 
-router = APIRouter(prefix="/api/tv2", tags=["TV2 - Academic & Teacher"])
-
+router = APIRouter(tags=["TV2 - Academic & Teacher"])
 # ================= CẤU HÌNH AI (BACKEND) =================
 # Lấy API Key từ file .env (Bảo mật, chống khóa Key)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
