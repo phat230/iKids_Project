@@ -6,12 +6,15 @@ secondaryBackgroundColor = "#f8fafc"
 textColor = "#0f172a"
 
 [server]
-headless = true
+port = 10000
+address = "0.0.0.0"
 enableCORS = false
 enableXsrfProtection = false
 enableStaticServing = true
-port = 10000
-address = "0.0.0.0"
 
 [browser]
 gatherUsageStats = false
+# CHỈ ĐỊNH ĐỊA CHỈ TUYỆT ĐỐI ĐỂ KHÔNG BỊ LẠC ĐƯỜNG DẪN /login
+serverAddress = "ikids-frontend-api.onrender.com"
+# CHỈ ĐỊNH CỔNG 443 (HTTPS) ĐỂ TRÁNH LỖI BỊ CHẶN CỔNG 10000
+serverPort = 443
