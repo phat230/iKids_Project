@@ -124,24 +124,29 @@ if "admin_tv2_item" not in st.session_state:
 if "admin_tv2_type" not in st.session_state:
     st.session_state.admin_tv2_type = None
 
-API_URL = "http://127.0.0.1:8000"
-API_TV3 = f"{API_URL}/api/tv3"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state và cấu hình URL theo từng module
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+API_TV2 = f"{BACKEND_URL}/api/tv2"
+API_TV3 = f"{BACKEND_URL}/api/tv3"
 
 def fetch_pending_requests():
     try:
-        res = requests.get(f"{API_URL}/pending-requests")
+        # ĐÃ SỬA: Đưa các request xử lý vận hành về cổng TV1
+        res = requests.get(f"{API_TV1}/pending-requests")
         return res.json() if res.status_code == 200 else []
     except: return []
 
 def fetch_history_requests():
     try:
-        res = requests.get(f"{API_URL}/request-history")
+        # ĐÃ SỬA: Đưa các request lịch sử về cổng TV1
+        res = requests.get(f"{API_TV1}/request-history")
         return res.json() if res.status_code == 200 else []
     except: return []
 
 def fetch_deposit_issues():
     try:
-        res = requests.get(f"{API_URL}/api/tv3/admin/deposit-issues")
+        res = requests.get(f"{API_TV3}/admin/deposit-issues")
         return res.json() if res.status_code == 200 else []
     except: return []
 
@@ -210,10 +215,11 @@ with left_col:
                         st.markdown(f"**{'Lý do' if lang == 'vi' else 'Reason'}:** {req.get('reason', '')}")
                     with c_btn:
                         if st.button(DASHBOARD_LABELS[lang]["btn_approve"], key=f"app_{req_id}", type="primary", use_container_width=True):
-                            res = requests.post(f"{API_URL}/approve/{req_id}")
+                            # ĐÃ SỬA: API xử lý duyệt/từ chối cũng đưa về TV1
+                            res = requests.post(f"{API_TV1}/approve/{req_id}")
                             if res.status_code == 200: st.rerun()
                         if st.button(DASHBOARD_LABELS[lang]["btn_reject"], key=f"rej_{req_id}", use_container_width=True):
-                            res = requests.post(f"{API_URL}/reject/{req_id}")
+                            res = requests.post(f"{API_TV1}/reject/{req_id}")
                             if res.status_code == 200: st.rerun()
 
     st.write("---")
@@ -243,9 +249,10 @@ with right_col:
     with st.container(border=True):
         st.markdown(f"**{DASHBOARD_LABELS[lang]['sub_tv2']}**")
         if st.session_state.admin_tv2_view == "list":
-            try: quizzes = requests.get(f"{API_URL}/api/tv2/quizzes").json()
+            # ĐÃ SỬA: Gọi API thông qua API_TV2
+            try: quizzes = requests.get(f"{API_TV2}/quizzes").json()
             except: quizzes = []
-            try: videos = requests.get(f"{API_URL}/api/tv2/videos").json()
+            try: videos = requests.get(f"{API_TV2}/videos").json()
             except: videos = []
 
             tab_quiz, tab_video = st.tabs([DASHBOARD_LABELS[lang]["tab_quiz"], DASHBOARD_LABELS[lang]["tab_video"]])

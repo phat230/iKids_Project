@@ -9,10 +9,12 @@ class ApiService {
 
   // 1. Hàm Đăng nhập
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
+    final response = await NetworkHelper.safeRequest(
+      http.post(
+        Uri.parse('${AppConfig.apiAuth}/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      )
     );
 
     if (response.statusCode == 200) {
@@ -32,10 +34,12 @@ class ApiService {
 
   // 2. Hàm Đăng ký (Giai đoạn 1)
   Future<Map<String, dynamic>> register(Map<String, dynamic> userData) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(userData),
+    final response = await NetworkHelper.safeRequest(
+      http.post(
+        Uri.parse('${AppConfig.apiAuth}/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(userData),
+      )
     );
     
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -48,10 +52,12 @@ class ApiService {
 
   // 3. Hàm Xác thực OTP (Giai đoạn 2)
   Future<Map<String, dynamic>> verifyOtp(String email, String otp) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/verify-registration-otp'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'otp_code': otp}),
+    final response = await NetworkHelper.safeRequest(
+      http.post(
+        Uri.parse('${AppConfig.apiAuth}/verify-registration-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'otp_code': otp}),
+      )
     );
     
     if (response.statusCode == 200) {
@@ -64,10 +70,12 @@ class ApiService {
 
   // 4. Hàm Quên mật khẩu (Gửi email lấy OTP)
   Future<bool> forgotPassword(String email) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/forgot-password'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email}),
+    final response = await NetworkHelper.safeRequest(
+      http.post(
+        Uri.parse('${AppConfig.apiAuth}/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      )
     );
     
     if (response.statusCode == 200) return true;
@@ -78,14 +86,16 @@ class ApiService {
 
   // 4.1 Đặt lại mật khẩu (Gửi OTP và MK mới)
   Future<bool> resetPassword(String email, String otp, String newPassword) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/verify-reset'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'otp': otp,
-        'new_password': newPassword
-      }),
+    final response = await NetworkHelper.safeRequest(
+      http.post(
+        Uri.parse('${AppConfig.apiAuth}/verify-reset'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'otp': otp,
+          'new_password': newPassword
+        }),
+      )
     );
     
     if (response.statusCode == 200) return true;
@@ -94,13 +104,14 @@ class ApiService {
     throw Exception(error['detail'] ?? 'Lỗi khi đặt lại mật khẩu');
   }
 
-  // 5. Hàm GET có Token
+  // 5. Hàm GET có Token (Dùng chung)
   Future<dynamic> getAuthorized(String endpoint) async {
     String? token = await _storage.read(key: 'jwt_token');
     
     final response = await NetworkHelper.safeRequest(
       http.get(
-        Uri.parse('${AppConfig.apiUrl}$endpoint'),
+        // Vẫn giữ baseUrl ở đây vì endpoint truyền vào có thể là "/api/tv1/classes" v.v.
+        Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -115,20 +126,22 @@ class ApiService {
     }
   }
 
-  // --- HÀM ĐỔI MẬT KHẨU TỪ TRANG CÁ NHÂN MÀ FLUTTER ĐANG BÁO THIẾU ---
+  // --- HÀM ĐỔI MẬT KHẨU TỪ TRANG CÁ NHÂN ---
   Future<bool> changePassword(String oldPassword, String newPassword) async {
     String? token = await _storage.read(key: 'jwt_token');
     
-    final response = await http.put(
-      Uri.parse('${AppConfig.apiUrl}/api/auth/profile/change-password'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        'old_password': oldPassword,
-        'new_password': newPassword
-      }),
+    final response = await NetworkHelper.safeRequest(
+      http.put(
+        Uri.parse('${AppConfig.apiAuth}/profile/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'old_password': oldPassword,
+          'new_password': newPassword
+        }),
+      )
     );
     
     if (response.statusCode == 200) {

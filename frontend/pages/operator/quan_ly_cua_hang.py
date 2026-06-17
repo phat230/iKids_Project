@@ -3,9 +3,11 @@ import requests
 import os
 import time
 from PIL import Image
-from deep_translator import GoogleTranslator  # Thêm bộ dịch dự phòng trực tiếp tại chỗ
+from deep_translator import GoogleTranslator
 
-API_URL = "http://localhost:8000/api/tv3"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state và cấu hình tiền tố module TV3
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_URL = f"{BACKEND_URL}/api/tv3"
 
 # --- CẤU HÌNH TRANG ---
 st.set_page_config(page_title="Quản lý Kho hàng iKids", layout="wide")
@@ -272,7 +274,9 @@ else:
             
             with c1:
                 img = p.get('image_url')
-                full_img_url = f"http://localhost:8000/{img}" if img and img.startswith("static") else (img or "https://via.placeholder.com/150")
+                # ĐÃ SỬA: Đổi http://localhost:8000 thành BACKEND_URL và bỏ URL hình ảnh lỗi
+                fallback_img = "static/anh_laptop.jpg"
+                full_img_url = f"{BACKEND_URL}/{img}" if img and img.startswith("static/") else (img if "placeholder" not in str(img) else fallback_img)
                 st.image(full_img_url, use_container_width=True)
             
             with c2:

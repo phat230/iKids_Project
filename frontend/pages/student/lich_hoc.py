@@ -32,8 +32,11 @@ def load_css(file_name):
 
 # Tải CSS (Chỉ truyền phần tên thư mục con và file)
 load_css("student/student_global.css")
+
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state và cấu hình URL theo module
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
 
@@ -106,13 +109,13 @@ student_id = st.session_state.get("user_id")
 @st.cache_data(ttl=30)
 def get_my_schedules(current_student_id):
     try:
-        # 1. Gọi API lấy danh sách toàn bộ lớp học
-        res_classes = requests.get(f"{API_URL}/classes", timeout=10)
+        # ĐÃ SỬA: Gọi API thông qua module TV1 vì Lịch/Lớp thuộc module TV1
+        res_classes = requests.get(f"{API_TV1}/classes", timeout=10)
         if res_classes.status_code != 200:
             return []
         all_classes = res_classes.json()
         
-        # 2. Lọc ra các Lớp mà học sinh này CÓ TÊN trong danh sách (student_ids)
+        # Lọc ra các Lớp mà học sinh này CÓ TÊN trong danh sách
         my_class_ids = [
             c.get("id", c.get("_id")) for c in all_classes 
             if isinstance(c, dict) and current_student_id in c.get("student_ids", [])
@@ -121,9 +124,10 @@ def get_my_schedules(current_student_id):
         if not my_class_ids:
             return []
 
-        # 3. Lấy toàn bộ lịch học và chỉ giữ lại lịch của các lớp bé đang học
+        # Lấy toàn bộ lịch học và chỉ giữ lại lịch của các lớp bé đang học
         headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-        res_schedules = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=10)
+        # ĐÃ SỬA: Gọi API thông qua module TV1
+        res_schedules = requests.get(f"{API_TV1}/schedule/list", headers=headers, timeout=10)
         
         if res_schedules.status_code != 200:
             return []
@@ -175,7 +179,7 @@ else:
         if lang == "en" and days_list:
             day_mapping = {
                 "Thứ 2": "Monday", "Thứ 3": "Tuesday", "Thứ 4": "Wednesday",
-                "Thứ 5": "Thursday", "Thứ 6": "Friday", "Thứ 7": "Saturday", "Chủ Nhật": "Sunday"
+                "Thứ 5": "Thursday", "Thứ 6": "Friday", "Thứ 7": "Saturday", "Chủ Nhật": "Sunday", "Chủ nhật": "Sunday"
             }
             days_list = [day_mapping.get(d, d) for d in days_list]
 

@@ -103,7 +103,12 @@ else:
             st.caption(f"🗓️ {time_str}")
             
             # Hiển thị ảnh kỷ niệm lớp học
-            st.image(item.get("media_url", "https://via.placeholder.com/800x500"), use_container_width=True)
+            img_path = item.get("media_url")
+            # ĐÃ SỬA: Loại bỏ via.placeholder và fallback về ảnh an toàn
+            fallback_img = "static/anh_laptop.jpg"
+            full_img_url = f"{BACKEND_URL}/{img_path}" if img_path and img_path.startswith("static/") else (img_path if "placeholder" not in str(img_path) else fallback_img)
+            
+            st.image(full_img_url, use_container_width=True)
             
             # Mô tả bài viết (Tự động thích ứng đa ngôn ngữ và xử lý dịch máy bù tại chỗ)
             memory_description = get_localized_value(item.get('description'), lang=lang, default_val=STUDENT_MEMORY_LABELS[lang]["no_description"])
@@ -113,7 +118,7 @@ else:
             col1, col2 = st.columns([1, 5])
             with col1:
                 likes = item.get('likes', 0)
-                m_id = item.get('_id', item.get('id'))
+                m_id = str(item.get('_id', item.get('id')))
                 # Dùng key động để Streamlit phân biệt các nút thả tim khác nhau
                 if st.button(f"❤️ {likes}", key=f"like_{m_id}"):
                     if like_memory(m_id):

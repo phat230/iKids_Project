@@ -1,4 +1,4 @@
-# frontend/pages/student/trang_ca_nhan.py
+# frontend/pages/teacher/trang_ca_nhan.py
 import streamlit as st
 import os
 import time
@@ -35,8 +35,7 @@ def load_role_based_css():
 
 # Kích hoạt nạp CSS đồng bộ
 load_role_based_css()
-BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+
 # Lấy cấu hình ngôn ngữ hiện hành (Mặc định "vi")
 lang = st.session_state.get("lang", "vi")
 
@@ -153,7 +152,9 @@ def render_profile_page():
                         "github_url": github.strip(),
                         "bio": hobbies.strip()
                     }
-                    # Thực hiện lệnh gọi hàm API client cập nhật dữ liệu database
+                    
+                    # Logic update gọi qua file api_clients/tv3_client.py 
+                    # Nếu có kích hoạt API thực, bạn bỏ comment hàm update_profile bên dưới:
                     # success, msg = update_profile(user_id=user_id, data=payload)
                     
                     st.success(PROFILE_LABELS[lang]["success_msg"])

@@ -92,7 +92,8 @@ encoded_name = urllib.parse.quote(real_name)
 
 # ================= ĐỒNG BỘ PROFILE TỪ DATABASE =================
 try:
-    prof_res = requests.get(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/profile", timeout=5)
+    # ĐÃ SỬA: Sửa localhost thành gọi động qua BACKEND_URL
+    prof_res = requests.get(f"{BACKEND_URL}/api/tv2/student/{encoded_name}/profile", timeout=5)
     if prof_res.status_code == 200:
         student_profile = prof_res.json()
     else:

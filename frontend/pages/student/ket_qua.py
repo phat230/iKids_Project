@@ -7,6 +7,7 @@ from utils.role_guard import require_role
 # 1. Lính gác: Chỉ cho phép tài khoản học sinh truy cập trang này
 require_role(["student"])
 
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state toàn cục
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 API_URL = BACKEND_URL
 # ================= HÀM ĐỌC FILE CSS =================

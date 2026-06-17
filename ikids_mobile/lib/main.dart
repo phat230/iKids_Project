@@ -1,7 +1,6 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'routes/app_router.dart'; // File quản lý chuyển trang
-// Import các màn hình khi bạn đã tạo chúng
-// import 'screens/auth/login_screen.dart'; 
+import 'routes/app_router.dart';
 
 void main() {
   runApp(const IKidsApp());

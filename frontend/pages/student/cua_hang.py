@@ -5,19 +5,26 @@ from api_clients.tv3_client import get_store_products, purchase_product, get_gam
 from utils.role_guard import require_role
 from deep_translator import GoogleTranslator
 
-# Kiểm tra phân quyền truy cập
+# ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
+st.set_page_config(page_title="Cửa Hàng iKids", page_icon="🛍️", layout="wide")
+
+# Kiểm tra phân quyền truy cập (Bắt buộc đặt sau lệnh set_page_config)
 require_role(["student"])
 
+# Lấy BACKEND_URL chung từ session_state toàn cục
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    css_path = os.path.abspath(os.path.join(current_dir, "../../CSS/student/student_global.css"))
-    if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as f:
+    css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
+    full_path = os.path.join(css_root, file_name)
+    if os.path.exists(full_path):
+        with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
-load_css("student_global.css")
+load_css("student/student_global.css")
 
 def get_localized_value(data_field, lang="vi", default_val=""):
     if not data_field:
@@ -89,7 +96,7 @@ else:
             with cols[idx]:
                 with st.container(border=True):
                     img_path = p.get('image_url')
-                    # ĐÃ SỬA: Loại bỏ via.placeholder và fallback về ảnh an toàn
+                    # Loại bỏ via.placeholder và fallback về ảnh an toàn
                     fallback_img = "static/anh_laptop.jpg"
                     full_img_url = f"{BACKEND_URL}/{img_path}" if img_path and img_path.startswith("static/") else (img_path if "placeholder" not in str(img_path) else fallback_img)
                     

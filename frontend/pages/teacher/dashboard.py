@@ -68,8 +68,11 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
+
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state và cấu hình tiền tố API TV1
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})
 teacher_id = str(user_info.get("id", user_info.get("_id", "")))
@@ -80,7 +83,8 @@ teacher_name = user_info.get("name", user_info.get("full_name", "Giáo viên"))
 def get_my_schedules(t_id):
     try:
         headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-        res = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=10)
+        # ĐÃ SỬA: Lịch học gọi qua API_TV1
+        res = requests.get(f"{API_TV1}/schedule/list", headers=headers, timeout=10)
         if res.status_code == 200:
             schedules = res.json()
             my_scheds = []
@@ -351,7 +355,8 @@ else:
                         
                         try:
                             headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-                            requests.post(f"{API_URL}/requests/create", json=new_req, headers=headers)
+                            # ĐÃ SỬA: Gửi yêu cầu qua API_TV1
+                            requests.post(f"{API_TV1}/requests/create", json=new_req, headers=headers)
                         except: pass
                         
                         st.session_state.my_leave_requests.insert(0, new_req)

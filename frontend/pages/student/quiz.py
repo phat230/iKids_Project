@@ -19,8 +19,11 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("student/student_global.css")
+
+# ĐÃ SỬA: Lấy BACKEND_URL chung và cấu hình tiền tố API module TV2
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV2 = f"{BACKEND_URL}/api/tv2"
+
 lang = st.session_state.get("lang", "vi")
 
 QUIZ_LABELS = {
@@ -97,7 +100,8 @@ encoded_name = urllib.parse.quote(real_name)
 # ================= HÀM ĐỒNG BỘ MẠNH =================
 def fetch_latest_data():
     try:
-        prof_res = requests.get(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/profile", timeout=5)
+        # ĐÃ SỬA: Dùng API_TV2 động thay vì 127.0.0.1
+        prof_res = requests.get(f"{API_TV2}/student/{encoded_name}/profile", timeout=5)
         if prof_res.status_code == 200:
             st.session_state.student_profile = prof_res.json()
         else:
@@ -106,7 +110,8 @@ def fetch_latest_data():
         st.session_state.student_profile = {"username": real_name, "exp": 0, "completed_tasks": []}
 
     try:
-        quiz_res = requests.get("http://127.0.0.1:8000/api/tv2/quizzes", timeout=5)
+        # ĐÃ SỬA: Dùng API_TV2 động
+        quiz_res = requests.get(f"{API_TV2}/quizzes", timeout=5)
         if quiz_res.status_code == 200:
             quizzes = quiz_res.json()
             for i, q in enumerate(quizzes):
@@ -269,7 +274,8 @@ else:
                 }
                 
                 try:
-                    res = requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
+                    # ĐÃ SỬA: Dùng API_TV2 động cho quá trình submit
+                    res = requests.post(f"{API_TV2}/student/{encoded_name}/submit-quiz", json=submit_payload, timeout=5)
                     
                     if res.status_code == 200 or res.status_code == 201:
                         # Điều hướng sang màn hình Xem sơ đồ kết quả (Màn hình 2)

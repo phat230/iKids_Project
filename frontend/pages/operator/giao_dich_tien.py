@@ -7,7 +7,9 @@ import altair as alt
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Quản lý giao dịch tiền", layout="wide")
 
-API_BASE = "http://127.0.0.1:8000/api/finance"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state thay vì ghi chết 127.0.0.1
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_BASE = f"{BACKEND_URL}/api/finance"
 
 def get_headers():
     token = st.session_state.get("access_token") or st.session_state.get("token")
@@ -321,7 +323,6 @@ with tab3:
                 st.subheader("📌 Tỷ trọng giao dịch theo nhóm")
                 chart_count = df_calc.groupby("group").size().reset_index(name="Số lượng")
                 
-                # Sửa thành Biểu đồ Tròn (Donut Chart)
                 chart1 = alt.Chart(chart_count).mark_arc(innerRadius=60).encode(
                     theta=alt.Theta(field="Số lượng", type="quantitative"),
                     color=alt.Color(field="group", type="nominal", legend=alt.Legend(title="Nhóm", orient="bottom")),
@@ -344,7 +345,6 @@ with tab3:
                 df_calc["money_value"] = df_calc.apply(row_money, axis=1)
                 chart_money = df_calc.groupby("group")["money_value"].sum().reset_index()
 
-                # Sửa thành Biểu đồ Cột Ngang (Horizontal Bar Chart) có sắp xếp
                 chart2 = alt.Chart(chart_money).mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4).encode(
                     x=alt.X("money_value:Q", title="Tổng tiền (VNĐ)"),
                     y=alt.Y("group:N", sort='-x', title="Nhóm giao dịch"),

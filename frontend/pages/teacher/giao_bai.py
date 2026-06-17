@@ -19,8 +19,10 @@ def load_css(file_name):
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 load_css("teacher/teacher_global.css")
+
+# ĐÃ SỬA: Cấu hình URL động
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV2 = f"{BACKEND_URL}/api/tv2"
 lang = st.session_state.get("lang", "vi")
 
 # ================= BỘ TỪ ĐIỂN SONG NGỮ =================
@@ -68,8 +70,9 @@ ASSIGN_LABELS = {
 }
 
 # ================= KẾT NỐI API BACKEND =================
-API_URL_QUIZZES = "http://127.0.0.1:8000/api/tv2/quizzes"
-API_URL_ASSIGNMENTS = "http://127.0.0.1:8000/api/tv2/assign-quiz"
+# ĐÃ SỬA: Dùng API_TV2
+API_URL_QUIZZES = f"{API_TV2}/quizzes"
+API_URL_ASSIGNMENTS = f"{API_TV2}/assign-quiz"
 
 def get_teacher_info():
     if "user_info" in st.session_state:

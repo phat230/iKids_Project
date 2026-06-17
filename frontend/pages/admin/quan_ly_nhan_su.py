@@ -22,7 +22,8 @@ def load_css(file_name):
 # Tải CSS dùng chung cho phân hệ Admin
 load_css("admin/admin_global.css")
 
-API_URL = "http://127.0.0.1:8000"
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state thay vì ghi chết 127.0.0.1
+API_URL = st.session_state.get("api_url", "http://localhost:8000")
 
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")

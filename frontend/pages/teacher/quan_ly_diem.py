@@ -40,8 +40,12 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
+
+# ĐÃ SỬA: Phân luồng API rõ ràng cho TV1 (Lớp/Vận hành) và TV2 (Điểm số)
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+API_TV2 = f"{BACKEND_URL}/api/tv2"
+
 def get_teacher_info():
     if "user_info" in st.session_state:
         info = st.session_state.user_info
@@ -58,7 +62,8 @@ if "used_permissions" not in st.session_state:
 @st.cache_data(ttl=5)
 def get_my_classes(t_id):
     try:
-        res = requests.get(f"{API_URL}/classes", timeout=10)
+        # Gọi API TV1
+        res = requests.get(f"{API_TV1}/classes", timeout=10)
         if res.status_code == 200:
             all_classes = res.json()
             return [c for c in all_classes if str(c.get("teacher_id")) == t_id]
@@ -67,7 +72,8 @@ def get_my_classes(t_id):
 
 def get_class_students(class_id):
     try:
-        res = requests.get(f"{API_URL}/classes/{class_id}/students/details", timeout=10)
+        # Gọi API TV1
+        res = requests.get(f"{API_TV1}/classes/{class_id}/students/details", timeout=10)
         if res.status_code == 200: return res.json()
         return []
     except: return []
@@ -83,7 +89,7 @@ if not my_classes:
 
 try:
     headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-    res_sched = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=5)
+    res_sched = requests.get(f"{API_TV1}/schedule/list", headers=headers, timeout=5)
     schedules = res_sched.json() if res_sched.status_code == 200 else []
 except:
     schedules = []
@@ -117,8 +123,9 @@ if not real_students:
     ]
 
 try:
-    pending_reqs = requests.get(f"{API_URL}/pending-requests", timeout=5).json()
-    history_reqs = requests.get(f"{API_URL}/request-history", timeout=5).json()
+    # Gọi API TV1
+    pending_reqs = requests.get(f"{API_TV1}/pending-requests", timeout=5).json()
+    history_reqs = requests.get(f"{API_TV1}/request-history", timeout=5).json()
     all_reqs = pending_reqs + history_reqs
 except:
     all_reqs = []
@@ -162,15 +169,14 @@ if "grades_data_class" not in st.session_state or st.session_state.grades_data_c
     df_st["Giữa Kỳ"] = 0.0
     df_st["Cuối Kỳ"] = 0.0
     
-    # Kéo điểm cũ từ Database về nếu đã có
+    # Kéo điểm cũ từ Database về nếu đã có (Gọi API TV2)
     try:
         subject_name = class_options[selected_class_id].split(" - ")[-1]
         for idx, row in df_st.iterrows():
             sid = str(row["Mã HS"])
-            res_grades = requests.get(f"{API_URL}/api/tv2/grades/{sid}", timeout=3)
+            res_grades = requests.get(f"{API_TV2}/grades/{sid}", timeout=3)
             if res_grades.status_code == 200:
                 grades_db = res_grades.json()
-                # Tìm đúng môn học
                 for g in grades_db:
                     if g.get("class_id") == selected_class_id:
                         df_st.at[idx, "Chuyên Cần"] = g.get("chuyen_can", 10.0)
@@ -216,7 +222,8 @@ else:
             }
             try:
                 headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-                requests.post(f"{API_URL}/requests/create", json=new_req, headers=headers)
+                # Gọi API TV1
+                requests.post(f"{API_TV1}/requests/create", json=new_req, headers=headers)
                 st.success("Đã gửi yêu cầu thành công!")
                 time.sleep(0.5)
                 st.rerun()
@@ -287,7 +294,8 @@ if is_approved:
                 }
                 
                 try:
-                    res = requests.post(f"{API_URL}/api/tv2/grades", json=payload, timeout=5)
+                    # Ghi điểm qua API TV2
+                    res = requests.post(f"{API_TV2}/grades", json=payload, timeout=5)
                     if res.status_code == 200:
                         st.session_state.grades_data = edited_df.drop(columns=["TB Kiểm Tra", "ĐIỂM TỔNG KẾT", "Xếp Loại"])
                         st.session_state.used_permissions.append(active_req_id)

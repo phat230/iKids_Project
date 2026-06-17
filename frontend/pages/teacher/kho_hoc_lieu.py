@@ -21,8 +21,10 @@ def load_css(file_name):
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 load_css("teacher/teacher_global.css")
+
+# ĐÃ SỬA: Cấu hình lại URL động cho API_TV2
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV2 = f"{BACKEND_URL}/api/tv2"
 lang = st.session_state.get("lang", "vi")
 
 # ================= BỘ TỪ ĐIỂN SONG NGỮ =================
@@ -115,8 +117,9 @@ def get_localized_value(data_field, lang="vi", default_val=""):
     return data_field
 
 # ================= KẾT NỐI API =================
-API_URL_VIDEOS = "http://127.0.0.1:8000/api/tv2/videos"
-API_URL_QUIZZES = "http://127.0.0.1:8000/api/tv2/quizzes"
+# ĐÃ SỬA: Chuyển toàn bộ về API_TV2
+API_URL_VIDEOS = f"{API_TV2}/videos"
+API_URL_QUIZZES = f"{API_TV2}/quizzes"
 
 def get_teacher_info():
     if "user_info" in st.session_state:
@@ -222,6 +225,5 @@ with tab_quiz:
 
 # ----------------- TAB 2: KHO VIDEO AI -----------------
 with tab_video:
-    # Logic tương tự cho Video, lọc qua Topic/Level và dịch hiển thị
-    st.markdown("### Video Library")
-    # ... (Giữ logic cũ, chỉ map nhãn sang COURSEWARE_LABELS[lang])
+    st.markdown(f"### {COURSEWARE_LABELS[lang]['sub_video_add']}")
+    # Tuân theo giới hạn logic cũ của bạn và đổi nhãn ngữ cảnh đa ngôn ngữ

@@ -13,7 +13,7 @@ st.set_page_config(page_title="Rạp Chiếu Video AI", page_icon="🎬", layout
 def load_css(file_name):
     """
     Tự động tìm file CSS trong thư mục frontend/CSS/
-    file_name: tên file kèm thư mục con, ví dụ 'student/video.css'
+    file_name: tên file kèm thư mục con, vị dụ 'student/video.css'
     """
     current_dir = os.path.dirname(os.path.abspath(__file__))  # Đang ở frontend/pages/student
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
@@ -27,8 +27,11 @@ def load_css(file_name):
 
 # Tải file CSS
 load_css("student/student_global.css")
+
+# ĐÃ SỬA: Đồng bộ cấu hình URL động toàn dự án và gom nhóm về API_TV2
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV2 = f"{BACKEND_URL}/api/tv2"
+
 lang = st.session_state.get("lang", "vi")
 
 # ==========================================
@@ -115,7 +118,8 @@ def get_yt_thumbnail(url):
     match = re.search(pattern, str(url))
     if match:
         return f"https://img.youtube.com/vi/{match.group(1)}/hqdefault.jpg"
-    return "https://via.placeholder.com/320x180.png?text=Video"
+    # ĐÃ SỬA: Fallback về ảnh an toàn của dự án
+    return "static/anh_laptop.jpg"
 
 # ================= HÀM LẤY TÊN USER =================
 def get_current_username():
@@ -134,7 +138,8 @@ def submit_comment(vid_id):
         new_comment = {"author": real_name, "text": cmt_text.strip()}
         
         try:
-            requests.post(f"http://127.0.0.1:8000/api/tv2/videos/{vid_id}/comments", json=new_comment)
+            # ĐÃ SỬA: Đưa cổng kết nối về biến API_TV2 tập trung
+            requests.post(f"{API_TV2}/videos/{vid_id}/comments", json=new_comment)
             time.sleep(0.2) 
         except:
             pass 
@@ -147,9 +152,9 @@ if "selected_video" not in st.session_state:
     st.session_state.selected_video = None
 
 # GỌI API LẤY DATA VIDEO
-API_URL = "http://127.0.0.1:8000/api/tv2/videos"
 try:
-    response = requests.get(API_URL)
+    # ĐÃ SỬA: Gọi API thông qua hằng số định tuyến API_TV2
+    response = requests.get(f"{API_TV2}/videos")
     ai_videos = response.json() if response.status_code == 200 else []
 except:
     ai_videos = []
@@ -236,7 +241,8 @@ else:
             like_icon = VIDEO_LABELS[lang]["btn_like_done"].format(total_likes) if has_liked else VIDEO_LABELS[lang]["btn_like"].format(total_likes)
             if st.button(like_icon, key=f"like_{vid_id}", use_container_width=True):
                 try:
-                    requests.post(f"http://127.0.0.1:8000/api/tv2/videos/{vid_id}/like", json={"username": real_name})
+                    # ĐÃ SỬA: Thay thế địa chỉ localhost bằng hằng số module API_TV2
+                    requests.post(f"{API_TV2}/videos/{vid_id}/like", json={"username": real_name})
                     time.sleep(0.2)
                     st.rerun()
                 except:
@@ -247,7 +253,8 @@ else:
                 if st.button(VIDEO_LABELS[lang]["btn_complete_lesson"], type="primary", use_container_width=True):
                     submit_payload = {"video_id": vid_id, "exp_earned": 30}
                     try:
-                        requests.post(f"http://127.0.0.1:8000/api/tv2/student/{encoded_name}/complete-video", json=submit_payload, timeout=5)
+                        # ĐÃ SỬA: Gọi đồng bộ qua API_TV2
+                        requests.post(f"{API_TV2}/student/{encoded_name}/complete-video", json=submit_payload, timeout=5)
                     except Exception:
                         st.toast(VIDEO_LABELS[lang]["toast_save_err"])
 

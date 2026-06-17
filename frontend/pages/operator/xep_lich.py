@@ -22,11 +22,11 @@ def load_css(file_name):
         st.warning(f"Khong tim thay file CSS tai: {full_path}")
         
 load_css("operator/operator_global.css")
-BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
-API = BACKEND_URL
+# ĐÃ SỬA: Đồng bộ cấu hình URL động toàn bộ hệ thống
+BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 TV1_API = f"{BACKEND_URL}/api/tv1"
-TV3_API = f"{BACKEND_URL}/api/tv3"
+API_AUTH = f"{BACKEND_URL}/api/auth"
 
 # Lấy cấu hình ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
@@ -169,7 +169,8 @@ st.write(SCHEDULER_LABELS[lang]["subtitle"])
 
 def send_auto_notification(class_id, class_name, title, content):
     try:
-        res = requests.get(f"{API}/classes/{class_id}/students/details", headers=headers)
+        # ĐÃ SỬA: Chuyển sang TV1_API vì quản lý lớp nằm ở TV1
+        res = requests.get(f"{TV1_API}/classes/{class_id}/students/details", headers=headers)
         if res.status_code == 200:
             students = res.json()
             for s in students:
@@ -184,12 +185,13 @@ def send_auto_notification(class_id, class_name, title, content):
                     "title": title,
                     "content": content
                 }
-                requests.post(f"{API}/api/notifications/send", json=payload_stu)
+                # ĐÃ SỬA: Gọi đúng cổng thông báo tập trung toàn cục
+                requests.post(f"{BACKEND_URL}/api/notifications/send", json=payload_stu)
                 
                 payload_parent = payload_stu.copy()
                 payload_parent["receiver_role"] = "parent"
                 payload_parent["receiver_id"] = "all"
-                requests.post(f"{API}/api/notifications/send", json=payload_parent)
+                requests.post(f"{BACKEND_URL}/api/notifications/send", json=payload_parent)
     except Exception as e:
         st.error(f"{SCHEDULER_LABELS[lang]['notif_auto_err']} {e}")
 
@@ -203,7 +205,8 @@ def get_classes():
 def get_teachers():
     """Gọi API lấy toàn bộ User để lọc tự do bằng Python (Chống sót & chống trùng lặp)"""
     try:
-        res = requests.get(f"{API}/api/auth/users", headers=headers, timeout=5)
+        # ĐÃ SỬA: Đồng bộ gọi qua API_AUTH chuẩn hóa cấu trúc phòng ban
+        res = requests.get(f"{API_AUTH}/users", headers=headers, timeout=5)
         if res.status_code == 200:
             raw_data = res.json()
             valid_teachers = []
@@ -211,17 +214,12 @@ def get_teachers():
             
             for user in raw_data:
                 role = str(user.get("role", user.get("quyen", ""))).lower()
-                # Bao quát tất cả các Role có thể ghi nhầm
                 if "teacher" in role or "giáo viên" in role or "gv" in role:
                     status = str(user.get("status", "Đang làm việc")).lower()
-                    
-                    # Xử lý trường hợp DB thiếu is_active (mặc định cho là True)
                     is_active = user.get("is_active", True)
                     
-                    # Lọc bỏ những người nghỉ việc hoặc vô hiệu hóa
                     if status not in ["nghỉ việc", "đã nghỉ việc", "vô hiệu hóa"] and str(is_active).lower() != "false":
                         email = user.get("email", "")
-                        # Chống trùng lặp 2 tài khoản y chang nhau
                         if email not in seen_emails:
                             valid_teachers.append(user)
                             seen_emails.add(email)
@@ -232,7 +230,8 @@ def get_teachers():
     
     # Fallback dự phòng
     try:
-        res = requests.get(f"{API}/teachers", headers=headers, timeout=5)
+        # ĐÃ SỬA: Chuyển hướng sang TV1_API vì danh sách giáo viên nằm ở TV1 module
+        res = requests.get(f"{TV1_API}/teachers", headers=headers, timeout=5)
         if res.status_code == 200:
             return res.json()
     except: pass
@@ -271,12 +270,11 @@ for hour in range(7, 22):
             continue
         time_slots.append(f"{hour:02d}:{minute:02d}")
 
-# --- FORM TẠO LỊCH HỌC MỚI (CẤU TRÚC 2 CỘT AN TOÀN TUYỆT ĐỐI) ---
+# --- FORM TẠO LỊCH HỌC MỚI ---
 with st.container(border=True):
     st.subheader(SCHEDULER_LABELS[lang]["sub_create"])
     with st.form("create_schedule_form", clear_on_submit=True):
         
-        # Dòng 1: Chọn lớp
         if not class_options:
             st.warning(SCHEDULER_LABELS[lang]["warn_no_class"])
             selected_class_id = None
@@ -289,7 +287,6 @@ with st.container(border=True):
                 t_name_assigned = cls_data.get('teacher_name') or SCHEDULER_LABELS[lang]["lbl_unassigned"]
                 st.info(f"{SCHEDULER_LABELS[lang]['lbl_teacher_assigned']} {t_name_assigned}")
                 
-        # Dòng 2: Môn học và GV giảng dạy
         c1, c2 = st.columns(2)
         with c1:
             if not teacher_options:
@@ -301,17 +298,14 @@ with st.container(border=True):
         with c2:
             subject = st.text_input(SCHEDULER_LABELS[lang]["lbl_subject"])
 
-        # Dòng 3: Khung thời gian Ngày
         c3, c4 = st.columns(2)
         with c3: start_date = st.date_input(SCHEDULER_LABELS[lang]["lbl_start_date"])
         with c4: end_date = st.date_input(SCHEDULER_LABELS[lang]["lbl_end_date"])
         
-        # Dòng 4: Khung thời gian Giờ
         c5, c6 = st.columns(2)
         with c5: start_time = st.selectbox(SCHEDULER_LABELS[lang]["lbl_start_time"], options=time_slots, index=time_slots.index("18:00") if "18:00" in time_slots else 0)
         with c6: end_time = st.selectbox(SCHEDULER_LABELS[lang]["lbl_end_time"], options=time_slots, index=time_slots.index("19:30") if "19:30" in time_slots else 0)
 
-        # Dòng 5: Thứ trong tuần và Phòng học
         c7, c8 = st.columns(2)
         with c7:
             default_days = ["Thứ 7", "Chủ nhật"] if lang == "vi" else ["Saturday", "Sunday"]

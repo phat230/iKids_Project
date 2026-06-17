@@ -28,8 +28,11 @@ def get_image_base64(image_bytes):
 # ================= CẤU HÌNH GIAO DIỆN =================
 
 load_css("student/student_global.css")
+
+# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state toàn cục
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 API_URL = BACKEND_URL
+
 lang = st.session_state.get("lang", "vi")
 
 # ==========================================
@@ -156,7 +159,9 @@ if "temp_avatar" not in st.session_state:
 old_avatar_url = user_info.get("avatar_url")
 if st.session_state.temp_avatar is None:
     if old_avatar_url:
-        st.image(f"http://localhost:8000{old_avatar_url}", width=150, caption=PROFILE_LABELS[lang]["caption_current_avatar"])
+        # ĐÃ SỬA: Đảm bảo nối đúng đường dẫn Backend động thay vì localhost
+        full_avatar_url = f"{BACKEND_URL}{old_avatar_url}" if old_avatar_url.startswith("/") else f"{BACKEND_URL}/{old_avatar_url}"
+        st.image(full_avatar_url, width=150, caption=PROFILE_LABELS[lang]["caption_current_avatar"])
     else:
         st.warning(PROFILE_LABELS[lang]["warn_no_avatar"])
     

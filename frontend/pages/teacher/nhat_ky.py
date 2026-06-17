@@ -18,8 +18,11 @@ def load_css(file_name):
 
 load_css("teacher/nhat_ky.css")
 
+# ĐÃ SỬA: Phân luồng API rõ ràng cho TV1 (Vận hành) và TV2 (Học thuật)
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV1 = f"{BACKEND_URL}/api/tv1"
+API_TV2 = f"{BACKEND_URL}/api/tv2"
+
 # ================= LẤY THÔNG TIN GIÁO VIÊN ĐĂNG NHẬP =================
 user_info = st.session_state.get("user_info", {})
 teacher_id = str(user_info.get("id", user_info.get("_id", "")))
@@ -29,7 +32,8 @@ teacher_id = str(user_info.get("id", user_info.get("_id", "")))
 def get_my_schedules():
     try:
         headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-        res = requests.get(f"{API_URL}/schedule/list", headers=headers, timeout=10)
+        # ĐÃ SỬA: Lấy lịch dạy qua API_TV1
+        res = requests.get(f"{API_TV1}/schedule/list", headers=headers, timeout=10)
         if res.status_code == 200:
             schedules = res.json()
             my_scheds = []
@@ -46,7 +50,8 @@ def get_class_students(class_id):
     """Gọi API lấy danh sách học viên theo class_id chuẩn xác"""
     if not class_id: return []
     try:
-        res = requests.get(f"{API_URL}/classes/{class_id}/students/details", timeout=10)
+        # ĐÃ SỬA: Lấy danh sách học viên thật từ API_TV1
+        res = requests.get(f"{API_TV1}/classes/{class_id}/students/details", timeout=10)
         if res.status_code == 200:
             return res.json()
     except: pass
@@ -56,9 +61,10 @@ def get_class_students(class_id):
 def get_tv2_content():
     videos, quizzes = [], []
     try:
-        v_res = requests.get(f"{API_URL}/api/tv2/videos", timeout=5)
+        # ĐÃ SỬA: Lấy dữ liệu bài giảng/video từ API_TV2
+        v_res = requests.get(f"{API_TV2}/videos", timeout=5)
         if v_res.status_code == 200: videos = v_res.json()
-        q_res = requests.get(f"{API_URL}/api/tv2/quizzes", timeout=5)
+        q_res = requests.get(f"{API_TV2}/quizzes", timeout=5)
         if q_res.status_code == 200: quizzes = q_res.json()
     except: pass
     return videos, quizzes
@@ -207,7 +213,8 @@ with col_right:
                     
                     try:
                         headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
-                        res = requests.post(f"{API_URL}/api/tv2/journal", json=payload, headers=headers)
+                        # ĐÃ SỬA: Đẩy dữ liệu nhật ký lên API_TV2
+                        res = requests.post(f"{API_TV2}/journal", json=payload, headers=headers)
                         
                         if res.status_code in [200, 201]:
                             st.session_state[state_key] = edited_att

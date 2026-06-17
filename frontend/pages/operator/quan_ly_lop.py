@@ -22,7 +22,10 @@ def load_css(file_name):
 
 load_css("operator/operator_global.css")
 
+# ĐÃ SỬA: Cấu hình biến đường dẫn động phân tách theo module quản lý
 API_URL = st.session_state.get("api_url", "http://localhost:8000")
+TV1_API = f"{API_URL}/api/tv1"
+API_AUTH = f"{API_URL}/api/auth"
 
 # Lấy mã ngôn ngữ hiện hành từ session_state (Mặc định là "vi")
 lang = st.session_state.get("lang", "vi")
@@ -125,26 +128,23 @@ CLASS_LABELS = {
     }
 }
 
-st.title(CLASS_LABELS[lang]["title"])
-st.write(CLASS_LABELS[lang]["subtitle"])
-
 # ================= HÀM LẤY DỮ LIỆU TỪ BACKEND ĐƯỢC TỐI ƯU =================
 def get_teachers():
     """Gọi linh hoạt 2 đường dẫn API để chống lỗi 404 Not Found"""
     headers = {"Authorization": f"Bearer {st.session_state.get('token', '')}"}
     
-    # 1. Thử gọi API chuẩn của module TV1
+    # 1. ĐÃ SỬA: Gọi API chuẩn của module TV1 qua TV1_API
     try:
-        res = requests.get(f"{API_URL}/teachers", headers=headers, timeout=5)
+        res = requests.get(f"{TV1_API}/teachers", headers=headers, timeout=5)
         if res.status_code == 200:
             data = res.json()
             if isinstance(data, list) and len(data) > 0:
                 return data
     except: pass
     
-    # 2. Nếu API trên thất bại, fallback về API Auth
+    # 2. ĐÃ SỬA: Fallback về API Auth thông qua API_AUTH
     try:
-        res = requests.get(f"{API_URL}/api/auth/users", headers=headers, timeout=5)
+        res = requests.get(f"{API_AUTH}/users", headers=headers, timeout=5)
         if res.status_code == 200:
             raw_data = res.json()
             valid_teachers = []
@@ -162,7 +162,8 @@ def get_teachers():
 
 def get_classes():
     try:
-        res_classes = requests.get(f"{API_URL}/classes", timeout=10)
+        # ĐÃ SỬA: Định tuyến chính xác vào module TV1 quản lý lớp học
+        res_classes = requests.get(f"{TV1_API}/classes", timeout=10)
         if res_classes.status_code == 200:
             data = res_classes.json()
             return [c for c in data if isinstance(c, dict)]
@@ -171,7 +172,8 @@ def get_classes():
 
 def get_all_students_from_db():
     try:
-        res = requests.get(f"{API_URL}/api/auth/users", timeout=10) 
+        # ĐÃ SỬA: Đồng bộ cổng xác thực hệ thống
+        res = requests.get(f"{API_AUTH}/users", timeout=10) 
         if res.status_code == 200:
             return [s for s in res.json() if str(s.get("role")).lower() == "student"]
     except: pass
@@ -221,7 +223,8 @@ with tab_tao_lop:
                         "status": "active"
                     }
                     try:
-                        res = requests.post(f"{API_URL}/classes/create", json=payload)
+                        # ĐÃ SỬA: Gửi yêu cầu post tới TV1_API
+                        res = requests.post(f"{TV1_API}/classes/create", json=payload)
                         if res.status_code == 200:
                             st.success(f"{CLASS_LABELS[lang]['success_created']} '{class_name}'")
                             time.sleep(0.5); st.rerun()
@@ -234,7 +237,6 @@ with tab_tao_lop:
 with tab_danh_sach:
     classes = get_classes()
     if not classes:
-        # Sử dụng tạm info tiếng Việt/Anh vì biến no_products trong từ điển ở trên không có
         st.info("Hiện tại chưa có lớp học nào được tạo." if lang == "vi" else "No classes available.")
     else:
         class_options_dict = {c.get("id", c.get("_id")): f"{c.get('class_name')}" for c in classes}
@@ -251,7 +253,8 @@ with tab_danh_sach:
                 with sub_info:
                     st.write(f"**{CLASS_LABELS[lang]['lbl_teacher_assigned']}** {sel.get('teacher_name')}")
                     try:
-                        res_st = requests.get(f"{API_URL}/classes/{selected_class_id}/students/details")
+                        # ĐÃ SỬA: Đồng bộ phương thức lấy thông tin học viên chi tiết
+                        res_st = requests.get(f"{TV1_API}/classes/{selected_class_id}/students/details")
                         real_st = res_st.json() if res_st.status_code == 200 else []
                     except: real_st = []
 
@@ -272,7 +275,6 @@ with tab_danh_sach:
                             "Tình trạng": "Trạng Thái" if lang == "vi" else "Status"
                         }
                         
-                        # Fallback phòng hờ cấu trúc keys từ bên ngoài thâm nhập lạ
                         for col in df.columns:
                             if col not in rename_dict and col.lower() in ["id", "student_id"]: rename_dict[col] = "Mã Học Viên" if lang == "vi" else "Student ID"
                             if col not in rename_dict and col.lower() in ["name", "full_name"]: rename_dict[col] = "Họ & Tên Học Sinh" if lang == "vi" else "Student Full Name"
@@ -280,7 +282,6 @@ with tab_danh_sach:
 
                         df_display = df.rename(columns={k: v for k, v in rename_dict.items() if k in df.columns})
                         
-                        # Đổi tên các trường cột không cần thiết hiển thị thô ra ngoài nếu có
                         cols_to_show = [v for v in rename_dict.values() if v in df_display.columns]
                         if not cols_to_show: cols_to_show = df_display.columns.tolist()
                         
@@ -299,7 +300,8 @@ with tab_danh_sach:
                         st_to_del = st.selectbox(CLASS_LABELS[lang]["select_student_remove"], options=list(st_dict.keys()), format_func=lambda x: st_dict[x], key="sb_del_st")
                         
                         if st.button(CLASS_LABELS[lang]["btn_remove_student"], type="primary"):
-                            if requests.delete(f"{API_URL}/classes/{selected_class_id}/students/{st_to_del}").status_code == 200:
+                            # ĐÃ SỬA: Đồng bộ lệnh delete với module TV1
+                            if requests.delete(f"{TV1_API}/classes/{selected_class_id}/students/{st_to_del}").status_code == 200:
                                 st.success(CLASS_LABELS[lang]["success_removed_student"])
                                 time.sleep(0.5); st.rerun()
 
@@ -316,7 +318,6 @@ with tab_danh_sach:
                             def_idx = next((i for i, l in enumerate(t_labels) if teacher_options[l]["id"] == cur_t_id), 0) if t_labels else 0
                             n_t_label = st.selectbox(CLASS_LABELS[lang]["edit_teacher"], options=t_labels, index=def_idx) if t_labels else None
 
-                        # Nút bấm submit form
                         if st.form_submit_button(CLASS_LABELS[lang]["btn_save_changes"], type="primary", use_container_width=True):
                             if not n_name:
                                 st.error(CLASS_LABELS[lang]["err_fields"])
@@ -325,7 +326,6 @@ with tab_danh_sach:
                                     "class_name": n_name.strip(),
                                     "description": n_desc.strip()
                                 }
-                                # Nếu tải được giáo viên thì lấy ID mới, không thì giữ nguyên ID cũ trong database
                                 if n_t_label:
                                     sel_t = teacher_options[n_t_label]
                                     upd["teacher_id"] = sel_t["id"]
@@ -335,19 +335,20 @@ with tab_danh_sach:
                                     upd["teacher_name"] = sel.get("teacher_name")
                                     
                                 try:
-                                    resp = requests.put(f"{API_URL}/classes/{selected_class_id}", json=upd)
+                                    resp = requests.put(f"{TV1_API}/classes/{selected_class_id}", json=upd)
                                     if resp.status_code == 200:
                                         st.success(CLASS_LABELS[lang]["success_updated_class"])
                                         time.sleep(0.5); st.rerun()
                                     else:
                                         st.error(CLASS_LABELS[lang]["err_updated_class"])
                                 except Exception as e:
-                                    st.error(f"Lỗi hệ thống: {e}")
+                                         st.error(f"Lỗi hệ thống: {e}")
 
                 # --- SUB TAB 3: XÓA LỚP VĨNH VIỄN ---
                 with sub_del:
                     st.warning(CLASS_LABELS[lang]["warn_delete"])
                     if st.button(CLASS_LABELS[lang]["btn_delete_class"], type="primary", use_container_width=True):
-                        if requests.delete(f"{API_URL}/classes/{selected_class_id}").status_code == 200:
+                        # ĐÃ SỬA: Đồng bộ lệnh delete lớp học với TV1_API
+                        if requests.delete(f"{TV1_API}/classes/{selected_class_id}").status_code == 200:
                             st.success(CLASS_LABELS[lang]["success_deleted_class"])
                             time.sleep(0.5); st.rerun()

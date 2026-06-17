@@ -20,8 +20,10 @@ def load_css(file_name):
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css("teacher/teacher_global.css")
+
+# ĐÃ SỬA: Lấy BACKEND_URL và API_TV2
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
-API_URL = BACKEND_URL
+API_TV2 = f"{BACKEND_URL}/api/tv2"
 lang = st.session_state.get("lang", "vi")
 
 # ================= BỘ TỪ ĐIỂN SONG NGỮ =================
@@ -112,10 +114,10 @@ def get_teacher_info():
 teacher_email, teacher_name = get_teacher_info()
 
 # ================= API ENDPOINTS =================
-API_URL = "http://127.0.0.1:8000"
-API_URL_QUIZZES = f"{API_URL}/api/tv2/quizzes"
-API_GENERATE_QUIZ = f"{API_URL}/api/tv2/generate-quiz"
-API_GENERATE_QUIZ_FILE = f"{API_URL}/api/tv2/generate-quiz-from-file"
+# ĐÃ SỬA: Cấu hình lại hoàn toàn dựa trên API_TV2
+API_URL_QUIZZES = f"{API_TV2}/quizzes"
+API_GENERATE_QUIZ = f"{API_TV2}/generate-quiz"
+API_GENERATE_QUIZ_FILE = f"{API_TV2}/generate-quiz-from-file"
 
 # ================= HÀM HỖ TRỢ DỊCH & FORMAT =================
 def format_ai_questions(raw_questions):
@@ -206,5 +208,4 @@ with tab_preview:
 
 with tab_tracking:
     st.subheader(QUIZ_LABELS[lang]["sub_tracking"])
-    # ... (giữ nguyên logic fetch API tracking)
     st.button(QUIZ_LABELS[lang]["btn_export"])
