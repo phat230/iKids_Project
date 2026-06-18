@@ -8,32 +8,26 @@ from deep_translator import GoogleTranslator
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Kho Học Liệu AI", page_icon="📚", layout="wide")
 
-# ================= HÀM ĐỌC FILE CSS =================
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
-
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    else:
-        st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
 load_css("teacher/teacher_global.css")
 
-# ĐÃ SỬA: Cấu hình lại URL động cho API_TV2
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 API_TV2 = f"{BACKEND_URL}/api/tv2"
 lang = st.session_state.get("lang", "vi")
 
-# ================= BỘ TỪ ĐIỂN SONG NGỮ =================
 COURSEWARE_LABELS = {
     "vi": {
         "title": "📚 Kho Bài Tập và Video",
         "logined_as": "Đang đăng nhập: **{}** ({})",
         "tab_quiz": "Danh Sách Bộ Đề",
-        "tab_video": "Thêm Video Bài Tập",
+        "tab_video": "Kho Video Học Tập",
         "info_empty_quiz": "💡 Kho đề đang trống. Hãy sang trang 'Tạo Bài Tập AI' để thiết kế bộ đề mới!",
         "btn_goto_create": "👉 Đi tới trang Tạo Bài Tập AI",
         "sub_quiz_list": "Danh Sách Đề",
@@ -54,25 +48,20 @@ COURSEWARE_LABELS = {
         "btn_cancel": "HỦY BỎ",
         
         # Tab Video
-        "sub_video_add": "Thêm Video Bài Tập Thủ Công",
-        "port_upload": "Cổng Upload Video",
-        "input_vid_name": "Tên video:",
-        "input_vid_url": "Youtube URL:",
-        "input_topic": "Chủ đề:",
-        "input_level": "Trình độ:",
-        "btn_upload": "Tải Video Lên",
-        "lbl_topic_opt": ["Tiếng Anh", "Toán", "Khoa học", "Khác"],
-        "lbl_level_opt": ["Mẫu giáo", "Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5"],
-        "filter_all": "Tất cả",
-        "btn_like": "👍 Thích Video Này",
-        "btn_assign_vid": "Gán Vào Lớp Học",
-        "success_assigned": "Đã gán!"
+        "sub_video_add": "Thêm Video Bài Giảng",
+        "input_vid_name": "Tên video bài giảng (*)",
+        "input_vid_url": "Đường dẫn (Link) Youtube (*)",
+        "input_topic": "Chủ đề",
+        "input_level": "Trình độ áp dụng",
+        "btn_upload": "LƯU VIDEO VÀO KHO",
+        "lbl_topic_opt": ["Tiếng Anh", "Toán Tư Duy", "Lập Trình", "Kỹ Năng Sống", "Khác"],
+        "lbl_level_opt": ["Mẫu giáo", "Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5", "Trung học"],
     },
     "en": {
         "title": "📚 AI Courseware Repository",
         "logined_as": "Logged in as: **{}** ({})",
         "tab_quiz": "Quiz Directory",
-        "tab_video": "Add Video Lessons",
+        "tab_video": "Video Lessons",
         "info_empty_quiz": "💡 The quiz repository is empty. Visit the 'AI Quiz Generator' page to design new sets!",
         "btn_goto_create": "👉 Go to AI Quiz Generator",
         "sub_quiz_list": "Quiz List",
@@ -93,31 +82,23 @@ COURSEWARE_LABELS = {
         "btn_cancel": "CANCEL",
         
         # Tab Video
-        "sub_video_add": "Manual Video Upload",
-        "port_upload": "Video Upload Portal",
-        "input_vid_name": "Video Title:",
-        "input_vid_url": "Youtube URL:",
-        "input_topic": "Topic:",
-        "input_level": "Level:",
-        "btn_upload": "Upload Video",
-        "lbl_topic_opt": ["English", "Math", "Science", "Other"],
-        "lbl_level_opt": ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5"],
-        "filter_all": "All",
-        "btn_like": "👍 Like This Video",
-        "btn_assign_vid": "Assign to Class",
-        "success_assigned": "Assigned!"
+        "sub_video_add": "Add Video Lesson",
+        "input_vid_name": "Video Title (*)",
+        "input_vid_url": "Youtube URL (*)",
+        "input_topic": "Topic",
+        "input_level": "Level",
+        "btn_upload": "SAVE VIDEO",
+        "lbl_topic_opt": ["English", "Math", "Programming", "Life Skills", "Other"],
+        "lbl_level_opt": ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Middle School"],
     }
 }
 
 def get_localized_value(data_field, lang="vi", default_val=""):
-    """Dịch bù tại chỗ (dịch máy) nếu dữ liệu thô (string) thâm nhập từ ngoài vào."""
     if not data_field: return default_val
     if isinstance(data_field, str):
         return data_field if lang == "vi" else GoogleTranslator(source='auto', target='en').translate(data_field)
     return data_field
 
-# ================= KẾT NỐI API =================
-# ĐÃ SỬA: Chuyển toàn bộ về API_TV2
 API_URL_VIDEOS = f"{API_TV2}/videos"
 API_URL_QUIZZES = f"{API_TV2}/quizzes"
 
@@ -226,4 +207,54 @@ with tab_quiz:
 # ----------------- TAB 2: KHO VIDEO AI -----------------
 with tab_video:
     st.markdown(f"### {COURSEWARE_LABELS[lang]['sub_video_add']}")
-    # Tuân theo giới hạn logic cũ của bạn và đổi nhãn ngữ cảnh đa ngôn ngữ
+    with st.form("form_add_video", clear_on_submit=True):
+        vid_title = st.text_input(COURSEWARE_LABELS[lang]["input_vid_name"])
+        vid_url = st.text_input(COURSEWARE_LABELS[lang]["input_vid_url"], placeholder="VD: https://www.youtube.com/watch?v=...")
+        
+        c_t, c_l = st.columns(2)
+        vid_topic = c_t.selectbox(COURSEWARE_LABELS[lang]["input_topic"], COURSEWARE_LABELS[lang]["lbl_topic_opt"])
+        vid_level = c_l.selectbox(COURSEWARE_LABELS[lang]["input_level"], COURSEWARE_LABELS[lang]["lbl_level_opt"])
+
+        if st.form_submit_button(COURSEWARE_LABELS[lang]["btn_upload"], type="primary", use_container_width=True):
+            if not vid_title or not vid_url:
+                st.error("⚠️ Vui lòng nhập Tên và Link Video!")
+            else:
+                payload = {
+                    "title": vid_title,
+                    "url": vid_url,
+                    "topic": vid_topic,
+                    "level": vid_level,
+                    "author_email": teacher_email,
+                    "author": teacher_name
+                }
+                try:
+                    res = requests.post(API_URL_VIDEOS, json=payload)
+                    if res.status_code in [200, 201]:
+                        st.success("✅ Đã lưu Video vào kho học liệu thành công!")
+                        time.sleep(1)
+                        st.rerun()
+                except:
+                    st.error("Lỗi kết nối máy chủ.")
+
+    st.divider()
+    st.markdown("### 🎥 Danh Sách Video Bài Giảng")
+    if not ai_videos:
+        st.info("Chưa có video nào trong hệ thống.")
+    else:
+        for v in ai_videos:
+            with st.container(border=True):
+                c_vid, c_info = st.columns([1, 2])
+                with c_vid:
+                    try:
+                        st.video(v.get("url", ""))
+                    except:
+                        st.warning("Link video không hợp lệ")
+                with c_info:
+                    st.markdown(f"#### {v.get('title', 'Video Không Tên')}")
+                    st.write(f"**Chủ đề:** {v.get('topic', 'Khác')} | **Trình độ:** {v.get('level', 'Chung')}")
+                    st.caption(f"Người đăng: {v.get('author', 'Hệ thống')}")
+                    
+                    if v.get("author_email") == teacher_email:
+                        if st.button("🗑️ Xóa Video", key=f"del_v_{v.get('id')}"):
+                            requests.delete(f"{API_URL_VIDEOS}/{v.get('id')}?author={teacher_email}")
+                            st.rerun()

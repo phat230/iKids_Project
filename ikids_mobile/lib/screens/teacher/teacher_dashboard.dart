@@ -28,11 +28,13 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   bool _isEditingProfile = false;
   bool _isLoadingProfile = true;
 
+  // ✅ ĐÃ SỬA: Thêm nút "Soạn Đề AI" vào Menu màn hình chính
   final List<Map<String, dynamic>> _menuItems = [
     {"title": "Lịch dạy", "icon": Icons.calendar_month, "color": Colors.teal},
     {"title": "Chấm điểm", "icon": Icons.grading, "color": Colors.blue},
+    {"title": "Soạn Đề AI", "icon": Icons.psychology, "color": Colors.redAccent}, // Nút mới thêm
     {"title": "Giao bài tập", "icon": Icons.assignment, "color": Colors.orange},
-    {"title": "Góc kỷ niệm", "icon": Icons.photo_library, "color": Colors.purple},
+    {"title": "Nhật ký & Điểm danh", "icon": Icons.book, "color": Colors.purple}, 
   ];
 
   @override
@@ -71,13 +73,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   void _updateProfile() async {
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoadingProfile = true);
-    var request = http.MultipartRequest('POST', Uri.parse('${AppConfig.apiUrl}/api/tv3/profile/update/$_userId'));
-    request.fields['full_name'] = _nameController.text.trim();
+    
     try {
+      String? token = await _storage.read(key: 'jwt_token');
+      var request = http.MultipartRequest('POST', Uri.parse('${AppConfig.apiUrl}/api/tv3/profile/update/$_userId'));
+      
+      request.headers['Authorization'] = 'Bearer $token'; 
+      request.fields['full_name'] = _nameController.text.trim();
+      
       var response = await request.send();
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thành công!"), backgroundColor: Colors.green));
         setState(() => _isEditingProfile = false);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lưu thất bại. Vui lòng thử lại."), backgroundColor: Colors.red));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối."), backgroundColor: Colors.red));
@@ -119,7 +128,20 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
             itemBuilder: (context, index) {
               final item = _menuItems[index];
               return InkWell(
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tính năng đang phát triển"))),
+                onTap: () {
+                  // ✅ ĐÃ SỬA: Cập nhật điều hướng có thêm mục Tạo Quiz AI
+                  if (index == 0) {
+                    Navigator.pushNamed(context, '/teacher-schedule');
+                  } else if (index == 1) {
+                    Navigator.pushNamed(context, '/teacher-grading');
+                  } else if (index == 2) {
+                    Navigator.pushNamed(context, '/teacher-create-quiz');
+                  } else if (index == 3) {
+                    Navigator.pushNamed(context, '/teacher-assignment');
+                  } else if (index == 4) {
+                    Navigator.pushNamed(context, '/teacher-journal');
+                  }
+                },
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   decoration: BoxDecoration(

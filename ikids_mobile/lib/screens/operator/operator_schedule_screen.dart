@@ -37,8 +37,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   List<String> _selectedDays = [];
 
   final List<String> _daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
-  final List<String> _daysEn = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
+  
   // Tạo danh sách khung giờ từ 07:00 đến 21:30
   final List<String> _timeSlots = List.generate(29, (index) {
     int hour = 7 + (index ~/ 2);
@@ -110,27 +109,38 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   }
 
   Future<void> _fetchTeachers() async {
-    final res = await http.get(Uri.parse('${AppConfig.apiUrl}/api/auth/users'), headers: {"Authorization": "Bearer $_token"});
+    // SỬA: Gọi từ TV1 thay vì auth để đồng bộ danh sách giáo viên đang dạy
+    final res = await http.get(Uri.parse('${AppConfig.apiTv1}/teachers'), headers: {"Authorization": "Bearer $_token"});
     if (res.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(res.bodyBytes));
-      _teachers = data.where((u) => u['role'].toString().contains('teacher')).toList();
+      _teachers = data;
+    } else {
+      // Fallback nếu api TV1 lỗi
+      final authRes = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: {"Authorization": "Bearer $_token"});
+      if (authRes.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(utf8.decode(authRes.bodyBytes));
+        _teachers = data.where((u) => u['role'].toString().contains('teacher')).toList();
+      }
     }
   }
 
   Future<void> _fetchClasses() async {
-    final res = await http.get(Uri.parse('${AppConfig.apiUrl}/classes'));
+    // SỬA: Dùng AppConfig.apiTv1
+    final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes'));
     if (res.statusCode == 200) _classes = jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   Future<void> _fetchSchedules() async {
-    final res = await http.get(Uri.parse('${AppConfig.apiUrl}/schedule/list'), headers: {"Authorization": "Bearer $_token"});
+    // SỬA: Dùng AppConfig.apiTv1
+    final res = await http.get(Uri.parse('${AppConfig.apiTv1}/schedule/list'), headers: {"Authorization": "Bearer $_token"});
     if (res.statusCode == 200) _schedules = jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   // Gửi thông báo tự động cho Phụ huynh & Học sinh
   Future<void> _dispatchNotifications(String classId, String className, String content) async {
     try {
-      final res = await http.get(Uri.parse('${AppConfig.apiUrl}/classes/$classId/students/details'), headers: {"Authorization": "Bearer $_token"});
+      // Lấy danh sách học sinh từ TV1
+      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'), headers: {"Authorization": "Bearer $_token"});
       if (res.statusCode == 200) {
         final List<dynamic> students = jsonDecode(utf8.decode(res.bodyBytes));
         for (var s in students) {
@@ -144,11 +154,12 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
             "title": _labels[_lang]!['notif_title'],
             "content": content
           };
-          await http.post(Uri.parse('${AppConfig.apiUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
+          // Bắn thông báo (API gốc)
+          await http.post(Uri.parse('${AppConfig.baseUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
           
           payload["receiver_role"] = "parent";
           payload["receiver_id"] = "all"; // Backend sẽ tự phân giải sang phụ huynh của học sinh này
-          await http.post(Uri.parse('${AppConfig.apiUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
+          await http.post(Uri.parse('${AppConfig.baseUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
         }
       }
     } catch (e) { debugPrint("Lỗi gửi tin: $e"); }
@@ -161,8 +172,8 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
     }
 
     setState(() => _isLoading = true);
-    final cls = _classes.firstWhere((c) => c['id'] == _selectedClassId);
-    final teacher = _teachers.firstWhere((t) => t['id'] == _selectedTeacherId);
+    final cls = _classes.firstWhere((c) => (c['id'] ?? c['_id']).toString() == _selectedClassId);
+    final teacher = _teachers.firstWhere((t) => (t['id'] ?? t['_id']).toString() == _selectedTeacherId);
 
     final payload = {
       "class_id": _selectedClassId,
@@ -181,11 +192,15 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       "status": "active"
     };
 
-    final res = await http.post(Uri.parse('${AppConfig.apiUrl}/schedule/create'), headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"}, body: jsonEncode(payload));
+    // SỬA: Gửi vào API_TV1
+    final res = await http.post(Uri.parse('${AppConfig.apiTv1}/schedule/create'), headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"}, body: jsonEncode(payload));
 
     if (res.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!['success_created']!), backgroundColor: Colors.green));
-      _initData();
+      _initData(); // Tải lại toàn bộ lịch
+    } else {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi hệ thống khi tạo lịch"), backgroundColor: Colors.red));
     }
   }
 
@@ -233,13 +248,13 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
             children: [
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(labelText: labels["lbl_class"]),
-                items: _classes.map((c) => DropdownMenuItem(value: c['id'].toString(), child: Text(c['class_name']))).toList(),
+                items: _classes.map((c) => DropdownMenuItem(value: (c['id'] ?? c['_id']).toString(), child: Text(c['class_name']))).toList(),
                 onChanged: (val) => setState(() => _selectedClassId = val),
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(labelText: labels["lbl_teacher"]),
-                items: _teachers.map((t) => DropdownMenuItem(value: t['id'].toString(), child: Text(t['full_name'] ?? t['name']))).toList(),
+                items: _teachers.map((t) => DropdownMenuItem(value: (t['id'] ?? t['_id']).toString(), child: Text(t['full_name'] ?? t['name']))).toList(),
                 onChanged: (val) => setState(() => _selectedTeacherId = val),
               ),
               const SizedBox(height: 10),
@@ -311,10 +326,15 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton.icon(icon: const Icon(Icons.delete, color: Colors.red), label: const Text("Xóa", style: TextStyle(color: Colors.red)), onPressed: () async {
-                          final res = await http.delete(Uri.parse('${AppConfig.apiUrl}/schedule/${item['id']}'), headers: {"Authorization": "Bearer $_token"});
-                          if (res.statusCode == 200) _initData();
-                        }),
+                        TextButton.icon(
+                          icon: const Icon(Icons.delete, color: Colors.red), 
+                          label: const Text("Xóa", style: TextStyle(color: Colors.red)), 
+                          onPressed: () async {
+                            // SỬA: Xóa trên API_TV1
+                            final res = await http.delete(Uri.parse('${AppConfig.apiTv1}/schedule/${item['id']}'), headers: {"Authorization": "Bearer $_token"});
+                            if (res.statusCode == 200) _initData();
+                          }
+                        ),
                       ],
                     )
                   ],

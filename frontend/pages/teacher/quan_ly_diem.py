@@ -116,11 +116,8 @@ st.divider()
 real_students = get_class_students(selected_class_id)
 
 if not real_students:
-    st.info(GRADING_LABELS[lang]["info_demo"])
-    real_students = [
-        {GRADING_LABELS[lang]["col_id"]: "HS001_DEMO", GRADING_LABELS[lang]["input_name"]: "Nguyễn Văn A (Demo)"},
-        {GRADING_LABELS[lang]["col_id"]: "HS002_DEMO", GRADING_LABELS[lang]["input_name"]: "Trần Thị B (Demo)"},
-    ]
+    st.info("Lớp học này hiện tại chưa có học sinh nào được xếp vào.")
+    st.stop() # Dừng vẽ bảng điểm nếu không có học sinh
 
 try:
     # Gọi API TV1

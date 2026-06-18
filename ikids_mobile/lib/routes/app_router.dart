@@ -20,6 +20,13 @@ import '../screens/operator/operator_store_screen.dart';
 import '../screens/operator/operator_class_screen.dart';
 import '../screens/operator/operator_schedule_screen.dart';
 
+// --- Import các trang Chức năng Giáo viên ---
+import '../screens/teacher/teacher_journal_screen.dart';
+import '../screens/teacher/teacher_create_quiz_screen.dart';
+import '../screens/teacher/teacher_schedule_screen.dart';
+import '../screens/teacher/teacher_grading_screen.dart';
+import '../screens/teacher/teacher_assignment_screen.dart';
+
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -55,7 +62,19 @@ class AppRouter {
       case '/operator-schedule':
         return MaterialPageRoute(builder: (_) => const OperatorScheduleScreen());
 
-      // 4. Fallback (Trang không tồn tại)
+      // 4. Nhóm Chức năng Giáo viên
+      case '/teacher-journal':
+        return MaterialPageRoute(builder: (_) => const TeacherJournalScreen());
+      case '/teacher-create-quiz':
+        return MaterialPageRoute(builder: (_) => const TeacherCreateQuizScreen());
+      case '/teacher-schedule':
+        return MaterialPageRoute(builder: (_) => const TeacherScheduleScreen());
+      case '/teacher-grading':
+        return MaterialPageRoute(builder: (_) => const TeacherGradingScreen());
+      case '/teacher-assignment':
+        return MaterialPageRoute(builder: (_) => const TeacherAssignmentScreen());
+
+      // 5. Fallback (Trang không tồn tại)
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

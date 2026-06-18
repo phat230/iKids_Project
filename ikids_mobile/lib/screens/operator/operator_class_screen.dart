@@ -118,8 +118,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   Future<void> _fetchTeachers() async {
     final headers = {"Authorization": "Bearer $_token"};
     try {
-      // 1. Thử API Teachers chuẩn
-      var res = await http.get(Uri.parse('${AppConfig.apiUrl}/teachers'), headers: headers).timeout(const Duration(seconds: 5));
+      // 1. Thử API Teachers chuẩn ở TV1
+      var res = await http.get(Uri.parse('${AppConfig.apiTv1}/teachers'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var data = jsonDecode(utf8.decode(res.bodyBytes));
         if (data is List && data.isNotEmpty) {
@@ -129,7 +129,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       }
       
       // 2. Fallback quét Auth Users
-      res = await http.get(Uri.parse('${AppConfig.apiUrl}/api/auth/users'), headers: headers).timeout(const Duration(seconds: 5));
+      res = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var rawData = jsonDecode(utf8.decode(res.bodyBytes));
         _teachers = rawData.where((u) {
@@ -147,7 +147,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   Future<void> _fetchClasses() async {
     try {
-      final res = await http.get(Uri.parse('${AppConfig.apiUrl}/classes')).timeout(const Duration(seconds: 10));
+      // ✅ SỬA: Dùng AppConfig.apiTv1
+      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes')).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         _classes = jsonDecode(utf8.decode(res.bodyBytes));
       }
@@ -159,7 +160,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   Future<void> _fetchClassStudents(String classId) async {
     setState(() => _isLoading = true);
     try {
-      final res = await http.get(Uri.parse('${AppConfig.apiUrl}/classes/$classId/students/details'));
+      // ✅ SỬA: Dùng AppConfig.apiTv1
+      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'));
       if (res.statusCode == 200) {
         _studentsInClass = jsonDecode(utf8.decode(res.bodyBytes));
       } else {
@@ -194,8 +196,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         "status": "active"
       };
 
+      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/classes/create'),
+        Uri.parse('${AppConfig.apiTv1}/classes/create'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
         body: jsonEncode(payload)
       );
@@ -238,8 +241,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         }
       }
 
+      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.put(
-        Uri.parse('${AppConfig.apiUrl}/classes/$_selectedClassId'),
+        Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
         body: jsonEncode(payload)
       );
@@ -261,8 +265,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
     final labels = _labels[_lang]!;
     setState(() => _isLoading = true);
     try {
+      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.delete(
-        Uri.parse('${AppConfig.apiUrl}/classes/$_selectedClassId'),
+        Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -281,8 +286,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
     final labels = _labels[_lang]!;
     setState(() => _isLoading = true);
     try {
+      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.delete(
-        Uri.parse('${AppConfig.apiUrl}/classes/$_selectedClassId/students/$studentId'),
+        Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId/students/$studentId'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {

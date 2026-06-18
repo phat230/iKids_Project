@@ -27,6 +27,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   final _searchController = TextEditingController();
+  final _imageUrlController = TextEditingController(); // ✅ ĐÃ THÊM: Controller cho link ảnh
 
   final Map<String, Map<String, String>> _labels = {
     "vi": {
@@ -39,6 +40,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "input_name": "Tên sản phẩm (*)",
       "input_desc": "Mô tả chi tiết",
       "input_price": "Giá bán (VNĐ)",
+      "input_image": "Link ảnh minh họa (URL)", // ✅ ĐÃ THÊM: Nhãn cho trường ảnh
       "btn_save": "Lưu cập nhật",
       "btn_add": "Đăng sản phẩm",
       "btn_cancel": "Hủy",
@@ -60,6 +62,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "input_name": "Product Name (*)",
       "input_desc": "Detailed Description",
       "input_price": "Price (Points/VND)",
+      "input_image": "Image URL (Optional)", // ✅ ĐÃ THÊM: Nhãn tiếng Anh
       "btn_save": "Save Changes",
       "btn_add": "Publish Product",
       "btn_cancel": "Cancel",
@@ -97,7 +100,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   Future<void> _fetchProducts() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.apiUrl}/api/tv3/products'),
+        Uri.parse('${AppConfig.apiTv3}/products'), // Sử dụng apiTv3 từ AppConfig
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -109,7 +112,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     }
   }
 
-  // Hàm hỗ trợ bóc tách ngôn ngữ từ JSON (Giống get_localized_value trên Python)
   String _getLocalized(dynamic data) {
     if (data == null) return "";
     if (data is Map) {
@@ -137,6 +139,11 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       _nameController.text = _getLocalized(product['name']);
       _descController.text = _getLocalized(product['description']);
       _priceController.text = product['price']?.toString() ?? "0";
+      
+      // ✅ ĐÃ THÊM: Nạp lại link ảnh cũ nếu có
+      String existingImg = product['image_url']?.toString() ?? "";
+      if (existingImg == "static/placeholder.png") existingImg = "";
+      _imageUrlController.text = existingImg;
     });
   }
 
@@ -146,6 +153,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       _nameController.clear();
       _descController.clear();
       _priceController.clear();
+      _imageUrlController.clear(); // ✅ Xóa trắng ô nhập ảnh
     });
   }
 
@@ -153,6 +161,11 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     final name = _nameController.text.trim();
     final desc = _descController.text.trim();
     final price = double.tryParse(_priceController.text) ?? 0;
+    
+    // ✅ Lấy link ảnh từ Textfield, nếu rỗng thì dùng ảnh mặc định
+    final imgUrl = _imageUrlController.text.trim().isNotEmpty 
+        ? _imageUrlController.text.trim() 
+        : "static/anh_laptop.jpg";
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_err_empty"]!), backgroundColor: Colors.red));
@@ -166,23 +179,21 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
         "name": name,
         "price": price,
         "description": desc,
-        "image_url": _editingProduct != null ? _editingProduct!['image_url'] : "static/placeholder.png", // Giữ ảnh cũ hoặc dùng Placeholder
+        "image_url": imgUrl, // ✅ Đẩy link ảnh lên Backend
         "updated_at": DateTime.now().toIso8601String()
       };
 
       http.Response res;
       if (_editingProduct != null) {
-        // PUT (Sửa)
         res = await http.put(
-          Uri.parse('${AppConfig.apiUrl}/api/tv3/products/${_editingProduct!['id']}'),
+          Uri.parse('${AppConfig.apiTv3}/products/${_editingProduct!['id']}'),
           headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
           body: jsonEncode(payload)
         );
       } else {
-        // POST (Thêm mới)
         payload["created_at"] = DateTime.now().toIso8601String();
         res = await http.post(
-          Uri.parse('${AppConfig.apiUrl}/api/tv3/products'),
+          Uri.parse('${AppConfig.apiTv3}/products'),
           headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
           body: jsonEncode(payload)
         );
@@ -206,7 +217,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     setState(() => _isLoading = true);
     try {
       final res = await http.delete(
-        Uri.parse('${AppConfig.apiUrl}/api/tv3/products/$id'),
+        Uri.parse('${AppConfig.apiTv3}/products/$id'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -224,7 +235,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   Widget build(BuildContext context) {
     final labels = _labels[_lang]!;
 
-    // Tính toán thống kê
     int totalProducts = _products.length;
     double maxPrice = 0;
     if (_products.isNotEmpty) {
@@ -282,6 +292,18 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                         const SizedBox(height: 10),
                         TextField(controller: _priceController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["input_price"])),
                         const SizedBox(height: 10),
+                        
+                        // ✅ ĐÃ THÊM: Ô nhập Link Hình Ảnh
+                        TextField(
+                          controller: _imageUrlController, 
+                          decoration: InputDecoration(
+                            labelText: labels["input_image"],
+                            hintText: "https://...",
+                            prefixIcon: const Icon(Icons.link, color: Colors.teal)
+                          )
+                        ),
+                        const SizedBox(height: 10),
+                        
                         TextField(controller: _descController, maxLines: 3, decoration: InputDecoration(labelText: labels["input_desc"])),
                         const SizedBox(height: 20),
                         Row(
@@ -343,7 +365,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                       
                       // Xử lý URL ảnh an toàn
                       if (imgUrl.isNotEmpty && imgUrl.startsWith("static")) {
-                        imgUrl = "${AppConfig.apiUrl}/$imgUrl";
+                        imgUrl = "${AppConfig.baseUrl}/$imgUrl";
                       } else if (imgUrl.isEmpty) {
                         imgUrl = "https://via.placeholder.com/150";
                       }
@@ -355,14 +377,11 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                           padding: const EdgeInsets.all(12.0),
                           child: Row(
                             children: [
-                              // Hình ảnh
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: Image.network(imgUrl, width: 80, height: 80, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => Container(width: 80, height: 80, color: Colors.grey[300], child: const Icon(Icons.image_not_supported))),
                               ),
                               const SizedBox(width: 15),
-                              
-                              // Thông tin
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,8 +394,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                                   ],
                                 ),
                               ),
-                              
-                              // Nút Hành động
                               Column(
                                 children: [
                                   IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _startEdit(p)),
