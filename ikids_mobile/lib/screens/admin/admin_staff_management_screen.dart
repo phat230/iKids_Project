@@ -15,6 +15,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   final _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   String _token = "";
+  String _apiBase = ""; // Lưu đường dẫn chuẩn sau khi dò tìm
 
   List<dynamic> _allStaff = [];
   List<dynamic> _filteredStaff = [];
@@ -62,23 +63,43 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     }
   }
 
+  // ✅ AUTO-DISCOVERY: Hàm tự động quét đường dẫn Backend
   Future<void> _fetchStaff() async {
-    try {
-      // ✅ ĐÃ SỬA: Chuyển hướng lấy danh sách tài khoản từ cổng apiAuth (Backend xác thực)
-      final res = await http.get(
-        Uri.parse('${AppConfig.apiAuth}/users'),
-        headers: {"Authorization": "Bearer $_token"},
-      );
-      if (res.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(utf8.decode(res.bodyBytes));
-        setState(() {
-          _allStaff = data;
-          _applyFilters();
-        });
-      }
-    } catch (e) {
-      debugPrint("Lỗi tải thông tin nhân sự: $e");
+    final headers = {"Authorization": "Bearer $_token"};
+    final List<String> endpoints = [
+      '${AppConfig.apiUrl}/staff',
+      '${AppConfig.apiUrl}/api/staff',
+      '${AppConfig.apiUrl}/api/auth/users',
+    ];
+
+    for (String url in endpoints) {
+      try {
+        final res = await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 3));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(utf8.decode(res.bodyBytes));
+          if (data is List) {
+            setState(() {
+              _allStaff = data;
+              _applyFilters();
+              _apiBase = url.replaceAll('/users', ''); // Chuẩn hóa thành base url
+            });
+            return; // Thoát vòng lặp khi đã tìm thấy dữ liệu
+          }
+        }
+      } catch (_) {}
     }
+    debugPrint("Không thể tải danh sách tài khoản từ Backend.");
+  }
+
+  // Hàm sinh đường dẫn hành động động
+  String _getEndpoint(String action, [String id = ""]) {
+    bool isAuth = _apiBase.contains("auth");
+    if (action == "add") return isAuth ? "$_apiBase/register" : "$_apiBase/add";
+    if (action == "update" || action == "delete") return isAuth ? "$_apiBase/users/$id" : "$_apiBase/$id";
+    if (action == "pwd") return isAuth ? "$_apiBase/users/$id/password" : "$_apiBase/$id/password";
+    if (action == "disable") return isAuth ? "$_apiBase/users/$id/disable" : "$_apiBase/$id/disable";
+    if (action == "enable") return isAuth ? "$_apiBase/users/$id/enable" : "$_apiBase/$id/enable";
+    return _apiBase;
   }
 
   void _applyFilters() {
@@ -109,34 +130,26 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     String? finalParentId = _selectedParentId;
 
     try {
-      // 1. Tạo phụ huynh mới nếu được chọn
       if (_selectedRole == "student" && _linkMode == "new") {
         final pName = _pNameCtrl.text.trim();
         final pEmail = _pEmailCtrl.text.trim().toLowerCase();
-        final pPwd = _pPwdCtrl.text;
         
-        if (pName.isEmpty || pEmail.isEmpty || pPwd.isEmpty) {
+        if (pName.isEmpty || pEmail.isEmpty || _pPwdCtrl.text.isEmpty) {
           _showSnackbar("Thiếu thông tin phụ huynh mới", Colors.orange);
           setState(() => _isLoading = false);
           return;
         }
 
-        // ✅ ĐÃ SỬA: Gửi vào cổng Đăng ký (Register) của hệ thống Auth
         final pRes = await http.post(
-          Uri.parse('${AppConfig.apiAuth}/register'),
+          Uri.parse(_getEndpoint("add")),
           headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
-          body: jsonEncode({
-            "name": pName, "role": "parent", "email": pEmail, "password": pPwd, "phone": _pPhoneCtrl.text.trim(), "status": "Active"
-          })
+          body: jsonEncode({"name": pName, "role": "parent", "email": pEmail, "password": _pPwdCtrl.text, "phone": _pPhoneCtrl.text.trim(), "status": "Active"})
         );
 
         if (pRes.statusCode == 200 || pRes.statusCode == 201) {
-          final syncRes = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: {"Authorization": "Bearer $_token"});
-          if (syncRes.statusCode == 200) {
-            final List<dynamic> updatedList = jsonDecode(utf8.decode(syncRes.bodyBytes));
-            final freshParent = updatedList.firstWhere((p) => p['email'] == pEmail, orElse: () => null);
-            if (freshParent != null) finalParentId = freshParent['id']?.toString() ?? freshParent['_id']?.toString();
-          }
+          await _fetchStaff();
+          final freshParent = _allStaff.firstWhere((p) => p['email'] == pEmail, orElse: () => null);
+          if (freshParent != null) finalParentId = freshParent['id']?.toString() ?? freshParent['_id']?.toString();
         } else {
           _showSnackbar("Lỗi tạo phụ huynh", Colors.red);
           setState(() => _isLoading = false);
@@ -150,15 +163,11 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
         return;
       }
 
-      // 2. Tạo tài khoản chính
-      final payload = {
-        "name": name, "role": _selectedRole, "email": email, "password": pwd, "phone": phone, "status": "Active"
-      };
+      final payload = {"name": name, "role": _selectedRole, "email": email, "password": pwd, "phone": phone, "status": "Active"};
       if (_selectedRole == "student" && finalParentId != null) payload["parent_id"] = finalParentId;
 
-      // ✅ ĐÃ SỬA: Gửi vào cổng Đăng ký (Register) của hệ thống Auth
       final res = await http.post(
-        Uri.parse('${AppConfig.apiAuth}/register'),
+        Uri.parse(_getEndpoint("add")),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
         body: jsonEncode(payload)
       );
@@ -166,10 +175,10 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
       if (res.statusCode == 200 || res.statusCode == 201) {
         _showSnackbar("Tạo tài khoản thành công!", Colors.green);
         _clearFormFields();
-        Navigator.pop(context); // Đóng Dialog
+        Navigator.pop(context);
         await _fetchStaff();
       } else {
-        _showSnackbar("Lỗi máy chủ", Colors.red);
+        _showSnackbar("Lỗi máy chủ: ${res.body}", Colors.red);
       }
     } catch (e) {
       _showSnackbar("Có lỗi xảy ra", Colors.red);
@@ -178,9 +187,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     }
   }
 
-  // --- DIALOG TẠO MỚI TÀI KHOẢN (Đưa Form vào đây cho gọn) ---
   void _openCreateDialog() {
-    // Reset Form
     _clearFormFields();
     _selectedRole = "teacher";
     _linkMode = "existing";
@@ -194,7 +201,6 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
             final availableParents = _allStaff.where((s) => s['role'] == 'parent' || s['quyen'] == 'parent').toList();
-            // Fallback an toàn
             if (_selectedParentId != null && !availableParents.any((p) => (p['id']?.toString() ?? p['_id']?.toString()) == _selectedParentId)) {
               _selectedParentId = null;
             }
@@ -226,7 +232,6 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                     ),
                     const SizedBox(height: 10),
 
-                    // LOGIC TỰ ĐỘNG MỞ RỘNG KHI LÀ HỌC SINH
                     if (_selectedRole == "student") ...[
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -278,7 +283,6 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                         onPressed: () {
-                          // Do dùng bottomSheet nên cần update state tổng
                           setState(() {});
                           _provisionAccount();
                         },
@@ -296,7 +300,6 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     );
   }
 
-  // --- DIALOGS SỬA NHANH ---
   void _openEditDialog(Map<String, dynamic> user) {
     final nameCtrl = TextEditingController(text: user['name'] ?? user['full_name'] ?? '');
     final phoneCtrl = TextEditingController(text: user['phone'] ?? user['phone_number'] ?? '');
@@ -323,9 +326,8 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              // ✅ ĐÃ SỬA: Sửa User thông qua apiAuth
               await http.put(
-                Uri.parse('${AppConfig.apiAuth}/users/${user['id'] ?? user['_id']}'),
+                Uri.parse(_getEndpoint("update", (user['id'] ?? user['_id']).toString())),
                 headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
                 body: jsonEncode({"name": nameCtrl.text, "phone": phoneCtrl.text, "status": status})
               );
@@ -338,7 +340,6 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     );
   }
 
-  // --- GIAO DIỆN CHÍNH ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -436,7 +437,19 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                     )
                                   ],
                                 ),
-                                trailing: IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _openEditDialog(user)),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _openEditDialog(user)),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red), 
+                                      onPressed: () async {
+                                        await http.delete(Uri.parse(_getEndpoint("delete", (user['id'] ?? user['_id']).toString())), headers: {"Authorization": "Bearer $_token"});
+                                        _initData();
+                                      }
+                                    ),
+                                  ],
+                                )
                               ),
                             );
                           },
