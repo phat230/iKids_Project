@@ -20,6 +20,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   
   String _userId = "";
   String _userRole = "teacher";
+  String _lang = "vi"; // Ngôn ngữ mặc định
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -28,19 +29,85 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   bool _isEditingProfile = false;
   bool _isLoadingProfile = true;
 
-  // ✅ ĐÃ SỬA: Thêm nút "Soạn Đề AI" vào Menu màn hình chính
-  final List<Map<String, dynamic>> _menuItems = [
-    {"title": "Lịch dạy", "icon": Icons.calendar_month, "color": Colors.teal},
-    {"title": "Chấm điểm", "icon": Icons.grading, "color": Colors.blue},
-    {"title": "Soạn Đề AI", "icon": Icons.psychology, "color": Colors.redAccent}, // Nút mới thêm
-    {"title": "Giao bài tập", "icon": Icons.assignment, "color": Colors.orange},
-    {"title": "Nhật ký & Điểm danh", "icon": Icons.book, "color": Colors.purple}, 
-  ];
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "greeting": "Chào Thầy/Cô",
+      "wish": "Chúc một ngày giảng dạy tràn đầy năng lượng!",
+      "operations": "Nghiệp vụ giảng dạy",
+      "tab_home": "Trang chủ",
+      "tab_noti": "Thông báo",
+      "tab_profile": "Cá nhân",
+      "menu_schedule": "Lịch dạy",
+      "menu_grading": "Chấm điểm",
+      "menu_ai_quiz": "Soạn Đề AI",
+      "menu_assignment": "Giao bài tập",
+      "menu_journal": "Nhật ký & Điểm danh",
+      "prof_name": "Họ và tên (*)",
+      "prof_phone": "Số điện thoại",
+      "prof_fb": "Link Facebook",
+      "prof_bio": "Phương châm giảng dạy",
+      "btn_cancel": "Hủy",
+      "btn_save": "Lưu",
+      "btn_edit": "Chỉnh sửa hồ sơ",
+      "btn_logout": "Đăng xuất",
+      "msg_not_updated": "Chưa cập nhật",
+      "msg_success": "Cập nhật thành công!",
+      "msg_fail": "Lưu thất bại. Vui lòng thử lại.",
+      "msg_error": "Lỗi kết nối.",
+    },
+    "en": {
+      "greeting": "Hello",
+      "wish": "Have an energetic and inspiring teaching day!",
+      "operations": "Teaching Operations",
+      "tab_home": "Home",
+      "tab_noti": "Inbox",
+      "tab_profile": "Profile",
+      "menu_schedule": "Schedule",
+      "menu_grading": "Grading",
+      "menu_ai_quiz": "AI Quiz Maker",
+      "menu_assignment": "Assignments",
+      "menu_journal": "Journal & Attendance",
+      "prof_name": "Full Name (*)",
+      "prof_phone": "Phone Number",
+      "prof_fb": "Facebook Link",
+      "prof_bio": "Teaching Philosophy",
+      "btn_cancel": "Cancel",
+      "btn_save": "Save Changes",
+      "btn_edit": "Edit Profile",
+      "btn_logout": "Logout",
+      "msg_not_updated": "Not updated",
+      "msg_success": "Profile updated successfully!",
+      "msg_fail": "Save failed. Please try again.",
+      "msg_error": "Connection error.",
+    }
+  };
+
+  // ✅ Khởi tạo Menu động để ngôn ngữ tự động thay đổi theo trạng thái
+  List<Map<String, dynamic>> get _menuItems {
+    final labels = _locales[_lang]!;
+    return [
+      {"title": labels["menu_schedule"], "icon": Icons.calendar_month, "color": Colors.teal},
+      {"title": labels["menu_grading"], "icon": Icons.grading, "color": Colors.blue},
+      {"title": labels["menu_ai_quiz"], "icon": Icons.psychology, "color": Colors.redAccent},
+      {"title": labels["menu_assignment"], "icon": Icons.assignment, "color": Colors.orange},
+      {"title": labels["menu_journal"], "icon": Icons.book, "color": Colors.purple}, 
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    // Đọc ngôn ngữ người dùng đã chọn từ màn hình Login
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) {
+      setState(() => _lang = savedLang);
+    }
+    await _loadUserProfile();
   }
 
   Future<void> _loadUserProfile() async {
@@ -51,7 +118,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         _userId = decoded["id"]?.toString() ?? decoded["_id"]?.toString() ?? "";
         
         setState(() {
-          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? "Giáo viên iKids";
+          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? "Teacher";
           _phoneController.text = decoded["phone_number"] ?? decoded["phone"] ?? "";
           _bioController.text = decoded["bio"] ?? "";
           _fbController.text = decoded["facebook_url"] ?? "";
@@ -71,6 +138,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
   }
 
   void _updateProfile() async {
+    final labels = _locales[_lang]!;
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoadingProfile = true);
     
@@ -83,42 +151,71 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
       
       var response = await request.send();
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thành công!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
         setState(() => _isEditingProfile = false);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lưu thất bại. Vui lòng thử lại."), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_fail"]!), backgroundColor: Colors.red));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối."), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_error"]!), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoadingProfile = false);
     }
   }
 
-  Widget _buildHomeTab() {
+  // --- GIAO DIỆN TRANG CHỦ ---
+  Widget _buildHomeTab(Map<String, String> labels) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(top: 30, bottom: 20, left: 20, right: 20),
           decoration: const BoxDecoration(
             color: Colors.teal,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))]
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Chào Thầy/Cô ${_nameController.text.split(' ').last}! 📚", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 5),
-              const Text("Chúc một ngày giảng dạy tràn đầy năng lượng!", style: TextStyle(fontSize: 16, color: Colors.white70)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("${labels['greeting']} ${_nameController.text.split(' ').last}! 📚", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Text(labels['wish']!, style: const TextStyle(fontSize: 15, color: Colors.white70)),
+                  ],
+                ),
+              ),
+              
+              // Nút chuyển đổi đa ngôn ngữ đồng bộ
+              GestureDetector(
+                onTap: () async {
+                  setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                  await _storage.write(key: 'app_lang', value: _lang);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.5))),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.language, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              )
             ],
           ),
         ),
-        const SizedBox(height: 15),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text("Nghiệp vụ giảng dạy", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(labels["operations"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
         ),
         Expanded(
           child: GridView.builder(
@@ -129,7 +226,6 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
               final item = _menuItems[index];
               return InkWell(
                 onTap: () {
-                  // ✅ ĐÃ SỬA: Cập nhật điều hướng có thêm mục Tạo Quiz AI
                   if (index == 0) {
                     Navigator.pushNamed(context, '/teacher-schedule');
                   } else if (index == 1) {
@@ -154,7 +250,7 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                     children: [
                       Icon(item['icon'], size: 45, color: item['color']),
                       const SizedBox(height: 8),
-                      Text(item['title'], style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: item['color'])),
+                      Text(item['title'], textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: item['color'])),
                     ],
                   ),
                 ),
@@ -166,7 +262,8 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
     );
   }
 
-  Widget _buildProfileTab() {
+  // --- GIAO DIỆN TRANG CÁ NHÂN ---
+  Widget _buildProfileTab(Map<String, String> labels) {
     if (_isLoadingProfile) return const Center(child: CircularProgressIndicator());
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -185,36 +282,36 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Họ và tên (*)")),
-                      TextField(controller: _phoneController, decoration: const InputDecoration(labelText: "Số điện thoại")),
-                      TextField(controller: _fbController, decoration: const InputDecoration(labelText: "Link Facebook")),
-                      TextField(controller: _bioController, decoration: const InputDecoration(labelText: "Phương châm giảng dạy")),
+                      TextField(controller: _nameController, decoration: InputDecoration(labelText: labels["prof_name"])),
+                      TextField(controller: _phoneController, decoration: InputDecoration(labelText: labels["prof_phone"])),
+                      TextField(controller: _fbController, decoration: InputDecoration(labelText: labels["prof_fb"])),
+                      TextField(controller: _bioController, decoration: InputDecoration(labelText: labels["prof_bio"])),
                       const SizedBox(height: 25),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton(onPressed: () => setState(() => _isEditingProfile = false), child: const Text("Hủy"))),
+                          Expanded(child: OutlinedButton(onPressed: () => setState(() => _isEditingProfile = false), child: Text(labels["btn_cancel"]!))),
                           const SizedBox(width: 10),
-                          Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white), onPressed: _updateProfile, child: const Text("Lưu"))),
+                          Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white), onPressed: _updateProfile, child: Text(labels["btn_save"]!))),
                         ],
                       ),
                     ],
                   )
                 : Column(
                     children: [
-                      ListTile(leading: const Icon(Icons.person, color: Colors.teal), title: Text(_nameController.text.isEmpty ? "Chưa cập nhật" : _nameController.text, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: const Text("Họ và Tên")),
+                      ListTile(leading: const Icon(Icons.person, color: Colors.teal), title: Text(_nameController.text.isEmpty ? labels["msg_not_updated"]! : _nameController.text, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(labels["prof_name"]!.replaceAll(" (*)", ""))),
                       const Divider(height: 1),
-                      ListTile(leading: const Icon(Icons.phone, color: Colors.green), title: Text(_phoneController.text.isEmpty ? "Chưa cập nhật" : _phoneController.text), subtitle: const Text("Số điện thoại")),
+                      ListTile(leading: const Icon(Icons.phone, color: Colors.green), title: Text(_phoneController.text.isEmpty ? labels["msg_not_updated"]! : _phoneController.text), subtitle: Text(labels["prof_phone"]!)),
                       const Divider(height: 1),
-                      ListTile(leading: const Icon(Icons.favorite, color: Colors.redAccent), title: Text(_bioController.text.isEmpty ? "Chưa cập nhật" : _bioController.text), subtitle: const Text("Phương châm giảng dạy")),
+                      ListTile(leading: const Icon(Icons.favorite, color: Colors.redAccent), title: Text(_bioController.text.isEmpty ? labels["msg_not_updated"]! : _bioController.text), subtitle: Text(labels["prof_bio"]!)),
                       const SizedBox(height: 20),
-                      SizedBox(width: double.infinity, child: OutlinedButton.icon(style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.teal)), onPressed: () => setState(() => _isEditingProfile = true), icon: const Icon(Icons.edit, color: Colors.teal), label: const Text("Chỉnh sửa hồ sơ", style: TextStyle(color: Colors.teal)))),
+                      SizedBox(width: double.infinity, child: OutlinedButton.icon(style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.teal)), onPressed: () => setState(() => _isEditingProfile = true), icon: const Icon(Icons.edit, color: Colors.teal), label: Text(labels["btn_edit"]!, style: const TextStyle(color: Colors.teal)))),
                     ],
                   ),
           ),
           const SizedBox(height: 20),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-            child: ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: const Text("Đăng xuất", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), onTap: _handleLogout),
+            child: ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: Text(labels["btn_logout"]!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), onTap: _handleLogout),
           )
         ],
       ),
@@ -223,7 +320,9 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> tabs = [_buildHomeTab(), const NotificationScreen(), _buildProfileTab()];
+    final labels = _locales[_lang]!;
+    final List<Widget> tabs = [_buildHomeTab(labels), const NotificationScreen(), _buildProfileTab(labels)];
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(child: tabs[_selectedIndex]),
@@ -231,10 +330,10 @@ class _TeacherDashboardState extends State<TeacherDashboard> {
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.teal,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Cá nhân"),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: labels["tab_home"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: labels["tab_noti"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: labels["tab_profile"]),
         ],
       ),
     );

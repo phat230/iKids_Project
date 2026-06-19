@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart'; 
+import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -9,19 +10,45 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // 1. Khai báo các Controller và Service bên trong Class State
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
   final _apiService = ApiService();
+  
   bool _isLoading = false;
+  bool _isObscured = true;
+  String _lang = "vi"; // Mặc định là Tiếng Việt giống Web
 
-  // 2. Hàm xử lý Logic Đăng nhập
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Hệ Thống iKids",
+      "subtitle": "Đăng nhập để tiếp tục truy cập iKids Portal",
+      "email_hint": "ví dụ: phuhuynh@gmail.com",
+      "pass_hint": "Mật khẩu",
+      "btn_login": "Đăng Nhập",
+      "btn_forgot": "Quên mật khẩu?",
+      "txt_no_account": "Chưa có tài khoản?",
+      "btn_register": "Đăng ký ngay",
+      "err_empty": "⚠️ Vui lòng điền đầy đủ email và mật khẩu.",
+      "err_auth": "Tài khoản chưa được kích hoạt hoặc bị khóa."
+    },
+    "en": {
+      "title": "iKids System",
+      "subtitle": "Sign in to continue to iKids Portal",
+      "email_hint": "e.g., parent@gmail.com",
+      "pass_hint": "Password",
+      "btn_login": "Sign In",
+      "btn_forgot": "Forgot Password?",
+      "txt_no_account": "Don't have an account?",
+      "btn_register": "Register Now",
+      "err_empty": "⚠️ Please fill in all fields.",
+      "err_auth": "Account is inactive or blocked."
+    }
+  };
+
   void _login() async {
-    // Kiểm tra dữ liệu đầu vào (Validation) trước khi gọi API
     if (_emailController.text.isEmpty || _passController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Vui lòng điền đầy đủ email và mật khẩu!")),
-      );
+      _showError(_locales[_lang]!["err_empty"]!);
       return;
     }
 
@@ -29,95 +56,194 @@ class _LoginScreenState extends State<LoginScreen> {
     
     try {
       final data = await _apiService.login(_emailController.text, _passController.text);
-      
-      // An toàn với null-check
       final userInfo = data['user_info'];
-      if (userInfo == null) {
-        throw Exception("Dữ liệu phản hồi không hợp lệ.");
-      }
+      if (userInfo == null) throw Exception("Invalid response data.");
       
-      String role = userInfo['role'] ?? 'student'; // Mặc định là student nếu không có role
-      
+      String role = userInfo['role'] ?? 'student';
       if (!mounted) return;
 
-      // Điều hướng dựa trên role (Đã cập nhật đủ 5 role)
       switch (role) {
-        case 'admin':
-          Navigator.pushReplacementNamed(context, '/admin');
-          break;
-        case 'teacher':
-          Navigator.pushReplacementNamed(context, '/teacher');
-          break;
-        case 'operator':
-          Navigator.pushReplacementNamed(context, '/operator');
-          break;
-        case 'parent':
-          Navigator.pushReplacementNamed(context, '/parent');
-          break;
+        case 'admin': Navigator.pushReplacementNamed(context, '/admin'); break;
+        case 'teacher': Navigator.pushReplacementNamed(context, '/teacher'); break;
+        case 'operator': Navigator.pushReplacementNamed(context, '/operator'); break;
+        case 'parent': Navigator.pushReplacementNamed(context, '/parent'); break;
         case 'student':
-        default:
-          Navigator.pushReplacementNamed(context, '/student');
-          break;
+        default: Navigator.pushReplacementNamed(context, '/student'); break;
       }
-      
     } catch (e) {
-      // Phân loại thông báo lỗi để người dùng dễ hiểu
       String errorMsg = e.toString().contains("403") 
-          ? "Tài khoản chưa được kích hoạt hoặc bị khóa." 
+          ? _locales[_lang]!["err_auth"]!
           : e.toString().replaceFirst("Exception: ", "");
-          
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Lỗi: $errorMsg")),
-      );
+      _showError("❌ $errorMsg");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  @override
-  void dispose() {
-    // Giải phóng bộ nhớ của các controller khi hủy widget
-    _emailController.dispose();
-    _passController.dispose();
-    super.dispose();
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.quicksand(fontWeight: FontWeight.bold)),
+      backgroundColor: Colors.redAccent,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
-  // 3. Hàm xây dựng Giao diện (UI)
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
+
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: _emailController, 
-              decoration: const InputDecoration(labelText: "Email"),
-              keyboardType: TextInputType.emailAddress,
-            ),
-            TextField(
-              controller: _passController, 
-              decoration: const InputDecoration(labelText: "Mật khẩu"), 
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            _isLoading 
-              ? const CircularProgressIndicator() 
-              : ElevatedButton(
-                  onPressed: _login, 
-                  child: const Text("Đăng nhập"),
-                ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/register'), 
-              child: const Text("Đăng ký"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/forgot-password'), 
-              child: const Text("Quên mật khẩu?"),
-            ),
-          ],
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1E3A8A), Color(0xFF4338CA), Color(0xFF06B6D4)], 
+          ),
         ),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              // --- NÚT CHUYỂN NGÔN NGỮ Ở GÓC TRÊN CÙNG BÊN PHẢI ---
+              Positioned(
+                top: 10,
+                right: 20,
+                child: TextButton.icon(
+                 onPressed: () async {
+                  setState(() {
+                  _lang = _lang == "vi" ? "en" : "vi";
+                   });
+                  await const FlutterSecureStorage().write(key: 'app_lang', value: _lang);
+                  },
+                  icon: const Icon(Icons.language, color: Colors.cyanAccent),
+                  label: Text(
+                    _lang == "vi" ? "EN" : "VI", 
+                    style: GoogleFonts.quicksand(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.black.withOpacity(0.2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                  ),
+                ),
+              ),
+
+              // --- NỘI DUNG CHÍNH ---
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.1)),
+                        child: const Icon(Icons.school_rounded, size: 70, color: Colors.white),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(labels["title"]!, style: GoogleFonts.quicksand(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1.0)),
+                      const SizedBox(height: 8),
+                      Text(labels["subtitle"]!, textAlign: TextAlign.center, style: GoogleFonts.quicksand(fontSize: 15, color: Colors.white70, fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 40),
+
+                      // --- FORM KÍNH MỜ ---
+                      Container(
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(25),
+                          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 30, offset: const Offset(0, 10))],
+                        ),
+                        child: Column(
+                          children: [
+                            _buildInputField(
+                              controller: _emailController,
+                              icon: Icons.email_outlined,
+                              hint: labels["email_hint"]!,
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 20),
+                            _buildInputField(
+                              controller: _passController,
+                              icon: Icons.lock_outline,
+                              hint: labels["pass_hint"]!,
+                              isPassword: true,
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                                child: Text(labels["btn_forgot"]!, style: GoogleFonts.quicksand(color: Colors.cyanAccent, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _login,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.cyanAccent.shade400,
+                                  foregroundColor: Colors.indigo.shade900,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                  elevation: 5,
+                                ),
+                                child: _isLoading 
+                                  ? const SizedBox(width: 25, height: 25, child: CircularProgressIndicator(color: Colors.indigo, strokeWidth: 3))
+                                  : Text(labels["btn_login"]!, style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // --- FOOTER ĐĂNG KÝ ---
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(labels["txt_no_account"]!, style: GoogleFonts.quicksand(color: Colors.white70)),
+                          TextButton(
+                            onPressed: () => Navigator.pushNamed(context, '/register'),
+                            child: Text(labels["btn_register"]!, style: GoogleFonts.quicksand(color: Colors.white, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
+                          )
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({required TextEditingController controller, required IconData icon, required String hint, bool isPassword = false, TextInputType? keyboardType}) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword ? _isObscured : false,
+      keyboardType: keyboardType,
+      style: GoogleFonts.quicksand(color: Colors.white, fontWeight: FontWeight.w600),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.quicksand(color: Colors.white54),
+        prefixIcon: Icon(icon, color: Colors.cyanAccent),
+        suffixIcon: isPassword 
+          ? IconButton(
+              icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: Colors.white54),
+              onPressed: () => setState(() => _isObscured = !_isObscured),
+            )
+          : null,
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.2),
+        contentPadding: const EdgeInsets.symmetric(vertical: 18),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Colors.cyanAccent, width: 2)),
       ),
     );
   }

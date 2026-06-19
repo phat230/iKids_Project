@@ -67,12 +67,16 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ĐỒNG BỘ NGÔN NGỮ TỪ BỘ NHỚ
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       String? token = await _storage.read(key: 'jwt_token');
       _studentId = await _storage.read(key: 'user_id') ?? "";
 
       if (token != null && _studentId.isNotEmpty) {
         final res = await http.get(
-          Uri.parse('${AppConfig.apiUrl}/api/tv2/grades/$_studentId'),
+          Uri.parse('${AppConfig.apiTv2}/grades/$_studentId'),
           headers: {"Authorization": "Bearer $token"},
         ).timeout(const Duration(seconds: 10));
 
@@ -122,7 +126,10 @@ class _ResultScreenState extends State<ResultScreen> {
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchGrades),
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang); // LƯU NGÔN NGỮ KHI ĐỔI
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           )
         ],
@@ -143,7 +150,6 @@ class _ResultScreenState extends State<ResultScreen> {
                   if (_realGrades.isEmpty)
                     Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(labels["no_grades"]!)))
                   else
-                    // Bảng điểm động (DataTable)
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -191,7 +197,6 @@ class _ResultScreenState extends State<ResultScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Góc phân tích AI Động
                   Text(
                     labels["sub_ai"]!,
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
@@ -201,7 +206,6 @@ class _ResultScreenState extends State<ResultScreen> {
                   if (_realGrades.isNotEmpty)
                     Builder(
                       builder: (context) {
-                        // Tính toán môn cao nhất và thấp nhất
                         var bestSub = _realGrades.reduce((a, b) => (a["tong_ket"] ?? 0) > (b["tong_ket"] ?? 0) ? a : b);
                         var weakSub = _realGrades.reduce((a, b) => (a["tong_ket"] ?? 0) < (b["tong_ket"] ?? 0) ? a : b);
                         
@@ -238,7 +242,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.blue[200]!)),
-                      child: Text("AI đang chờ bạn làm bài kiểm tra để có thể phân tích nhé!", style: TextStyle(color: Colors.blue[900])),
+                      child: Text(_lang == "vi" ? "AI đang chờ bạn có điểm để phân tích!" : "AI is waiting for your grades to analyze!", style: TextStyle(color: Colors.blue[900])),
                     )
                 ],
               ),

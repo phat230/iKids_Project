@@ -17,11 +17,54 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
   List<dynamic> _schedules = [];
   bool _isLoading = true;
   String _teacherId = "";
+  String _lang = "vi";
 
   DateTime _currentWeekDate = DateTime.now();
 
   final List<String> _dayNames = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
   final List<String> _sessions = ["SÁNG", "CHIỀU", "TỐI"];
+
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Lịch Dạy Của Tôi",
+      "btn_today": "Hôm nay",
+      "lbl_month": "Tháng",
+      "msg_empty": "Chưa có lịch dạy.",
+      "lbl_room": "Phòng:"
+    },
+    "en": {
+      "title": "My Teaching Schedule",
+      "btn_today": "Today",
+      "lbl_month": "Month",
+      "msg_empty": "No schedule available.",
+      "lbl_room": "Room:"
+    }
+  };
+
+  String _translateDay(String viDay) {
+    if (_lang == "vi") return viDay;
+    switch (viDay) {
+      case "Thứ 2": return "Mon";
+      case "Thứ 3": return "Tue";
+      case "Thứ 4": return "Wed";
+      case "Thứ 5": return "Thu";
+      case "Thứ 6": return "Fri";
+      case "Thứ 7": return "Sat";
+      case "Chủ nhật": return "Sun";
+      default: return viDay;
+    }
+  }
+
+  String _translateSession(String viSession) {
+    if (_lang == "vi") return viSession;
+    switch (viSession) {
+      case "SÁNG": return "MORNING";
+      case "CHIỀU": return "AFTERNOON";
+      case "TỐI": return "EVENING";
+      default: return viSession;
+    }
+  }
 
   @override
   void initState() {
@@ -32,6 +75,9 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
   Future<void> _loadSchedules() async {
     setState(() => _isLoading = true);
     try {
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       String? token = await _storage.read(key: 'jwt_token');
       String? userInfoStr = await _storage.read(key: 'user_info');
       if (userInfoStr != null) {
@@ -69,7 +115,6 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     });
   }
 
-  // Thuật toán chia lịch vào ma trận
   Map<String, Map<String, List<dynamic>>> _buildScheduleMatrix() {
     Map<String, Map<String, List<dynamic>>> matrix = {};
     for (var session in _sessions) {
@@ -98,7 +143,6 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
       }
     }
 
-    // Sắp xếp các lớp trong cùng 1 ô theo giờ học
     for (var session in _sessions) {
       for (var day in _dayNames) {
         matrix[session]![day]!.sort((a, b) => (a["start_time"] ?? "").compareTo(b["start_time"] ?? ""));
@@ -110,8 +154,8 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Tính toán các ngày trong tuần hiện tại
-    int currentWeekday = _currentWeekDate.weekday; // 1 = Thứ 2, 7 = CN
+    final labels = _locales[_lang]!;
+    int currentWeekday = _currentWeekDate.weekday; 
     DateTime startOfWeek = _currentWeekDate.subtract(Duration(days: currentWeekday - 1));
     List<DateTime> weekDates = List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
 
@@ -120,7 +164,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Lịch Dạy Của Tôi", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -139,7 +183,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                       OutlinedButton(
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.indigo)),
                         onPressed: _goToToday,
-                        child: const Text("Hôm nay", style: TextStyle(color: Colors.indigo)),
+                        child: Text(labels["btn_today"]!, style: const TextStyle(color: Colors.indigo)),
                       ),
                       Row(
                         children: [
@@ -148,7 +192,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                             onPressed: () => _changeWeek(-7),
                           ),
                           Text(
-                            "Tháng ${DateFormat('M - yyyy').format(_currentWeekDate)}",
+                            "${labels['lbl_month']} ${DateFormat('M - yyyy').format(_currentWeekDate)}",
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
                           ),
                           IconButton(
@@ -161,10 +205,10 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                   ),
                 ),
                 
-                // --- BẢNG LỊCH HỌC (SCROLL NGANG + DỌC) ---
+                // --- BẢNG LỊCH HỌC ---
                 Expanded(
                   child: InteractiveViewer(
-                    constrained: false, // Cho phép vuốt ngang vuốt dọc như xem bản đồ
+                    constrained: false, 
                     minScale: 0.5,
                     maxScale: 2.0,
                     child: Padding(
@@ -180,23 +224,20 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                             inside: BorderSide(color: Colors.grey.shade200),
                           ),
                           columnWidths: const {
-                            0: FixedColumnWidth(50), // Cột Buổi (Sáng/Chiều/Tối)
-                            1: FixedColumnWidth(140), // Các cột Thứ
-                            2: FixedColumnWidth(140),
-                            3: FixedColumnWidth(140),
-                            4: FixedColumnWidth(140),
-                            5: FixedColumnWidth(140),
-                            6: FixedColumnWidth(140),
+                            0: FixedColumnWidth(50), 
+                            1: FixedColumnWidth(140), 2: FixedColumnWidth(140),
+                            3: FixedColumnWidth(140), 4: FixedColumnWidth(140),
+                            5: FixedColumnWidth(140), 6: FixedColumnWidth(140),
                             7: FixedColumnWidth(140),
                           },
                           children: [
-                            // 1. DÒNG HEADER (Thứ + Ngày)
+                            // 1. DÒNG HEADER
                             TableRow(
                               decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: const BorderRadius.vertical(top: Radius.circular(12))),
                               children: [
-                                _buildHeaderCell("Buổi"),
+                                _buildHeaderCell(""),
                                 for (int i = 0; i < 7; i++)
-                                  _buildHeaderCell("${_dayNames[i]}\n(${DateFormat('dd/MM').format(weekDates[i])})"),
+                                  _buildHeaderCell("${_translateDay(_dayNames[i])}\n(${DateFormat('dd/MM').format(weekDates[i])})"),
                               ],
                             ),
                             
@@ -204,7 +245,6 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                             for (var session in _sessions)
                               TableRow(
                                 children: [
-                                  // Cột ghi chú SÁNG/CHIỀU/TỐI (Chữ xoay dọc)
                                   TableCell(
                                     verticalAlignment: TableCellVerticalAlignment.fill,
                                     child: Container(
@@ -213,7 +253,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                                         child: RotatedBox(
                                           quarterTurns: 3,
                                           child: Text(
-                                            session,
+                                            _translateSession(session),
                                             style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, letterSpacing: 2),
                                           ),
                                         ),
@@ -221,7 +261,6 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                                     ),
                                   ),
                                   
-                                  // Các cột lịch học
                                   for (var day in _dayNames)
                                     TableCell(
                                       child: Container(
@@ -229,7 +268,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
                                         padding: const EdgeInsets.all(8),
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: matrix[session]![day]!.map((item) => _buildClassCard(item)).toList(),
+                                          children: matrix[session]![day]!.map((item) => _buildClassCard(item, labels)).toList(),
                                         ),
                                       ),
                                     ),
@@ -246,7 +285,6 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     );
   }
 
-  // Widget vẽ ô tiêu đề (Header)
   Widget _buildHeaderCell(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -258,8 +296,7 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
     );
   }
 
-  // Widget vẽ Card thông tin môn học y như bản Web
-  Widget _buildClassCard(Map<String, dynamic> item) {
+  Widget _buildClassCard(Map<String, dynamic> item, Map<String, String> labels) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
@@ -271,12 +308,12 @@ class _TeacherScheduleScreenState extends State<TeacherScheduleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(item['subject'] ?? "Môn học", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 13)),
+          Text(item['subject'] ?? "Subject", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 13)),
           const SizedBox(height: 4),
-          Text(item['class_name'] ?? "Tên lớp", style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600)),
+          Text(item['class_name'] ?? "Class Name", style: const TextStyle(fontSize: 12, color: Colors.black87, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           Text("${item['start_time']} - ${item['end_time']}", style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
-          Text("Phòng: ${item['room']}", style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+          Text("${labels['lbl_room']} ${item['room']}", style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
         ],
       ),
     );

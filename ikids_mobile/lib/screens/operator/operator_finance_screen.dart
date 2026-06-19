@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io'; // ✅ Thêm xử lý File
+import 'dart:io';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:path_provider/path_provider.dart'; // ✅ Thêm thư viện đường dẫn
-import 'package:share_plus/share_plus.dart'; // ✅ Thêm thư viện chia sẻ file
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/config.dart';
 
 class OperatorFinanceScreen extends StatefulWidget {
@@ -19,10 +19,83 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   final _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   String _token = "";
+  String _lang = "vi"; // Ngôn ngữ mặc định
 
   List<dynamic> _allTransactions = [];
   List<dynamic> _walletTransactions = [];
   List<dynamic> _buyTransactions = [];
+
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Quản lý Giao Dịch",
+      "tab_wallet": "Ví Tiền",
+      "tab_store": "Cửa Hàng",
+      "tab_stats": "Thống Kê",
+      "msg_no_export": "Không có dữ liệu để xuất!",
+      "csv_header": "Mã GD,Nhóm,Loại GD/Sản phẩm,Số tiền (VNĐ),Trạng thái,Ngày tạo,Ghi chú\n",
+      "csv_file_name": "Bao_Cao_Tai_Chinh_iKids.csv",
+      "csv_share_text": "Báo cáo Giao dịch Tài chính iKids",
+      "msg_export_err": "Lỗi tạo file báo cáo!",
+      "edit_wallet_title": "Sửa giao dịch Ví",
+      "lbl_amount": "Số tiền",
+      "lbl_type": "Loại giao dịch",
+      "lbl_status": "Trạng thái",
+      "lbl_note": "Ghi chú",
+      "btn_cancel": "Hủy",
+      "btn_delete": "Xóa",
+      "btn_save": "Lưu",
+      "edit_buy_title": "Sửa Đơn Mua",
+      "lbl_item_name": "Tên dụng cụ",
+      "lbl_qty": "Số lượng",
+      "lbl_total": "Tổng tiền",
+      "msg_no_data": "Chưa có dữ liệu giao dịch.",
+      "lbl_tap_edit": "Chạm để sửa",
+      "stat_total_trans": "Tổng giao dịch",
+      "stat_cash_flow": "Tổng dòng tiền",
+      "btn_export": "XUẤT BÁO CÁO (EXCEL/CSV)",
+      "chart_ratio": "📌 Tỷ trọng giao dịch theo nhóm",
+      "chart_amount": "💰 Tổng tiền theo nhóm",
+      "msg_del_success": "Đã xóa giao dịch!",
+      "msg_del_fail": "Xóa thất bại!",
+      "msg_upd_success": "Đã cập nhật giao dịch!",
+      "msg_upd_fail": "Cập nhật thất bại!",
+    },
+    "en": {
+      "title": "Transaction Management",
+      "tab_wallet": "Wallet",
+      "tab_store": "Store",
+      "tab_stats": "Statistics",
+      "msg_no_export": "No data to export!",
+      "csv_header": "Txn ID,Group,Type/Product,Amount (VND),Status,Created At,Note\n",
+      "csv_file_name": "iKids_Financial_Report.csv",
+      "csv_share_text": "iKids Financial Transaction Report",
+      "msg_export_err": "Error generating report file!",
+      "edit_wallet_title": "Edit Wallet Txn",
+      "lbl_amount": "Amount",
+      "lbl_type": "Transaction Type",
+      "lbl_status": "Status",
+      "lbl_note": "Note",
+      "btn_cancel": "Cancel",
+      "btn_delete": "Delete",
+      "btn_save": "Save",
+      "edit_buy_title": "Edit Purchase Order",
+      "lbl_item_name": "Item Name",
+      "lbl_qty": "Quantity",
+      "lbl_total": "Total Amount",
+      "msg_no_data": "No transaction data.",
+      "lbl_tap_edit": "Tap to edit",
+      "stat_total_trans": "Total Transactions",
+      "stat_cash_flow": "Total Cash Flow",
+      "btn_export": "EXPORT REPORT (EXCEL/CSV)",
+      "chart_ratio": "📌 Transaction Ratio by Group",
+      "chart_amount": "💰 Total Amount by Group",
+      "msg_del_success": "Transaction deleted!",
+      "msg_del_fail": "Delete failed!",
+      "msg_upd_success": "Transaction updated!",
+      "msg_upd_fail": "Update failed!",
+    }
+  };
 
   @override
   void initState() {
@@ -42,6 +115,10 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   Future<void> _fetchTransactions() async {
     setState(() => _isLoading = true);
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ STORAGE LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       if (_token.isEmpty) return;
 
@@ -67,16 +144,17 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   }
 
   Future<void> _deleteTransaction(String id) async {
+    final labels = _locales[_lang]!;
     try {
       final res = await http.delete(
         Uri.parse('${AppConfig.apiUrl}/api/finance/transactions/$id'),
         headers: {"Authorization": "Bearer $_token"},
       );
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã xóa giao dịch!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_del_success"]!), backgroundColor: Colors.green));
         _fetchTransactions();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Xóa thất bại!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_del_fail"]!), backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Lỗi xóa: $e");
@@ -84,6 +162,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   }
 
   Future<void> _updateTransaction(String id, Map<String, dynamic> payload) async {
+    final labels = _locales[_lang]!;
     try {
       final res = await http.put(
         Uri.parse('${AppConfig.apiUrl}/api/finance/transactions/$id'),
@@ -91,26 +170,26 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
         body: jsonEncode(payload),
       );
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã cập nhật giao dịch!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_upd_success"]!), backgroundColor: Colors.green));
         _fetchTransactions();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thất bại!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_upd_fail"]!), backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Lỗi cập nhật: $e");
     }
   }
 
-  // ✅ ĐÃ THÊM: Xử lý xuất và chia sẻ file CSV (Tương thích Excel)
   Future<void> _exportToCsv() async {
+    final labels = _locales[_lang]!;
     try {
       if (_allTransactions.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Không có dữ liệu để xuất!"), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_no_export"]!), backgroundColor: Colors.orange));
         return;
       }
 
-      // Tạo tiêu đề cột cho file CSV
-      String csvData = "Mã GD,Nhóm,Loại GD/Sản phẩm,Số tiền (VNĐ),Trạng thái,Ngày tạo,Ghi chú\n";
+      // Tạo tiêu đề cột động theo ngôn ngữ
+      String csvData = labels["csv_header"]!;
 
       // Đổ dữ liệu vào file
       for (var t in _allTransactions) {
@@ -131,24 +210,25 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
 
       // Lấy đường dẫn lưu trữ tạm thời trên điện thoại
       final directory = await getTemporaryDirectory();
-      final String filePath = '${directory.path}/Bao_Cao_Tai_Chinh_iKids.csv';
+      final String filePath = '${directory.path}/${labels["csv_file_name"]}';
       final File file = File(filePath);
 
-      // Ghi byte BOM (0xEF, 0xBB, 0xBF) để Excel mở ra không bị lỗi Font Tiếng Việt
+      // Ghi byte BOM (0xEF, 0xBB, 0xBF) để Excel mở ra không bị lỗi Font
       await file.writeAsBytes([0xEF, 0xBB, 0xBF]); 
       await file.writeAsString(csvData, mode: FileMode.append, encoding: utf8);
 
-      // Gọi bảng chia sẻ của thiết bị (Share qua Zalo, Telegram, Email, Lưu vào máy...)
-      await Share.shareXFiles([XFile(filePath)], text: 'Báo cáo Giao dịch Tài chính iKids');
+      // Gọi bảng chia sẻ của thiết bị
+      await Share.shareXFiles([XFile(filePath)], text: labels["csv_share_text"]);
 
     } catch (e) {
       debugPrint("Lỗi xuất file CSV: $e");
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi tạo file báo cáo!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_export_err"]!), backgroundColor: Colors.red));
     }
   }
 
   // --- HỘP THOẠI SỬA VÍ TIỀN ---
   void _showEditWalletDialog(Map<String, dynamic> item) {
+    final labels = _locales[_lang]!;
     final amountCtrl = TextEditingController(text: _getMoneyValue(item).toStringAsFixed(0));
     final noteCtrl = TextEditingController(text: item['note'] ?? "");
     String selectedType = item['type'] ?? "nap_tien";
@@ -162,40 +242,40 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Sửa giao dịch Ví", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(labels["edit_wallet_title"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Số tiền")),
+              TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["lbl_amount"])),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: selectedType,
-                decoration: const InputDecoration(labelText: "Loại giao dịch"),
+                decoration: InputDecoration(labelText: labels["lbl_type"]),
                 items: types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (val) => selectedType = val!,
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: selectedStatus,
-                decoration: const InputDecoration(labelText: "Trạng thái"),
+                decoration: InputDecoration(labelText: labels["lbl_status"]),
                 items: statuses.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (val) => selectedStatus = val!,
               ),
               const SizedBox(height: 10),
-              TextField(controller: noteCtrl, decoration: const InputDecoration(labelText: "Ghi chú")),
+              TextField(controller: noteCtrl, decoration: InputDecoration(labelText: labels["lbl_note"])),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy", style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(labels["btn_cancel"]!, style: const TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(ctx);
               _deleteTransaction(item['id'].toString());
             },
-            child: const Text("Xóa", style: TextStyle(color: Colors.white)),
+            child: Text(labels["btn_delete"]!, style: const TextStyle(color: Colors.white)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
@@ -208,7 +288,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
                 "note": noteCtrl.text
               });
             },
-            child: const Text("Lưu", style: TextStyle(color: Colors.white)),
+            child: Text(labels["btn_save"]!, style: const TextStyle(color: Colors.white)),
           ),
         ],
       )
@@ -217,6 +297,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
 
   // --- HỘP THOẠI SỬA MUA ĐỒ ---
   void _showEditBuyDialog(Map<String, dynamic> item) {
+    final labels = _locales[_lang]!;
     final nameCtrl = TextEditingController(text: item['item_name'] ?? item['product_name'] ?? item['name'] ?? "");
     final qtyCtrl = TextEditingController(text: (item['quantity'] ?? 1).toString());
     final totalCtrl = TextEditingController(text: _getMoneyValue(item).toStringAsFixed(0));
@@ -227,20 +308,20 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Sửa Đơn Mua", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(labels["edit_buy_title"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Tên dụng cụ")),
+              TextField(controller: nameCtrl, decoration: InputDecoration(labelText: labels["lbl_item_name"])),
               const SizedBox(height: 10),
-              TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Số lượng")),
+              TextField(controller: qtyCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["lbl_qty"])),
               const SizedBox(height: 10),
-              TextField(controller: totalCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Tổng tiền")),
+              TextField(controller: totalCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["lbl_total"])),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: selectedStatus,
-                decoration: const InputDecoration(labelText: "Trạng thái"),
+                decoration: InputDecoration(labelText: labels["lbl_status"]),
                 items: statuses.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (val) => selectedStatus = val!,
               ),
@@ -248,14 +329,14 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy", style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(labels["btn_cancel"]!, style: const TextStyle(color: Colors.grey))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(ctx);
               _deleteTransaction(item['id'].toString());
             },
-            child: const Text("Xóa", style: TextStyle(color: Colors.white)),
+            child: Text(labels["btn_delete"]!, style: const TextStyle(color: Colors.white)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
@@ -271,7 +352,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
                 "status": selectedStatus
               });
             },
-            child: const Text("Lưu", style: TextStyle(color: Colors.white)),
+            child: Text(labels["btn_save"]!, style: const TextStyle(color: Colors.white)),
           ),
         ],
       )
@@ -280,32 +361,41 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
+    
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
-          title: const Text("Quản lý Giao Dịch", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           backgroundColor: Colors.teal,
           foregroundColor: Colors.white,
           actions: [
             IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchTransactions),
-            // ✅ ĐÃ SỬA: Nút tải trên AppBar kích hoạt hàm xuất CSV
             IconButton(
               icon: const Icon(Icons.download), 
               onPressed: _exportToCsv
             ),
+            // ✅ ĐÃ THÊM: Nút chuyển đổi ngôn ngữ
+            TextButton(
+              onPressed: () async {
+                setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                await _storage.write(key: 'app_lang', value: _lang);
+              },
+              child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: true,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
             indicatorColor: Colors.amber,
             indicatorWeight: 3,
             tabs: [
-              Tab(icon: Icon(Icons.account_balance_wallet), text: "Ví Tiền"),
-              Tab(icon: Icon(Icons.shopping_cart), text: "Cửa Hàng"),
-              Tab(icon: Icon(Icons.analytics), text: "Thống Kê"),
+              Tab(icon: const Icon(Icons.account_balance_wallet), text: labels["tab_wallet"]),
+              Tab(icon: const Icon(Icons.shopping_cart), text: labels["tab_store"]),
+              Tab(icon: const Icon(Icons.analytics), text: labels["tab_stats"]),
             ],
           ),
         ),
@@ -313,9 +403,9 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
             ? const Center(child: CircularProgressIndicator(color: Colors.teal))
             : TabBarView(
                 children: [
-                  _buildListTab(_walletTransactions, true),
-                  _buildListTab(_buyTransactions, false),
-                  _buildStatsTab(),
+                  _buildListTab(_walletTransactions, true, labels),
+                  _buildListTab(_buyTransactions, false, labels),
+                  _buildStatsTab(labels),
                 ],
               ),
       ),
@@ -323,9 +413,9 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   }
 
   // --- HÀM RENDER DANH SÁCH GIAO DỊCH ---
-  Widget _buildListTab(List<dynamic> list, bool isWallet) {
+  Widget _buildListTab(List<dynamic> list, bool isWallet, Map<String, String> labels) {
     if (list.isEmpty) {
-      return const Center(child: Text("Chưa có dữ liệu giao dịch."));
+      return Center(child: Text(labels["msg_no_data"]!));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
@@ -351,7 +441,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text("${amount > 0 ? '+' : ''}${amount.toStringAsFixed(0)}đ", style: TextStyle(fontWeight: FontWeight.bold, color: amount >= 0 ? Colors.green : Colors.red, fontSize: 14)),
-                const Text("Chạm để sửa", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                Text(labels["lbl_tap_edit"]!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
             onTap: () => isWallet ? _showEditWalletDialog(item) : _showEditBuyDialog(item),
@@ -362,7 +452,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   }
 
   // --- HÀM RENDER BIỂU ĐỒ & THỐNG KÊ ---
-  Widget _buildStatsTab() {
+  Widget _buildStatsTab(Map<String, String> labels) {
     double totalAmount = _allTransactions.fold(0.0, (sum, item) => sum + _getMoneyValue(item));
 
     // Chuẩn bị dữ liệu biểu đồ
@@ -385,14 +475,13 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
           // Thẻ Metrics
           Row(
             children: [
-              Expanded(child: _buildMetricCard("Tổng giao dịch", "${_allTransactions.length}", Icons.receipt_long, Colors.blue)),
+              Expanded(child: _buildMetricCard(labels["stat_total_trans"]!, "${_allTransactions.length}", Icons.receipt_long, Colors.blue)),
               const SizedBox(width: 10),
-              Expanded(child: _buildMetricCard("Tổng dòng tiền", "${totalAmount.toStringAsFixed(0)}đ", Icons.attach_money, Colors.orange)),
+              Expanded(child: _buildMetricCard(labels["stat_cash_flow"]!, "${totalAmount.toStringAsFixed(0)}đ", Icons.attach_money, Colors.orange)),
             ],
           ),
           const SizedBox(height: 20),
 
-          // ✅ ĐÃ THÊM: Nút bấm xuất Báo cáo to rõ ràng ở Tab Thống kê
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -400,13 +489,13 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
               icon: const Icon(Icons.download),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
               onPressed: _exportToCsv,
-              label: const Text("XUẤT BÁO CÁO (EXCEL/CSV)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              label: Text(labels["btn_export"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
           const SizedBox(height: 30),
 
           // Biểu đồ Donut (Số lượng)
-          const Text("📌 Tỷ trọng giao dịch theo nhóm", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(labels["chart_ratio"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 15),
           Container(
             height: 250,
@@ -449,7 +538,7 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
           const SizedBox(height: 30),
 
           // Biểu đồ Cột (Tổng tiền)
-          const Text("💰 Tổng tiền theo nhóm", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(labels["chart_amount"]!, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 15),
           Container(
             height: 300,

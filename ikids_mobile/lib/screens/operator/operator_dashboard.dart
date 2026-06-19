@@ -17,24 +17,75 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
   final _storage = const FlutterSecureStorage(); 
   
   String _userId = "";
+  String _lang = "vi"; // Ngôn ngữ mặc định
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isLoadingProfile = true;
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "default_name": "Vận hành iKids",
+      "greeting": "Nhân viên",
+      "subtitle": "Chào mừng bạn trở lại trạm điều hành!",
+      "tools_header": "CÔNG CỤ QUẢN LÝ",
+      "menu_class": "Quản lý Lớp học",
+      "menu_class_sub": "Tạo lớp mới, xếp danh sách học viên",
+      "menu_schedule": "Xếp lịch & Thông báo",
+      "menu_schedule_sub": "Sắp xếp TKB, gửi SMS tự động",
+      "menu_finance": "Giao dịch & Tài chính",
+      "menu_finance_sub": "Duyệt ví tiền, xuất báo cáo",
+      "menu_store": "Cửa hàng Đổi thưởng",
+      "menu_store_sub": "Quản lý kho quà tặng iKids",
+      "btn_logout": "Đăng xuất khỏi ca trực",
+      "tab_dashboard": "Điều khiển",
+      "tab_noti": "Thông báo",
+      "tab_profile": "Hồ sơ"
+    },
+    "en": {
+      "default_name": "iKids Operator",
+      "greeting": "Operator",
+      "subtitle": "Welcome back to the operations station!",
+      "tools_header": "MANAGEMENT TOOLS",
+      "menu_class": "Class Management",
+      "menu_class_sub": "Create classes, arrange student lists",
+      "menu_schedule": "Schedule & Notify",
+      "menu_schedule_sub": "Arrange timetables, send auto SMS",
+      "menu_finance": "Finance & Transactions",
+      "menu_finance_sub": "Approve wallets, export reports",
+      "menu_store": "Reward Store",
+      "menu_store_sub": "Manage iKids gift inventory",
+      "btn_logout": "Log out of shift",
+      "tab_dashboard": "Dashboard",
+      "tab_noti": "Inbox",
+      "tab_profile": "Profile"
+    }
+  };
+
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    // Đọc ngôn ngữ được lưu trên hệ thống từ lúc Đăng nhập
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) {
+      setState(() => _lang = savedLang);
+    }
+    await _loadUserProfile();
   }
 
   Future<void> _loadUserProfile() async {
+    final labels = _locales[_lang]!;
     try {
       String? userInfo = await _storage.read(key: 'user_info');
       if (userInfo != null) {
         final decoded = jsonDecode(userInfo);
         _userId = decoded["id"]?.toString() ?? decoded["_id"]?.toString() ?? "";
         setState(() {
-          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? "Vận hành iKids";
+          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? labels["default_name"]!;
           _phoneController.text = decoded["phone_number"] ?? decoded["phone"] ?? "";
         });
       }
@@ -51,6 +102,7 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
 
   // --- TAB 1: BẢNG ĐIỀU KHIỂN CHÍNH ---
   Widget _buildHomeTab() {
+    final labels = _locales[_lang]!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -62,12 +114,38 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
             color: Colors.orange,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Nhân viên ${_nameController.text.split(' ').last} ⚙️", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 5),
-              const Text("Chào mừng bạn trở lại trạm điều hành!", style: TextStyle(color: Colors.white70)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("${labels['greeting']} ${_nameController.text.split(' ').last} ⚙️", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Text(labels["subtitle"]!, style: const TextStyle(color: Colors.white70)),
+                  ],
+                ),
+              ),
+              // Nút chuyển đổi ngôn ngữ
+              GestureDetector(
+                onTap: () async {
+                  setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                  await _storage.write(key: 'app_lang', value: _lang);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.5))),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.language, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              )
             ],
           ),
         ),
@@ -77,36 +155,36 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              const Text("CÔNG CỤ QUẢN LÝ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange)),
+              Text(labels["tools_header"]!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange)),
               const SizedBox(height: 15),
               
               _buildMenuCard(
-                "Quản lý Lớp học", 
-                "Tạo lớp mới, xếp danh sách học viên", 
+                labels["menu_class"]!, 
+                labels["menu_class_sub"]!, 
                 Icons.class_, 
                 Colors.indigo, 
                 () => Navigator.pushNamed(context, '/operator-class')
               ),
               
               _buildMenuCard(
-                "Xếp lịch & Thông báo", 
-                "Sắp xếp TKB, gửi SMS tự động", 
+                labels["menu_schedule"]!, 
+                labels["menu_schedule_sub"]!, 
                 Icons.calendar_month, 
                 Colors.purple, 
                 () => Navigator.pushNamed(context, '/operator-schedule')
               ),
               
               _buildMenuCard(
-                "Giao dịch & Tài chính", 
-                "Duyệt ví tiền, xuất báo cáo", 
+                labels["menu_finance"]!, 
+                labels["menu_finance_sub"]!, 
                 Icons.account_balance_wallet, 
                 Colors.green, 
                 () => Navigator.pushNamed(context, '/operator-finance')
               ),
               
               _buildMenuCard(
-                "Cửa hàng Đổi thưởng", 
-                "Quản lý kho quà tặng iKids", 
+                labels["menu_store"]!, 
+                labels["menu_store_sub"]!, 
                 Icons.storefront, 
                 Colors.blue, 
                 () => Navigator.pushNamed(context, '/operator-store')
@@ -157,6 +235,7 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
 
   // --- TAB 3: TRANG CÁ NHÂN ---
   Widget _buildProfileTab() {
+    final labels = _locales[_lang]!;
     if (_isLoadingProfile) return const Center(child: CircularProgressIndicator(color: Colors.orange));
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -168,7 +247,7 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
             child: ListTile(
               leading: const Icon(Icons.logout, color: Colors.red), 
-              title: const Text("Đăng xuất khỏi ca trực", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
+              title: Text(labels["btn_logout"]!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)), 
               onTap: _handleLogout
             ),
           )
@@ -179,6 +258,7 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
     final List<Widget> tabs = [_buildHomeTab(), const NotificationScreen(), _buildProfileTab()];
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -187,10 +267,10 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.orange,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Bảng điều khiển"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Hồ sơ"),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.dashboard), label: labels["tab_dashboard"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: labels["tab_noti"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: labels["tab_profile"]),
         ],
       ),
     );

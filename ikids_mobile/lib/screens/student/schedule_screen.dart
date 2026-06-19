@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../core/config.dart';
-import '../../services/api_service.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -13,11 +12,10 @@ class ScheduleScreen extends StatefulWidget {
 }
 
 class _ScheduleScreenState extends State<ScheduleScreen> {
-  final ApiService _apiService = ApiService();
   final _storage = const FlutterSecureStorage();
 
   bool _isLoading = true;
-  String _lang = "vi"; // Hỗ trợ song ngữ chuẩn kiến trúc giống Web
+  String _lang = "vi"; 
   String _selectedDay = "Thứ 2"; 
 
   List<dynamic> _mySchedules = [];
@@ -42,18 +40,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     {"slot": "Ca 7", "time": "17:30 - 19:00"},
   ];
 
-  // Bổ sung các tiêu đề cột bảng dữ liệu tương thích hoàn toàn bản Web Python
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "📅 Thời Khóa Biểu Của Tôi",
       "subtitle": "Theo dõi lịch học để không bỏ lỡ buổi học nào nhé!",
       "lbl_teacher": "Giáo viên:",
       "lbl_room": "Phòng:",
-      "lbl_duration": "Khóa học:",
       "free_slot": "Ca học trống",
       "sec_timeline": "🕒 Khung Giờ Học Hôm Nay",
       "sec_table": "📊 Bảng Chi Tiết Thời Khóa Biểu (Bản Web)",
-      "caption_footer": "💡 Lịch học sẽ tự động cập nhật nếu Nhân viên vận hành thay đổi thời gian hoặc phòng học.",
+      "caption_footer": "💡 Lịch học sẽ tự động cập nhật nếu có thay đổi.",
       "col_subject": "Môn học",
       "col_class": "Tên lớp",
       "col_teacher_head": "Giáo viên",
@@ -61,18 +57,20 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       "col_slot": "Ca học",
       "col_duration_head": "Khóa học",
       "col_room_head": "Phòng học",
-      "col_status": "Trạng thái"
+      "col_status": "Trạng thái",
+      "status_ongoing": "🟢 Đang diễn ra",
+      "status_completed": "🔴 Đã kết thúc",
+      "empty_schedule": "Chưa có lịch học nào.",
     },
     "en": {
       "title": "📅 My Class Schedule",
-      "subtitle": "Keep track of your classes and never miss a single lesson!",
+      "subtitle": "Keep track of your classes and never miss a lesson!",
       "lbl_teacher": "Teacher:",
       "lbl_room": "Room:",
-      "lbl_duration": "Duration:",
       "free_slot": "Free Slot",
       "sec_timeline": "🕒 Today's Time Slots",
-      "sec_table": "📊 Detailed Schedule Table (Web Version)",
-      "caption_footer": "💡 Your schedule updates automatically whenever operators change time slots.",
+      "sec_table": "📊 Detailed Schedule Table",
+      "caption_footer": "💡 Your schedule updates automatically.",
       "col_subject": "Subject",
       "col_class": "Class",
       "col_teacher_head": "Teacher",
@@ -80,7 +78,10 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       "col_slot": "Time Slot",
       "col_duration_head": "Duration",
       "col_room_head": "Room",
-      "col_status": "Status"
+      "col_status": "Status",
+      "status_ongoing": "🟢 Ongoing",
+      "status_completed": "🔴 Completed",
+      "empty_schedule": "No schedule available.",
     }
   };
 
@@ -92,12 +93,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   Future<void> _fetchMyScheduleData() async {
     try {
+      // ĐỒNG BỘ NGÔN NGỮ TỪ BỘ NHỚ
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       String? token = await _storage.read(key: 'jwt_token');
       String? studentId = await _storage.read(key: 'user_id');
 
-      if (studentId == null) throw Exception("Không tìm thấy thông tin học sinh");
+      if (studentId == null) return;
 
-      final classResponse = await http.get(Uri.parse('${AppConfig.apiUrl}/classes')).timeout(const Duration(seconds: 10));
+      final classResponse = await http.get(Uri.parse('${AppConfig.apiTv1}/classes')).timeout(const Duration(seconds: 10));
       if (classResponse.statusCode != 200) return;
       List<dynamic> allClasses = jsonDecode(utf8.decode(classResponse.bodyBytes));
 
@@ -105,7 +110,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       for (var c in allClasses) {
         List<dynamic> studentsInClass = c['student_ids'] ?? [];
         if (studentsInClass.contains(studentId)) {
-          myClassIds.add(c['id'] ?? c['_id']);
+          myClassIds.add((c['id'] ?? c['_id']).toString());
         }
       }
 
@@ -115,27 +120,23 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       }
 
       final scheduleResponse = await http.get(
-        Uri.parse('${AppConfig.apiUrl}/schedule/list'),
+        Uri.parse('${AppConfig.apiTv1}/schedule/list'),
         headers: {"Authorization": "Bearer $token"},
       ).timeout(const Duration(seconds: 10));
 
       if (scheduleResponse.statusCode == 200) {
         List<dynamic> allSchedules = jsonDecode(utf8.decode(scheduleResponse.bodyBytes));
-        
         setState(() {
-          _mySchedules = allSchedules.where((s) => 
-            myClassIds.contains(s['class_id']) && s['status'] == 'active'
-          ).toList();
+          _mySchedules = allSchedules.where((s) => myClassIds.contains(s['class_id']) && s['status'] == 'active').toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      print("Lỗi tải lịch học: $e");
+      debugPrint("Lỗi tải lịch học: $e");
       setState(() => _isLoading = false);
     }
   }
 
-  // Hàm tính toán logic Trạng thái lớp học (Đang học / Đã hoàn thành) đồng bộ chính xác với file Python
   String _calculateStatus(Map<String, dynamic> s) {
     try {
       final now = DateTime.now();
@@ -152,32 +153,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       }
 
       List<String> dateParts;
-      int day, month, year;
       if (endDateStr.contains('/')) {
         dateParts = endDateStr.split('/');
-        day = int.parse(dateParts[0]);
-        month = int.parse(dateParts[1]);
-        year = int.parse(dateParts[2]);
-      } else {
-        dateParts = endDateStr.split('-');
-        year = int.parse(dateParts[0]);
-        month = int.parse(dateParts[1]);
-        day = int.parse(dateParts[2]);
+        final endDateTime = DateTime(int.parse(dateParts[2]), int.parse(dateParts[1]), int.parse(dateParts[0]), int.parse(endTimeStr.split(':')[0]), int.parse(endTimeStr.split(':')[1]));
+        return now.isAfter(endDateTime) ? _labels[_lang]!["status_completed"]! : _labels[_lang]!["status_ongoing"]!;
       }
-
-      List<String> timeParts = endTimeStr.split(':');
-      int hour = int.parse(timeParts[0]);
-      int minute = int.parse(timeParts[1]);
-
-      final endDateTime = DateTime(year, month, day, hour, minute);
-      
-      if (now.isAfter(endDateTime)) {
-        return _lang == "vi" ? "🔴 Đã kết thúc" : "🔴 Completed";
-      } else {
-        return _lang == "vi" ? "🟢 Đang diễn ra" : "🟢 Ongoing";
-      }
+      return _labels[_lang]!["status_ongoing"]!;
     } catch (e) {
-      return _lang == "vi" ? "🟢 Đang diễn ra" : "🟢 Ongoing";
+      return _labels[_lang]!["status_ongoing"]!;
     }
   }
 
@@ -195,16 +178,21 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _labels[_lang]!;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(_labels[_lang]!["title"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(labels["title"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang); // LƯU NGÔN NGỮ KHI ĐỔI
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -219,7 +207,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     width: double.infinity,
                     color: Colors.blue,
                     padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
-                    child: Text(_labels[_lang]!["subtitle"]!, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    child: Text(labels["subtitle"]!, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   ),
 
                   // 1. THANH CHỌN THỨ NGANG
@@ -260,10 +248,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                     ),
                   ),
 
-                  // Tiêu đề phân đoạn 1
                   Padding(
                     padding: const EdgeInsets.only(left: 16, top: 15, bottom: 5),
-                    child: Text(_labels[_lang]!["sec_timeline"]!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    child: Text(labels["sec_timeline"]!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                   ),
 
                   // 2. TIMELINE CÁC CA HỌC THEO NGÀY ĐÃ CHỌN
@@ -287,7 +274,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(slotInfo["slot"]!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 13)),
+                                  Text(slotInfo["slot"]!.replaceFirst("Ca", _lang == "en" ? "Slot" : "Ca"), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 13)),
                                   Text(slotInfo["time"]!, style: TextStyle(color: Colors.grey[600], fontSize: 11)),
                                 ],
                               ),
@@ -305,13 +292,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Text(matchClass['subject'] ?? "", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                                                Expanded(child: Text(matchClass['subject'] ?? "", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent))),
                                                 Text(matchClass['class_name'] ?? "", style: TextStyle(fontSize: 11, color: Colors.green[800], fontWeight: FontWeight.bold)),
                                               ],
                                             ),
                                             const SizedBox(height: 4),
-                                            Text("👤 ${_labels[_lang]!['lbl_teacher']} ${matchClass['teacher_name'] ?? 'Đang xếp'}", style: const TextStyle(fontSize: 12)),
-                                            Text("🏫 ${_labels[_lang]!['lbl_room']} ${matchClass['room'] ?? 'Online'}", style: const TextStyle(fontSize: 12)),
+                                            Text("👤 ${labels['lbl_teacher']} ${matchClass['teacher_name'] ?? 'Đang xếp'}", style: const TextStyle(fontSize: 12)),
+                                            Text("🏫 ${labels['lbl_room']} ${matchClass['room'] ?? 'Online'}", style: const TextStyle(fontSize: 12)),
                                           ],
                                         ),
                                       ),
@@ -322,7 +309,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: Colors.grey.withOpacity(0.2))),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
-                                        child: Text(_labels[_lang]!["free_slot"]!, style: TextStyle(color: Colors.grey[400], fontStyle: FontStyle.italic, fontSize: 12)),
+                                        child: Text(labels["free_slot"]!, style: TextStyle(color: Colors.grey[400], fontStyle: FontStyle.italic, fontSize: 12)),
                                       ),
                                     ),
                             ),
@@ -334,41 +321,49 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
                   const Divider(height: 35, thickness: 1),
 
-                  // Tiêu đề phân đoạn 2 (Bảng chi tiết giống trên Web)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(_labels[_lang]!["sec_table"]!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo)),
+                    child: Text(labels["sec_table"]!, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.indigo)),
                   ),
                   const SizedBox(height: 10),
 
-                  // 3. CẤU TRÚC BẢNG DATATABLE SONG HÀNH CUỘN NGANG (GIỐNG PANDAS DATAFRAME)
+                  // 3. BẢNG CHI TIẾT
                   _mySchedules.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Text(_labels[_lang]!["info_empty"]!, style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                          child: Text(labels["empty_schedule"]!, style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                         )
                       : Container(
                           margin: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.grey.withOpacity(0.3)), borderRadius: BorderRadius.circular(8)),
                           child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal, // Bật chế độ cuộn ngang cho bảng dữ liệu nhiều cột
+                            scrollDirection: Axis.horizontal, 
                             child: DataTable(
                               headingRowColor: MaterialStateProperty.all(Colors.blue.withOpacity(0.1)),
                               columnSpacing: 20,
                               horizontalMargin: 12,
                               columns: [
-                                DataColumn(label: Text(_labels[_lang]!["col_subject"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_class"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_teacher_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_days"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_slot"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_duration_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_room_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
-                                DataColumn(label: Text(_labels[_lang]!["col_status"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_subject"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_class"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_teacher_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_days"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_slot"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_duration_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_room_head"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                                DataColumn(label: Text(labels["col_status"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
                               ],
                               rows: _mySchedules.map((s) {
                                 List<dynamic> daysList = s['days_of_week'] ?? [];
-                                String daysStr = daysList.join(", ");
+                                
+                                // Dịch ngôn ngữ các "Thứ" trong tuần cho Data Table
+                                String daysStr = daysList.map((d) {
+                                  if (_lang == "en") {
+                                    final match = _daysOfWeek.firstWhere((element) => element["vi"] == d, orElse: () => {"en": d.toString()});
+                                    return match["en"];
+                                  }
+                                  return d.toString();
+                                }).join(", ");
+
                                 String timeStr = "${s['start_time'] ?? '--:--'} - ${s['end_time'] ?? '--:--'}";
                                 String status = _calculateStatus(s);
 
@@ -395,10 +390,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           ),
                         ),
                   
-                  // Ghi chú chân trang của bảng
                   Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text(_labels[_lang]!["caption_footer"]!, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic)),
+                    child: Text(labels["caption_footer"]!, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontStyle: FontStyle.italic)),
                   ),
                 ],
               ),

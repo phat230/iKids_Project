@@ -22,7 +22,6 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
   List<dynamic> _availableSchedules = [];
   List<dynamic> _students = [];
   
-  // Trạng thái điểm danh: { studentId: "present" | "absent" | "late" }
   Map<String, String> _attendanceStates = {};
   Map<String, TextEditingController> _noteControllers = {};
 
@@ -36,6 +35,61 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
 
   bool _isLoading = true;
   String _teacherId = "";
+  String _lang = "vi";
+
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Nhật Ký & Điểm Danh",
+      "sec_1": "1. Lựa chọn ca dạy",
+      "hint_sched": "Chọn ca dạy...",
+      "sec_2": "2. Điểm danh lớp học",
+      "msg_demo": "Lớp học này chưa có học sinh thật. Hệ thống kích hoạt dữ liệu mẫu.",
+      "col_id": "Mã HS",
+      "col_name": "Tên Học Sinh",
+      "col_present": "Có mặt",
+      "col_absent": "Vắng",
+      "col_late": "Đi trễ",
+      "col_note": "Nhận Xét (Tùy chọn)",
+      "sec_3": "3. Nhật ký giảng dạy",
+      "lbl_topic": "Chủ đề giảng dạy (*)",
+      "err_empty": "Không được bỏ trống",
+      "lbl_video": "Video Bài Tập Đã Dùng",
+      "msg_no_video": "Chưa có video nào trong kho học liệu",
+      "lbl_quiz": "Giao Bài Tập Về Nhà",
+      "msg_no_quiz": "Chưa có bộ đề nào trong kho",
+      "lbl_content": "Chi Tiết Nội Dung Giảng Dạy (*)",
+      "btn_submit": "LƯU & GỬI BÁO CÁO",
+      "msg_success": "Lưu nhật ký và báo cáo thành công!",
+      "msg_fail": "Lỗi hệ thống",
+      "msg_err_conn": "Mất kết nối máy chủ."
+    },
+    "en": {
+      "title": "Journal & Attendance",
+      "sec_1": "1. Select Teaching Session",
+      "hint_sched": "Select session...",
+      "sec_2": "2. Class Attendance",
+      "msg_demo": "No real students in this class. Demo data activated.",
+      "col_id": "Student ID",
+      "col_name": "Student Name",
+      "col_present": "Present",
+      "col_absent": "Absent",
+      "col_late": "Late",
+      "col_note": "Remarks (Optional)",
+      "sec_3": "3. Teaching Journal",
+      "lbl_topic": "Teaching Topic (*)",
+      "err_empty": "Cannot be empty",
+      "lbl_video": "Used Video Resources",
+      "msg_no_video": "No videos in the repository",
+      "lbl_quiz": "Assign Homework (Quiz)",
+      "msg_no_quiz": "No quizzes in the repository",
+      "lbl_content": "Teaching Content Details (*)",
+      "btn_submit": "SAVE & SUBMIT REPORT",
+      "msg_success": "Journal and report saved successfully!",
+      "msg_fail": "System error",
+      "msg_err_conn": "Server connection lost."
+    }
+  };
 
   @override
   void initState() {
@@ -44,6 +98,9 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
   }
 
   Future<void> _initialLoad() async {
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) setState(() => _lang = savedLang);
+
     await _loadTeacherInfo();
     await _loadSchedulesAndContent();
   }
@@ -61,13 +118,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
     try {
       String? token = await _storage.read(key: 'jwt_token');
       
-      // 1. Tải lịch dạy (TV1)
-      final schedRes = await http.get(
-        Uri.parse('${AppConfig.apiTv1}/schedule/list'),
-        headers: {"Authorization": "Bearer $token"},
-      );
-      
-      // 2. Tải video và học liệu quiz (TV2)
+      final schedRes = await http.get(Uri.parse('${AppConfig.apiTv1}/schedule/list'), headers: {"Authorization": "Bearer $token"});
       final vidRes = await http.get(Uri.parse('${AppConfig.apiTv2}/videos'));
       final quizRes = await http.get(Uri.parse('${AppConfig.apiTv2}/quizzes'));
 
@@ -80,7 +131,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
 
       _filterSchedulesByDate();
     } catch (e) {
-      debugPrint("Lỗi kết nối học liệu: $e");
+      debugPrint("Lỗi kết nối: $e");
     } finally {
       setState(() => _isLoading = false);
     }
@@ -115,7 +166,6 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
         _students = jsonDecode(utf8.decode(res.bodyBytes));
       }
 
-      // ✅ ĐÃ SỬA: Thêm Fallback Data y hệt như Web nếu lớp chưa có học sinh
       if (_students.isEmpty) {
         final sc = _availableSchedules.firstWhere((s) => (s["id"] ?? s["_id"]).toString() == _selectedSchedId);
         String cName = sc["class_name"] ?? "Lớp";
@@ -130,7 +180,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
       setState(() {
         for (var st in _students) {
           String sid = (st["Mã HS"] ?? st["id"]).toString();
-          _attendanceStates[sid] = "present"; // Mặc định là Có mặt
+          _attendanceStates[sid] = "present";
           _noteControllers[sid] = TextEditingController();
         }
       });
@@ -143,6 +193,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
   }
 
   Future<void> _submitJournal() async {
+    final labels = _locales[_lang]!;
     if (!_formKey.currentState!.validate() || _selectedSchedId == null) return;
 
     setState(() => _isLoading = true);
@@ -183,13 +234,13 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
       );
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lưu nhật ký và báo cáo thành công!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
         Navigator.pop(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hệ thống: ${res.body}"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${labels["msg_fail"]!}: ${res.body}"), backgroundColor: Colors.red));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mất kết nối máy chủ."), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err_conn"]!), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -197,6 +248,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
     final dayNames = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
     String currentWeekday = dayNames[_selectedDate.weekday % 7];
     
@@ -207,7 +259,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Nhật Ký & Điểm Danh", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.blueGrey, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.blueGrey, foregroundColor: Colors.white),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.blueGrey))
           : Form(
@@ -217,8 +269,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- 1. LỰA CHỌN CA DẠY ---
-                    const Text("1. Lựa chọn ca dạy", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    Text(labels["sec_1"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -247,7 +298,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                           flex: 3,
                           child: DropdownButtonFormField<String>(
                             value: _selectedSchedId,
-                            hint: const Text("Chọn ca dạy..."),
+                            hint: Text(labels["hint_sched"]!),
                             isExpanded: true,
                             decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 13)),
                             items: filteredScheds.map((s) {
@@ -271,10 +322,8 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                     const SizedBox(height: 25),
                     
                     if (_selectedSchedId != null) ...[
-                      // --- 2. ĐIỂM DANH (GIAO DIỆN BẢNG Y HỆT WEB) ---
-                      const Text("2. Điểm danh lớp học", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                      Text(labels["sec_2"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                       
-                      // Thông báo nếu dùng dữ liệu Demo
                       if (_students.isNotEmpty && _students.first["Mã HS"].toString().contains("DEMO"))
                         Container(
                           margin: const EdgeInsets.symmetric(vertical: 10),
@@ -284,13 +333,12 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                             children: [
                               const Icon(Icons.info, color: Colors.blue),
                               const SizedBox(width: 10),
-                              Expanded(child: Text("Lớp học này chưa có học sinh thật. Hệ thống kích hoạt dữ liệu mẫu.", style: TextStyle(color: Colors.blue.shade800))),
+                              Expanded(child: Text(labels["msg_demo"]!, style: TextStyle(color: Colors.blue.shade800))),
                             ],
                           ),
                         ),
 
                       const SizedBox(height: 10),
-                      // Bọc Data Table trong SingleChildScrollView để vuốt ngang
                       Container(
                         decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                         child: SingleChildScrollView(
@@ -298,13 +346,13 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                           child: DataTable(
                             headingRowColor: MaterialStateProperty.all(Colors.blueGrey.shade50),
                             columnSpacing: 25,
-                            columns: const [
-                              DataColumn(label: Text("Mã HS", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Tên Học Sinh", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Có mặt", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Vắng", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Đi trễ", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Nhận Xét (Tùy chọn)", style: TextStyle(fontWeight: FontWeight.bold))),
+                            columns: [
+                              DataColumn(label: Text(labels["col_id"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_name"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_present"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_absent"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_late"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_note"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
                             ],
                             rows: _students.map((st) {
                               String sid = (st["Mã HS"] ?? st["id"]).toString();
@@ -312,28 +360,24 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                                 cells: [
                                   DataCell(Text(sid)),
                                   DataCell(Text(st["Tên Học Sinh"] ?? st["name"] ?? "")),
-                                  // Checkbox Có mặt
                                   DataCell(Checkbox(
                                     activeColor: Colors.green,
                                     value: _attendanceStates[sid] == "present",
                                     onChanged: (val) => setState(() => _attendanceStates[sid] = "present"),
                                   )),
-                                  // Checkbox Vắng
                                   DataCell(Checkbox(
                                     activeColor: Colors.red,
                                     value: _attendanceStates[sid] == "absent",
                                     onChanged: (val) => setState(() => _attendanceStates[sid] = "absent"),
                                   )),
-                                  // Checkbox Đi trễ
                                   DataCell(Checkbox(
                                     activeColor: Colors.orange,
                                     value: _attendanceStates[sid] == "late",
                                     onChanged: (val) => setState(() => _attendanceStates[sid] = "late"),
                                   )),
-                                  // Nhập nhận xét
                                   DataCell(
                                     SizedBox(
-                                      width: 200, // Chiều rộng cố định cho ô Textfield trong bảng
+                                      width: 200,
                                       child: TextFormField(
                                         controller: _noteControllers[sid],
                                         decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
@@ -348,26 +392,24 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                       ),
                       
                       const SizedBox(height: 30),
-                      // --- 3. NHẬT KÝ BÀI GIẢNG ---
-                      const Text("3. Nhật ký giảng dạy", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                      Text(labels["sec_3"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
                       const SizedBox(height: 15),
                       TextFormField(
                         controller: _topicController,
-                        decoration: const InputDecoration(labelText: "Chủ đề giảng dạy (*)", border: OutlineInputBorder()),
-                        validator: (v) => v!.trim().isEmpty ? "Không được bỏ trống" : null,
+                        decoration: InputDecoration(labelText: labels["lbl_topic"], border: const OutlineInputBorder()),
+                        validator: (v) => v!.trim().isEmpty ? labels["err_empty"] : null,
                       ),
                       
                       const SizedBox(height: 15),
-                      // Chọn Video
                       ExpansionTile(
-                        title: const Text("Video Bài Tập Đã Dùng", style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(labels["lbl_video"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                         collapsedShape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(5)),
-                        shape: RoundedRectangleBorder(side: BorderSide(color: Colors.blueGrey), borderRadius: BorderRadius.circular(5)),
+                        shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.blueGrey), borderRadius: BorderRadius.circular(5)),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: _allVideos.isEmpty 
-                              ? const Text("Chưa có video nào trong kho học liệu")
+                              ? Text(labels["msg_no_video"]!)
                               : Wrap(
                                   spacing: 8,
                                   children: _allVideos.map((v) {
@@ -390,16 +432,15 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                       ),
                       
                       const SizedBox(height: 15),
-                      // Chọn Quiz / Bài tập
                       ExpansionTile(
-                        title: const Text("Giao Bài Tập Về Nhà", style: TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(labels["lbl_quiz"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                         collapsedShape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(5)),
-                        shape: RoundedRectangleBorder(side: BorderSide(color: Colors.blueGrey), borderRadius: BorderRadius.circular(5)),
+                        shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.blueGrey), borderRadius: BorderRadius.circular(5)),
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: _allQuizzes.isEmpty 
-                              ? const Text("Chưa có bộ đề nào trong kho")
+                              ? Text(labels["msg_no_quiz"]!)
                               : Wrap(
                                   spacing: 8,
                                   children: _allQuizzes.map((q) {
@@ -425,8 +466,8 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                       TextFormField(
                         controller: _notesController,
                         maxLines: 4,
-                        decoration: const InputDecoration(labelText: "Chi Tiết Nội Dung Giảng Dạy (*)", border: OutlineInputBorder(), alignLabelWithHint: true),
-                        validator: (v) => v!.trim().isEmpty ? "Không được bỏ trống" : null,
+                        decoration: InputDecoration(labelText: labels["lbl_content"], border: const OutlineInputBorder(), alignLabelWithHint: true),
+                        validator: (v) => v!.trim().isEmpty ? labels["err_empty"] : null,
                       ),
                       
                       const SizedBox(height: 25),
@@ -434,7 +475,7 @@ class _TeacherJournalScreenState extends State<TeacherJournalScreen> {
                         icon: const Icon(Icons.send),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 55)),
                         onPressed: _submitJournal,
-                        label: const Text("LƯU & GỬI BÁO CÁO", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        label: Text(labels["btn_submit"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       )
                     ]
                   ],

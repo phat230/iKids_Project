@@ -29,6 +29,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     "completed_tasks": []
   };
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ ĐẦY ĐỦ =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "📝 Trạm Quiz AI",
@@ -44,6 +45,19 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       "lbl_question_prefix": "Câu",
       "btn_submit_quiz": "🏆 Nộp Bài & Nhận Thưởng",
       "err_unanswered": "⚠️ Bạn chưa chọn đáp án cho tất cả các câu!",
+      "err_not_found": "Lỗi: Không tìm thấy thông tin tài khoản! Vui lòng đăng nhập lại.",
+      "err_server": "Lỗi Server: Không tìm thấy bài tập",
+      "err_conn": "Lỗi kết nối mạng: Vui lòng kiểm tra lại",
+      "dlg_success_title": "Hoàn Thành Xuất Sắc!",
+      "dlg_success_desc1": "Bạn trả lời đúng",
+      "dlg_success_desc2": "câu.\nĐiểm số:",
+      "dlg_success_desc3": "\n\nPhần thưởng: 🚀 +",
+      "btn_close": "Đóng",
+      "dlg_fail_title": "⚠️ Không Thể Nhận Điểm",
+      "dlg_fail_desc": "Bạn đã hoàn thành bài tập này rồi! Dữ liệu sẽ được cập nhật lại ngay.",
+      "btn_reload": "Tải lại danh sách",
+      "dlg_err_title": "⚠️ Lỗi Ứng Dụng/Mạng",
+      "dlg_err_desc": "Mất kết nối tới hệ thống, vui lòng thử lại.",
     },
     "en": {
       "title": "📝 AI Quiz Station",
@@ -59,6 +73,19 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       "lbl_question_prefix": "Question",
       "btn_submit_quiz": "🏆 Submit",
       "err_unanswered": "⚠️ Please answer all questions!",
+      "err_not_found": "Error: Account info not found! Please login again.",
+      "err_server": "Server Error: Quizzes not found",
+      "err_conn": "Network error: Please check your connection",
+      "dlg_success_title": "Excellent!",
+      "dlg_success_desc1": "You answered",
+      "dlg_success_desc2": "correctly.\nScore:",
+      "dlg_success_desc3": "\n\nReward: 🚀 +",
+      "btn_close": "Close",
+      "dlg_fail_title": "⚠️ Cannot Claim Points",
+      "dlg_fail_desc": "You have already completed this quiz! Data will be refreshed.",
+      "btn_reload": "Reload List",
+      "dlg_err_title": "⚠️ App/Network Error",
+      "dlg_err_desc": "Connection lost, please try again.",
     }
   };
 
@@ -77,12 +104,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _userAnswers.clear();
     });
 
-try {
+    try {
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+      final labels = _labels[_lang]!;
+
       String? userInfo = await _storage.read(key: 'user_info'); 
       if (userInfo == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Lỗi: Không tìm thấy thông tin tài khoản! Vui lòng đăng nhập lại.", style: TextStyle(color: Colors.white)),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(labels["err_not_found"]!, style: const TextStyle(color: Colors.white)),
             backgroundColor: Colors.red,
           ));
           setState(() => _isLoading = false);
@@ -91,11 +122,8 @@ try {
       }
       final Map<String, dynamic> decodedUser = jsonDecode(userInfo);
       
-      // ================= ĐÃ SỬA CHỖ NÀY =================
-      // Ép Mobile ưu tiên dùng ID hệ thống, ngăn chặn 100% việc trùng lặp dữ liệu do trùng tên/trống email
       String anchorKey = decodedUser["id"]?.toString() ?? decodedUser["_id"]?.toString() ?? decodedUser["email"]?.toString() ?? decodedUser["username"]?.toString() ?? decodedUser["name"]?.toString() ?? "Student";
       String displayName = decodedUser["full_name"]?.toString() ?? decodedUser["name"]?.toString() ?? "Học sinh";
-      // ===================================================
 
       String encodedKey = Uri.encodeComponent(anchorKey);
 
@@ -124,7 +152,7 @@ try {
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi Server: Không tìm thấy bài tập (${quizRes.statusCode})")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${labels['err_server']} (${quizRes.statusCode})")));
         }
       }
 
@@ -137,7 +165,7 @@ try {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Lỗi kết nối mạng: Vui lòng kiểm tra lại IP hoặc Backend", style: const TextStyle(color: Colors.white)),
+          content: Text(_labels[_lang]!["err_conn"]!, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ));
@@ -150,8 +178,9 @@ try {
   }
 
   Future<void> _submitQuiz(List<dynamic> questions, String quizId) async {
+    final labels = _labels[_lang]!;
     if (_userAnswers.length < questions.length) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["err_unanswered"]!), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_unanswered"]!), backgroundColor: Colors.red));
       return;
     }
 
@@ -201,15 +230,15 @@ try {
             barrierDismissible: false,
             builder: (_) => AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Column(
+              title: Column(
                 children: [
-                  Icon(Icons.stars_rounded, color: Colors.orange, size: 50),
-                  SizedBox(height: 10),
-                  Text("Hoàn Thành Xuất Sắc!", textAlign: TextAlign.center),
+                  const Icon(Icons.stars_rounded, color: Colors.orange, size: 50),
+                  const SizedBox(height: 10),
+                  Text(labels["dlg_success_title"]!, textAlign: TextAlign.center),
                 ],
               ),
               content: Text(
-                "Bạn trả lời đúng $correctCount/$totalQuestions câu.\nĐiểm số: ${score.toStringAsFixed(1)}/10\n\nPhần thưởng: 🚀 +$earnedExp EXP!",
+                "${labels['dlg_success_desc1']} $correctCount/$totalQuestions ${labels['dlg_success_desc2']} ${score.toStringAsFixed(1)}/10${labels['dlg_success_desc3']}$earnedExp EXP!",
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
@@ -218,7 +247,7 @@ try {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                     onPressed: () => Navigator.pop(context), 
-                    child: const Text("Đóng")
+                    child: Text(labels["btn_close"]!)
                   ),
                 )
               ],
@@ -230,14 +259,14 @@ try {
           showDialog(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text("⚠️ Không Thể Nhận Điểm"),
-              content: const Text("Bạn đã hoàn thành bài tập này rồi! Dữ liệu sẽ được cập nhật lại ngay."), 
+              title: Text(labels["dlg_fail_title"]!),
+              content: Text(labels["dlg_fail_desc"]!), 
               actions: [
                 TextButton(onPressed: () { 
                   Navigator.pop(context);
                   setState(() => _selectedQuiz = null);
                   _fetchQuizData(); 
-                }, child: const Text("Tải lại danh sách"))
+                }, child: Text(labels["btn_reload"]!))
               ],
             )
           );
@@ -249,9 +278,9 @@ try {
          showDialog(
             context: context,
             builder: (_) => AlertDialog(
-              title: const Text("⚠️ Lỗi Ứng Dụng/Mạng"),
-              content: const Text("Mất kết nối tới hệ thống, vui lòng thử lại."), 
-              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Đóng"))],
+              title: Text(labels["dlg_err_title"]!),
+              content: Text(labels["dlg_err_desc"]!), 
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(labels["btn_close"]!))],
             )
           );
       }
@@ -269,11 +298,14 @@ try {
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
-            tooltip: "Làm mới dữ liệu",
+            tooltip: "Refresh",
             onPressed: () => _fetchQuizData(),
           ),
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -351,7 +383,7 @@ try {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(q['title'] ?? "Bài tập", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text(q['title'] ?? "Quiz", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                     const SizedBox(height: 5),
                                     Text("${_labels[_lang]!['lbl_questions_count']} $qCount | ${_labels[_lang]!['lbl_reward']} +50 EXP", style: const TextStyle(fontSize: 12, color: Colors.grey)),
                                   ],

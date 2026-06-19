@@ -23,6 +23,54 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
   bool _isLoading = true;
   String _teacherEmail = "";
   String _teacherId = "";
+  String _lang = "vi";
+
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Kho Học Liệu & Giao Bài",
+      "tab_quiz": "Bộ Đề (Quiz)",
+      "tab_video": "Video Học Tập",
+      "empty_quiz": "Kho bài tập trống.\nHãy dùng trang Web hoặc Soạn Đề AI để sinh bộ đề!",
+      "empty_video": "Chưa có video nào trong hệ thống.",
+      "lbl_questions": "Số câu hỏi:",
+      "lbl_date": "Ngày tạo:",
+      "btn_assign": "Giao Bài Cho Lớp",
+      "lbl_topic": "Chủ đề:",
+      "lbl_level": "Lớp:",
+      "assign_title": "Giao bài:",
+      "assign_class": "Chọn lớp nhận bài (*)",
+      "assign_no_class": "Bạn chưa được phân công lớp nào.",
+      "assign_deadline": "Hạn chót nộp bài (*)",
+      "assign_note": "Lời nhắn cho học sinh",
+      "assign_note_hint": "Ví dụ: Các con nhớ xem bài kỹ nhé!",
+      "btn_confirm": "XÁC NHẬN GIAO BÀI",
+      "msg_select_class": "Vui lòng chọn ít nhất 1 lớp!",
+      "msg_success": "Đã giao bài tập thành công!",
+      "msg_fail": "Lỗi hệ thống",
+    },
+    "en": {
+      "title": "Learning Resources & Assignments",
+      "tab_quiz": "Quizzes",
+      "tab_video": "Learning Videos",
+      "empty_quiz": "No quizzes available.\nUse the AI Quiz Maker to generate some!",
+      "empty_video": "No learning videos in the system.",
+      "lbl_questions": "Questions:",
+      "lbl_date": "Created Date:",
+      "btn_assign": "Assign to Class",
+      "lbl_topic": "Topic:",
+      "lbl_level": "Grade:",
+      "assign_title": "Assigning:",
+      "assign_class": "Select target class (*)",
+      "assign_no_class": "You are not assigned to any classes yet.",
+      "assign_deadline": "Submission Deadline (*)",
+      "assign_note": "Message for students",
+      "assign_note_hint": "Example: Please review the materials carefully!",
+      "btn_confirm": "CONFIRM ASSIGNMENT",
+      "msg_select_class": "Please select at least 1 class!",
+      "msg_success": "Assignment sent successfully!",
+      "msg_fail": "System error",
+    }
+  };
 
   @override
   void initState() {
@@ -33,6 +81,9 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       String? token = await _storage.read(key: 'jwt_token');
       String? userInfoStr = await _storage.read(key: 'user_info');
       
@@ -42,21 +93,18 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
         _teacherId = userInfo["id"]?.toString() ?? userInfo["_id"]?.toString() ?? "";
       }
 
-      // 1. Tải danh sách Lớp học (TV1) để đổ vào Form Giao bài
       final classRes = await http.get(Uri.parse('${AppConfig.apiTv1}/classes'), headers: {"Authorization": "Bearer $token"});
       if (classRes.statusCode == 200) {
         List<dynamic> allClasses = jsonDecode(utf8.decode(classRes.bodyBytes));
         _myClasses = allClasses.where((c) => (c["teacher_id"] ?? "").toString() == _teacherId).toList();
       }
 
-      // 2. Tải Kho Bài tập (TV2)
       final quizRes = await http.get(Uri.parse('${AppConfig.apiTv2}/quizzes'));
       if (quizRes.statusCode == 200) {
         List<dynamic> allQuizzes = jsonDecode(utf8.decode(quizRes.bodyBytes));
         _quizzes = allQuizzes.where((q) => q["author_email"] == _teacherEmail || q["author"] == _teacherEmail).toList();
       }
 
-      // 3. Tải Kho Video (TV2)
       final vidRes = await http.get(Uri.parse('${AppConfig.apiTv2}/videos'));
       if (vidRes.statusCode == 200) {
         _videos = jsonDecode(utf8.decode(vidRes.bodyBytes));
@@ -69,8 +117,8 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
     }
   }
 
-  // Bảng Modal Giao Bài Tập hiển thị trượt từ dưới lên
   void _showAssignModal(Map<String, dynamic> quiz) {
+    final labels = _locales[_lang]!;
     List<String> selectedClasses = [];
     DateTime deadlineDate = DateTime.now().add(const Duration(days: 3));
     TimeOfDay deadlineTime = const TimeOfDay(hour: 23, minute: 59);
@@ -91,14 +139,13 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Giao bài: ${quiz['title']}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                    Text("${labels['assign_title']} ${quiz['title']}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                     const Divider(),
                     
-                    // Chọn lớp học (Multi-select)
-                    const Text("Chọn lớp nhận bài (*)", style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(labels["assign_class"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     _myClasses.isEmpty
-                        ? const Text("Bạn chưa được phân công lớp nào.", style: TextStyle(color: Colors.red))
+                        ? Text(labels["assign_no_class"]!, style: const TextStyle(color: Colors.red))
                         : Wrap(
                             spacing: 8,
                             children: _myClasses.map((c) {
@@ -119,8 +166,7 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                           ),
                     const SizedBox(height: 15),
 
-                    // Chọn Hạn chót
-                    const Text("Hạn chót nộp bài (*)", style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text(labels["assign_deadline"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                     Row(
                       children: [
                         Expanded(
@@ -150,15 +196,13 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Lời nhắn
                     TextField(
                       controller: noteCtrl,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: "Lời nhắn cho học sinh", border: OutlineInputBorder(), hintText: "Ví dụ: Các con nhớ xem bài kỹ nhé!"),
+                      decoration: InputDecoration(labelText: labels["assign_note"], border: const OutlineInputBorder(), hintText: labels["assign_note_hint"]),
                     ),
                     const SizedBox(height: 20),
 
-                    // Nút xác nhận
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -168,13 +212,12 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                             ? null
                             : () async {
                                 if (selectedClasses.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Vui lòng chọn ít nhất 1 lớp!"), backgroundColor: Colors.red));
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_select_class"]!), backgroundColor: Colors.red));
                                   return;
                                 }
 
                                 setModalState(() => isSubmitting = true);
                                 
-                                // Format deadline chuẩn cho Backend: YYYY-MM-DD HH:mm
                                 String formattedDate = DateFormat('yyyy-MM-dd').format(deadlineDate);
                                 String formattedTime = "${deadlineTime.hour.toString().padLeft(2, '0')}:${deadlineTime.minute.toString().padLeft(2, '0')}";
                                 
@@ -197,18 +240,18 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                                   );
 
                                   if (res.statusCode == 200 || res.statusCode == 201) {
-                                    Navigator.pop(context); // Đóng Modal
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã giao bài tập thành công!"), backgroundColor: Colors.green));
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi hệ thống: ${res.body}"), backgroundColor: Colors.red));
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${labels["msg_fail"]!}: ${res.body}"), backgroundColor: Colors.red));
                                   }
                                 } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối mạng."), backgroundColor: Colors.red));
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Error."), backgroundColor: Colors.red));
                                 } finally {
                                   setModalState(() => isSubmitting = false);
                                 }
                               },
-                        child: isSubmitting ? const CircularProgressIndicator(color: Colors.white) : const Text("XÁC NHẬN GIAO BÀI", style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: isSubmitting ? const CircularProgressIndicator(color: Colors.white) : Text(labels["btn_confirm"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -224,21 +267,22 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
-          title: const Text("Kho Học Liệu & Giao Bài", style: TextStyle(fontWeight: FontWeight.bold)),
+          title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(icon: Icon(Icons.quiz), text: "Bộ Đề (Quiz)"),
-              Tab(icon: Icon(Icons.video_library), text: "Video Học Tập"),
+              Tab(icon: const Icon(Icons.quiz), text: labels["tab_quiz"]),
+              Tab(icon: const Icon(Icons.video_library), text: labels["tab_video"]),
             ],
           ),
         ),
@@ -246,15 +290,15 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
             ? const Center(child: CircularProgressIndicator(color: Colors.orange))
             : TabBarView(
                 children: [
-                  _buildQuizTab(),
-                  _buildVideoTab(),
+                  _buildQuizTab(labels),
+                  _buildVideoTab(labels),
                 ],
               ),
       ),
     );
   }
 
-  Widget _buildQuizTab() {
+  Widget _buildQuizTab(Map<String, String> labels) {
     if (_quizzes.isEmpty) {
       return Center(
         child: Column(
@@ -262,7 +306,7 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
           children: [
             Icon(Icons.inbox, size: 60, color: Colors.grey.shade400),
             const SizedBox(height: 10),
-            const Text("Kho bài tập trống.\nHãy dùng trang Web để AI sinh bộ đề!", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+            Text(labels["empty_quiz"]!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -295,10 +339,10 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item['title'] ?? 'Bài tập', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text(item['title'] ?? 'Quiz', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                           const SizedBox(height: 4),
-                          Text("Số câu hỏi: ${item['questions']?.length ?? 0}", style: TextStyle(color: Colors.grey.shade600)),
-                          Text("Ngày tạo: ${(item['created_at'] ?? '').toString().split('T')[0]}", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                          Text("${labels['lbl_questions']} ${item['questions']?.length ?? 0}", style: TextStyle(color: Colors.grey.shade600)),
+                          Text("${labels['lbl_date']} ${(item['created_at'] ?? '').toString().split('T')[0]}", style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -310,7 +354,7 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.orange), foregroundColor: Colors.orange),
                     icon: const Icon(Icons.send),
-                    label: const Text("Giao Bài Cho Lớp", style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(labels["btn_assign"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                     onPressed: () => _showAssignModal(item),
                   ),
                 )
@@ -322,7 +366,7 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
     );
   }
 
-  Widget _buildVideoTab() {
+  Widget _buildVideoTab(Map<String, String> labels) {
     if (_videos.isEmpty) {
       return Center(
         child: Column(
@@ -330,7 +374,7 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
           children: [
             Icon(Icons.video_file, size: 60, color: Colors.grey.shade400),
             const SizedBox(height: 10),
-            const Text("Chưa có video nào trong hệ thống.", style: TextStyle(color: Colors.grey)),
+            Text(labels["empty_video"]!, style: const TextStyle(color: Colors.grey)),
           ],
         ),
       );
@@ -355,12 +399,12 @@ class _TeacherAssignmentScreenState extends State<TeacherAssignmentScreen> {
                 errorBuilder: (c, e, s) => Container(width: 80, height: 60, color: Colors.grey.shade300, child: const Icon(Icons.video_library)),
               ),
             ),
-            title: Text(v['title'] ?? 'Video bài giảng', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+            title: Text(v['title'] ?? 'Video', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                Text("Chủ đề: ${v['topic'] ?? 'Khác'} | Lớp: ${v['level'] ?? 'Chung'}", style: const TextStyle(fontSize: 12)),
+                Text("${labels['lbl_topic']} ${v['topic'] ?? 'N/A'} | ${labels['lbl_level']} ${v['level'] ?? 'N/A'}", style: const TextStyle(fontSize: 12)),
               ],
             ),
             trailing: const Icon(Icons.play_circle_fill, color: Colors.red, size: 35),

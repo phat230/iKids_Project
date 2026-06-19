@@ -34,7 +34,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   final _editDescCtrl = TextEditingController();
   String? _editTeacherId;
 
-  final Map<String, Map<String, String>> _labels = {
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ ĐẦY ĐỦ =================
+  final Map<String, Map<String, String>> _locales = {
     "vi": {
       "title": "Quản Lý Lớp Học",
       "subtitle": "Khởi tạo, sắp xếp giáo viên và quản lý danh sách học viên.",
@@ -53,6 +54,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       "sub_edit": "Cập Nhật Thông Tin",
       "sub_delete": "Xóa Lớp Học",
       "lbl_teacher": "Đổi giáo viên phụ trách:",
+      "no_classes": "Hệ thống chưa có lớp học nào.",
       "no_students": "Lớp học này hiện chưa có học sinh nào.",
       "btn_remove": "Xóa khỏi lớp",
       "success_removed": "Đã xóa học sinh khỏi lớp!",
@@ -62,6 +64,37 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       "btn_delete": "XÁC NHẬN XÓA LỚP",
       "success_deleted": "Đã xóa lớp thành công!",
       "msg_error": "Lỗi kết nối đến máy chủ. Vui lòng thử lại.",
+      "unassigned": "Chưa cập nhật"
+    },
+    "en": {
+      "title": "Class Management",
+      "subtitle": "Create classes, assign teachers, and manage students.",
+      "tab_create": "Create Class",
+      "tab_manage": "Manage Classes",
+      "form_create_header": "New Class Information",
+      "input_name": "Class Name (*)",
+      "input_desc": "Internal Notes",
+      "input_teacher": "Assigned Teacher (*)",
+      "warn_no_teacher": "No valid teachers found.",
+      "btn_create": "CREATE CLASS",
+      "err_fields": "⚠️ Please fill in all required fields (*)",
+      "success_created": "✅ Class created successfully!",
+      "select_class": "Select a class to manage:",
+      "sub_students": "Students List",
+      "sub_edit": "Update Info",
+      "sub_delete": "Delete Class",
+      "lbl_teacher": "Change Teacher:",
+      "no_classes": "No classes available in the system.",
+      "no_students": "There are no students in this class currently.",
+      "btn_remove": "Remove",
+      "success_removed": "Student removed successfully!",
+      "btn_save": "SAVE CHANGES",
+      "success_updated": "Class updated successfully!",
+      "warn_delete": "WARNING: This action is permanent and cannot be undone. All data will be erased!",
+      "btn_delete": "CONFIRM DELETE",
+      "success_deleted": "Class deleted successfully!",
+      "msg_error": "Server connection error. Please try again.",
+      "unassigned": "Unassigned"
     }
   };
 
@@ -76,6 +109,10 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
     setState(() => _isLoading = true);
     
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       if (_token.isEmpty) return;
 
@@ -90,7 +127,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   Future<void> _fetchTeachers() async {
     final headers = {"Authorization": "Bearer $_token"};
     try {
-      // 1. Lấy danh sách từ bảng Teachers (TV1)
       var res = await http.get(Uri.parse('${AppConfig.apiTv1}/teachers'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var data = jsonDecode(utf8.decode(res.bodyBytes));
@@ -100,7 +136,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         }
       }
       
-      // 2. Dự phòng: Quét từ bảng Users (Auth)
       res = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var rawData = jsonDecode(utf8.decode(res.bodyBytes));
@@ -146,7 +181,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _createClass() async {
-    final labels = _labels["vi"]!;
+    final labels = _locales[_lang]!;
     if (_createNameCtrl.text.trim().isEmpty || _createTeacherId == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_fields"]!), backgroundColor: Colors.orange));
       return;
@@ -189,7 +224,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _updateClass() async {
-    final labels = _labels["vi"]!;
+    final labels = _locales[_lang]!;
     if (_editNameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_fields"]!), backgroundColor: Colors.orange));
       return;
@@ -230,7 +265,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _deleteClass() async {
-    final labels = _labels["vi"]!;
+    final labels = _locales[_lang]!;
     setState(() => _isLoading = true);
     try {
       final res = await http.delete(
@@ -250,7 +285,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _removeStudent(String studentId) async {
-    final labels = _labels["vi"]!;
+    final labels = _locales[_lang]!;
     setState(() => _isLoading = true);
     try {
       final res = await http.delete(
@@ -270,7 +305,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final labels = _labels["vi"]!;
+    final labels = _locales[_lang]!;
 
     return DefaultTabController(
       length: 2,
@@ -280,6 +315,16 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
           title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
+          actions: [
+            // ✅ ĐÃ SỬA: Nút chuyển đổi ngôn ngữ ghi vào bộ nhớ
+            TextButton(
+              onPressed: () async {
+                setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                await _storage.write(key: 'app_lang', value: _lang);
+              },
+              child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )
+          ],
           bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
@@ -361,7 +406,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   Widget _buildManageTab(Map<String, String> labels) {
     if (_classes.isEmpty) {
-      return Center(child: Text("Hệ thống chưa có lớp học nào.", style: TextStyle(color: Colors.grey[600])));
+      return Center(child: Text(labels["no_classes"]!, style: TextStyle(color: Colors.grey[600])));
     }
 
     return Column(
@@ -404,7 +449,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         ),
 
         if (_selectedClassId != null) ...[
-          // Thanh Sub-tabs điều hướng giả lập
+          // Thanh Sub-tabs
           Padding(
             padding: const EdgeInsets.all(12),
             child: Container(
@@ -456,7 +501,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   Widget _buildSubTabContent(Map<String, String> labels) {
     if (_subTabIndex == 0) {
-      // ---------------- DANH SÁCH HỌC SINH ----------------
       if (_studentsInClass.isEmpty) {
         return Center(
           child: Padding(
@@ -478,9 +522,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         itemCount: _studentsInClass.length,
         itemBuilder: (context, index) {
           final student = _studentsInClass[index];
-          // SỬA: Map chuẩn cấu trúc key từ API Get chi tiết học sinh lớp
           String sId = student['Mã HS']?.toString() ?? student['id']?.toString() ?? student['_id']?.toString() ?? '';
-          String sName = student['Tên Học Sinh']?.toString() ?? student['name']?.toString() ?? 'Unknown';
+          String sName = student['Tên Học Sinh']?.toString() ?? student['name']?.toString() ?? labels["unassigned"]!;
           
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
@@ -500,7 +543,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       );
 
     } else if (_subTabIndex == 1) {
-      // ---------------- CHỈNH SỬA THÔNG TIN ----------------
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: Padding(
@@ -517,7 +559,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
                 value: _editTeacherId,
                 items: _teachers.map((t) {
                   String tId = (t['id'] ?? t['_id']).toString();
-                  String tName = t['name'] ?? t['full_name'] ?? 'Unknown';
+                  String tName = t['name'] ?? t['full_name'] ?? labels["unassigned"]!;
                   return DropdownMenuItem(value: tId, child: Text(tName));
                 }).toList(),
                 onChanged: (val) => setState(() => _editTeacherId = val),
@@ -539,7 +581,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       );
 
     } else {
-      // ---------------- XÓA LỚP ----------------
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red[200]!)),

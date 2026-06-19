@@ -19,11 +19,60 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
   String _teacherId = "";
   String _teacherName = "";
   bool _isLoading = true;
+  String _lang = "vi"; // Ngôn ngữ mặc định
 
   bool _isApproved = false;
   bool _isPending = false;
 
   final Map<String, Map<String, TextEditingController>> _gradeControllers = {};
+
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Quản Lý Điểm Học Tập",
+      "hint_class": "Chọn lớp học ghi điểm",
+      "msg_pending": "Đơn xin mở khóa đang chờ phê duyệt...",
+      "msg_locked": "Bảng điểm hiện đang bị khóa.",
+      "btn_req": "Yêu cầu cấp quyền nhập điểm",
+      "msg_empty": "Lớp học này hiện tại chưa có học sinh nào.",
+      "col_name": "Tên Học Sinh",
+      "col_att": "Chuyên Cần",
+      "col_t1": "KT 1", "col_t2": "KT 2", "col_t3": "KT 3", "col_t4": "KT 4", "col_t5": "KT 5",
+      "col_mid": "Giữa Kỳ",
+      "col_fin": "Cuối Kỳ",
+      "col_avg": "TB KT",
+      "col_total": "TỔNG KẾT",
+      "col_rank": "Xếp Loại",
+      "btn_submit": "GHI NHẬN LÊN HỆ THỐNG",
+      "msg_sub_success": "Đã đồng bộ điểm số lên hệ thống trung tâm!",
+      "msg_sub_fail": "Lỗi lưu điểm.",
+      "msg_req_success": "Đã gửi yêu cầu cấp quyền nhập điểm!",
+      "msg_err_conn": "Lỗi kết nối.",
+      "rank_exc": "Giỏi", "rank_good": "Khá", "rank_avg": "TB", "rank_weak": "Yếu"
+    },
+    "en": {
+      "title": "Grade Management",
+      "hint_class": "Select a class to grade",
+      "msg_pending": "Unlock request is pending approval...",
+      "msg_locked": "Gradebook is currently locked.",
+      "btn_req": "Request Grading Permission",
+      "msg_empty": "There are no students in this class currently.",
+      "col_name": "Student Name",
+      "col_att": "Attend.",
+      "col_t1": "Test 1", "col_t2": "Test 2", "col_t3": "Test 3", "col_t4": "Test 4", "col_t5": "Test 5",
+      "col_mid": "Midterm",
+      "col_fin": "Final",
+      "col_avg": "Test Avg",
+      "col_total": "TOTAL",
+      "col_rank": "Rank",
+      "btn_submit": "SUBMIT GRADES TO SYSTEM",
+      "msg_sub_success": "Grades synchronized to the central system!",
+      "msg_sub_fail": "Failed to save grades.",
+      "msg_req_success": "Grading permission request sent!",
+      "msg_err_conn": "Connection error.",
+      "rank_exc": "Excellent", "rank_good": "Good", "rank_avg": "Average", "rank_weak": "Weak"
+    }
+  };
 
   @override
   void initState() {
@@ -33,6 +82,10 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
 
   Future<void> _loadTeacherAndClasses() async {
     try {
+      // Đọc ngôn ngữ từ hệ thống
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       String? token = await _storage.read(key: 'jwt_token');
       String? userInfoStr = await _storage.read(key: 'user_info');
       if (userInfoStr != null) {
@@ -65,9 +118,8 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
     _students.clear();
     try {
       String? token = await _storage.read(key: 'jwt_token');
-      final headers = {"Authorization": "Bearer $token"}; // ĐÃ SỬA: Khai báo header chuẩn
+      final headers = {"Authorization": "Bearer $token"};
       
-      // 1. Kiểm tra quyền nhập điểm
       final pendingRes = await http.get(Uri.parse('${AppConfig.apiTv1}/pending-requests'), headers: headers);
       final historyRes = await http.get(Uri.parse('${AppConfig.apiTv1}/request-history'), headers: headers);
       
@@ -93,13 +145,11 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
         _isApproved = false;
       }
 
-      // 2. Tải danh sách học sinh THẬT từ lớp
       final studentRes = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'), headers: headers);
       if (studentRes.statusCode == 200) {
         _students = jsonDecode(utf8.decode(studentRes.bodyBytes));
       }
         
-      // 3. Khởi tạo Controllers và nạp điểm từ Backend
       for (var st in _students) {
         String sid = (st["Mã HS"] ?? st["id"]).toString();
         _initControllersForStudent(sid);
@@ -142,6 +192,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
   }
 
   Future<void> _requestPermission() async {
+    final labels = _locales[_lang]!;
     final currentClass = _myClasses.firstWhere((c) => (c["id"] ?? c["_id"]).toString() == _selectedClassId);
     Map<String, dynamic> newReq = {
       "teacher_id": _teacherId,
@@ -161,15 +212,16 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
         body: jsonEncode(newReq),
       );
       if (res.statusCode == 200 || res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã gửi yêu cầu cấp quyền nhập điểm!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_req_success"]!), backgroundColor: Colors.green));
         _checkPermissionAndLoadStudents(_selectedClassId!);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối."), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err_conn"]!), backgroundColor: Colors.red));
     }
   }
 
   Future<void> _submitGrades() async {
+    final labels = _locales[_lang]!;
     setState(() => _isLoading = true);
     List<Map<String, dynamic>> gradesPayload = [];
 
@@ -189,10 +241,10 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
       double tbKt = (k1 + k2 + k3 + k4 + k5) / 5;
       double tongKet = (cc * 0.1) + (tbKt * 0.2) + (gk * 0.7 * 0.3) + (ck * 0.7 * 0.7);
 
-      String xl = "Yếu";
-      if (tongKet >= 8.5) xl = "Giỏi";
-      else if (tongKet >= 6.5) xl = "Khá";
-      else if (tongKet >= 5.0) xl = "TB";
+      String xl = labels["rank_weak"]!;
+      if (tongKet >= 8.5) xl = labels["rank_exc"]!;
+      else if (tongKet >= 6.5) xl = labels["rank_good"]!;
+      else if (tongKet >= 5.0) xl = labels["rank_avg"]!;
 
       gradesPayload.add({
         "student_id": sid,
@@ -217,14 +269,14 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
       String? token = await _storage.read(key: 'jwt_token');
       final res = await http.post(
         Uri.parse('${AppConfig.apiTv2}/grades'),
-        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"}, // ĐÃ SỬA: Thêm Token vào POST
+        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token"},
         body: jsonEncode(payload),
       );
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đã đồng bộ điểm số lên hệ thống trung tâm!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_sub_success"]!), backgroundColor: Colors.green));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi lưu điểm."), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_sub_fail"]!), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -236,9 +288,11 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
+
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Quản Lý Điểm Học Tập"), backgroundColor: Colors.blueGrey, foregroundColor: Colors.white),
+      appBar: AppBar(title: Text(labels["title"]!), backgroundColor: Colors.blueGrey, foregroundColor: Colors.white),
       body: _isLoading && _myClasses.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -247,7 +301,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: DropdownButtonFormField<String>(
                     value: _selectedClassId,
-                    hint: const Text("Chọn lớp học ghi điểm"),
+                    hint: Text(labels["hint_class"]!),
                     decoration: const InputDecoration(border: OutlineInputBorder(), filled: true, fillColor: Colors.white),
                     items: _myClasses.map((c) {
                       return DropdownMenuItem<String>(value: (c["id"] ?? c["_id"]).toString(), child: Text(c["class_name"] ?? ""));
@@ -273,7 +327,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                       child: Column(
                         children: [
                           Text(
-                            _isPending ? "Đơn xin mở khóa đang chờ phê duyệt..." : "Bảng điểm hiện đang bị khóa.", 
+                            _isPending ? labels["msg_pending"]! : labels["msg_locked"]!, 
                             style: TextStyle(color: _isPending ? Colors.orange.shade900 : Colors.red, fontWeight: FontWeight.bold)
                           ),
                           if (!_isPending) ...[
@@ -282,7 +336,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                               icon: const Icon(Icons.lock_open, size: 18),
                               onPressed: _requestPermission, 
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), 
-                              label: const Text("Yêu cầu cấp quyền nhập điểm")
+                              label: Text(labels["btn_req"]!)
                             )
                           ]
                         ],
@@ -297,7 +351,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                           children: [
                             Icon(Icons.people_alt_outlined, size: 60, color: Colors.grey.shade400),
                             const SizedBox(height: 10),
-                            const Text("Lớp học này hiện tại chưa có học sinh nào.", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                            Text(labels["msg_empty"]!, style: const TextStyle(color: Colors.grey, fontSize: 16)),
                           ],
                         ),
                       ),
@@ -312,19 +366,19 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                             headingRowColor: MaterialStateProperty.all(Colors.blueGrey.shade50),
                             columnSpacing: 20,
                             dataRowMaxHeight: 60,
-                            columns: const [
-                              DataColumn(label: Text("Tên Học Sinh", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Chuyên Cần", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("KT 1", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("KT 2", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("KT 3", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("KT 4", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("KT 5", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Giữa Kỳ", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("Cuối Kỳ", style: TextStyle(fontWeight: FontWeight.bold))),
-                              DataColumn(label: Text("TB KT", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo))),
-                              DataColumn(label: Text("TỔNG KẾT", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
-                              DataColumn(label: Text("Xếp Loại", style: TextStyle(fontWeight: FontWeight.bold))),
+                            columns: [
+                              DataColumn(label: Text(labels["col_name"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_att"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_t1"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_t2"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_t3"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_t4"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_t5"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_mid"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_fin"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
+                              DataColumn(label: Text(labels["col_avg"]!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo))),
+                              DataColumn(label: Text(labels["col_total"]!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red))),
+                              DataColumn(label: Text(labels["col_rank"]!, style: const TextStyle(fontWeight: FontWeight.bold))),
                             ],
                             rows: _students.where((st) => _gradeControllers.containsKey((st["Mã HS"] ?? st["id"]).toString())).map((st) {
                               String sid = (st["Mã HS"] ?? st["id"]).toString();
@@ -342,10 +396,10 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                               double tbKt = (k1 + k2 + k3 + k4 + k5) / 5;
                               double tongKet = (cc * 0.1) + (tbKt * 0.2) + (gk * 0.7 * 0.3) + (ck * 0.7 * 0.7);
 
-                              String xl = "Yếu";
-                              if (tongKet >= 8.5) xl = "Giỏi";
-                              else if (tongKet >= 6.5) xl = "Khá";
-                              else if (tongKet >= 5.0) xl = "TB";
+                              String xl = labels["rank_weak"]!;
+                              if (tongKet >= 8.5) xl = labels["rank_exc"]!;
+                              else if (tongKet >= 6.5) xl = labels["rank_good"]!;
+                              else if (tongKet >= 5.0) xl = labels["rank_avg"]!;
 
                               return DataRow(
                                 cells: [
@@ -360,7 +414,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                                   DataCell(_buildGradeField(ctrl["cuoi_ky"]!)),
                                   DataCell(Text(tbKt.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo))),
                                   DataCell(Text(tongKet.toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 16))),
-                                  DataCell(Text(xl, style: TextStyle(fontWeight: FontWeight.bold, color: xl == "Giỏi" ? Colors.green : (xl == "Khá" ? Colors.blue : Colors.orange)))),
+                                  DataCell(Text(xl, style: TextStyle(fontWeight: FontWeight.bold, color: xl == labels["rank_exc"] ? Colors.green : (xl == labels["rank_good"] ? Colors.blue : Colors.orange)))),
                                 ],
                               );
                             }).toList(),
@@ -376,7 +430,7 @@ class _TeacherGradingScreenState extends State<TeacherGradingScreen> {
                         icon: const Icon(Icons.cloud_upload),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
                         onPressed: _submitGrades,
-                        label: const Text("GHI NHẬN LÊN HỆ THỐNG", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                        label: Text(labels["btn_submit"]!, style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                       ),
                     )
                 ]

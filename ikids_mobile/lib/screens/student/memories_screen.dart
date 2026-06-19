@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/config.dart';
 
 class MemoriesScreen extends StatefulWidget {
@@ -11,16 +12,50 @@ class MemoriesScreen extends StatefulWidget {
 }
 
 class _MemoriesScreenState extends State<MemoriesScreen> {
+  final _storage = const FlutterSecureStorage();
   List<dynamic> _memories = [];
   bool _isLoading = true;
+  String _lang = "vi";
+
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "📸 Góc Kỷ Niệm",
+      "tooltip_refresh": "Làm mới",
+      "empty_memories": "✨ Hiện chưa có khoảnh khắc kỷ niệm nào.",
+      "shared_moment": "đã chia sẻ một khoảnh khắc",
+      "no_desc": "Không có mô tả.",
+      "likes": "lượt thích",
+      "err_fetch": "Lỗi tải dữ liệu",
+      "err_conn": "Lỗi kết nối mạng!",
+      "err_like": "Lỗi kết nối khi thả tim!",
+      "err_img": "Không thể tải ảnh",
+    },
+    "en": {
+      "title": "📸 Class Memories",
+      "tooltip_refresh": "Refresh",
+      "empty_memories": "✨ No memories available yet.",
+      "shared_moment": "shared a moment",
+      "no_desc": "No description.",
+      "likes": "likes",
+      "err_fetch": "Error loading data",
+      "err_conn": "Network connection error!",
+      "err_like": "Error while liking!",
+      "err_img": "Cannot load image",
+    }
+  };
 
   @override
   void initState() {
     super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) setState(() => _lang = savedLang);
     _fetchMemories();
   }
 
-  // 1. Gọi API lấy danh sách kỷ niệm từ TV3
   Future<void> _fetchMemories() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -30,18 +65,14 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
       
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) {
-          setState(() {
-            _memories = data;
-          });
-        }
+        if (mounted) setState(() => _memories = data);
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi tải dữ liệu: ${response.statusCode}")));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${_locales[_lang]!['err_fetch']}: ${response.statusCode}")));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Lỗi kết nối mạng!", style: TextStyle(color: Colors.white)),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_locales[_lang]!['err_conn']!, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.red,
         ));
       }
@@ -50,34 +81,33 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
     }
   }
 
-  // 2. Gọi API Thả tim
   Future<void> _likeMemory(String id, int index) async {
     try {
       final response = await http.post(Uri.parse('${AppConfig.apiUrl}/api/tv3/memories/$id/like')).timeout(const Duration(seconds: 10));
-      
       if (response.statusCode == 200) {
-        // Tăng số tim trên giao diện ngay lập tức mà không cần load lại API
         setState(() {
           _memories[index]['likes'] = (_memories[index]['likes'] ?? 0) + 1;
         });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối khi thả tim!")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_locales[_lang]!['err_like']!)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
+
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: const Text("📸 Góc Kỷ Niệm", style: TextStyle(fontWeight: FontWeight.bold)), 
+        title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold)), 
         backgroundColor: Colors.purple, 
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
-            tooltip: "Làm mới",
+            tooltip: labels["tooltip_refresh"],
             onPressed: _fetchMemories,
           )
         ],
@@ -85,8 +115,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator(color: Colors.purple))
         : _memories.isEmpty
-            ? const Center(child: Text("✨ Hiện chưa có khoảnh khắc kỷ niệm nào.", style: TextStyle(fontSize: 16)))
-            // HIỂN THỊ DẠNG DANH SÁCH CUỘN (Tương tự Feed Facebook)
+            ? Center(child: Text(labels["empty_memories"]!, style: const TextStyle(fontSize: 16)))
             : RefreshIndicator(
                 color: Colors.purple,
                 onRefresh: _fetchMemories,
@@ -96,20 +125,18 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                   itemBuilder: (context, index) {
                     final memory = _memories[index];
                     
-                    // Bóc tách dữ liệu an toàn
                     String memId = memory['_id'] ?? memory['id'] ?? '';
-                    String teacherName = memory['teacher_name'] ?? 'Giáo viên';
+                    String teacherName = memory['teacher_name'] ?? 'Teacher';
                     String mediaUrl = memory['media_url'] ?? 'https://via.placeholder.com/800x500';
                     int likes = memory['likes'] ?? 0;
                     
-                    // Xử lý chuỗi ngày tháng
                     String rawDate = memory['created_at'] ?? '';
                     String timeStr = rawDate.length >= 16 ? rawDate.substring(0, 16).replaceAll('T', ' ') : "---";
 
-                    // Xử lý ngôn ngữ: Nếu description là dạng từ điển đa ngôn ngữ
-                    String description = "Không có mô tả.";
+                    // Trích xuất đa ngôn ngữ an toàn
+                    String description = labels["no_desc"]!;
                     if (memory['description'] is Map) {
-                      description = memory['description']['vi'] ?? "Không có mô tả.";
+                      description = memory['description'][_lang] ?? memory['description']['vi'] ?? labels["no_desc"]!;
                     } else if (memory['description'] is String) {
                       description = memory['description'];
                     }
@@ -122,43 +149,38 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 1. Dòng tiêu đề (Avatar + Tên giáo viên + Thời gian)
                           ListTile(
                             leading: const CircleAvatar(
                               backgroundColor: Colors.purple, 
                               child: Icon(Icons.school, color: Colors.white)
                             ),
                             title: Text(teacherName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text("đã chia sẻ một khoảnh khắc • $timeStr", style: const TextStyle(fontSize: 12)),
+                            subtitle: Text("${labels['shared_moment']} • $timeStr", style: const TextStyle(fontSize: 12)),
                           ),
                           
-                          // 2. Hình ảnh kỷ niệm
                           Image.network(
                             mediaUrl, 
                             width: double.infinity, 
                             height: 250, 
                             fit: BoxFit.cover,
-                            // Bọc thép lỗi đường dẫn ảnh hỏng
                             errorBuilder: (context, error, stackTrace) => Container(
                               height: 200,
                               color: Colors.grey[300],
-                              child: const Column(
+                              child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                  Text("Không thể tải ảnh", style: TextStyle(color: Colors.grey))
+                                  const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                  Text(labels["err_img"]!, style: const TextStyle(color: Colors.grey))
                                 ],
                               ),
                             ),
                           ),
                           
-                          // 3. Nội dung mô tả
                           Padding(
                             padding: const EdgeInsets.all(15.0),
                             child: Text(description, style: const TextStyle(fontSize: 15, height: 1.4)),
                           ),
                           
-                          // 4. Thanh tương tác (Thả tim)
                           const Divider(height: 1),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -168,7 +190,7 @@ class _MemoriesScreenState extends State<MemoriesScreen> {
                                   icon: const Icon(Icons.favorite, color: Colors.red, size: 28),
                                   onPressed: () => _likeMemory(memId, index),
                                 ),
-                                Text("$likes lượt thích", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text("$likes ${labels['likes']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               ],
                             ),
                           )
