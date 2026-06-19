@@ -26,6 +26,7 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
   // Lưu trạng thái học sinh được chọn cho TỪNG sản phẩm riêng biệt
   final Map<String, String> _selectedChildPerProduct = {};
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "🛍️ Cửa Hàng Quà Tặng iKids",
@@ -38,6 +39,9 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
       "btn_confirm": "Tặng ngay",
       "msg_success": "Đã tặng quà thành công cho",
       "msg_err_balance": "❌ Không đủ số dư trong ví!",
+      "err_network": "Mất kết nối mạng!",
+      "err_purchase": "Lỗi mua hàng",
+      "lbl_default_product": "Sản phẩm",
     },
     "en": {
       "title": "🛍️ iKids Gift Store",
@@ -50,6 +54,9 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
       "btn_confirm": "Gift Now",
       "msg_success": "Successfully gifted reward to",
       "msg_err_balance": "❌ Insufficient wallet balance!",
+      "err_network": "Network connection lost!",
+      "err_purchase": "Purchase error",
+      "lbl_default_product": "Product",
     }
   };
 
@@ -64,6 +71,10 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _parentId = await _storage.read(key: 'user_id') ?? "";
 
@@ -132,25 +143,23 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
         body: jsonEncode({
           "user_id": _parentId, 
           "product_id": productId,
-          "target_student_id": targetChildId // Backend TV3 cần nhận ID học sinh để tạo thông báo
+          "target_student_id": targetChildId 
         }),
       ).timeout(const Duration(seconds: 15));
 
-      if (mounted) Navigator.pop(context); // Tắt loading
+      if (mounted) Navigator.pop(context); 
 
       if (response.statusCode == 200) {
-        // Tìm tên bé để thông báo
         final childName = _children.firstWhere((c) => c['id'] == targetChildId)['name'] ?? labels['lbl_be'];
-        
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("🎉 ${labels['msg_success']} **$childName**!"), backgroundColor: Colors.green));
-        _initData(); // Làm mới lại số dư ví và kho
+        _initData(); 
       } else {
         final error = jsonDecode(utf8.decode(response.bodyBytes));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ ${error['detail'] ?? 'Lỗi mua hàng'}"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ ${error['detail'] ?? labels['err_purchase']!}"), backgroundColor: Colors.red));
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mất kết nối mạng!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_network"]!), backgroundColor: Colors.red));
     }
   }
 
@@ -166,8 +175,12 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _initData),
+          // ✅ NÚT CHUYỂN ĐỔI NGÔN NGỮ ĐỒNG BỘ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -202,17 +215,17 @@ class _ParentShopScreenState extends State<ParentShopScreen> {
                             crossAxisCount: 2, 
                             crossAxisSpacing: 12, 
                             mainAxisSpacing: 12, 
-                            childAspectRatio: 0.55 // Tỉ lệ chiều cao nhỉnh hơn để chứa dropdown và nút
+                            childAspectRatio: 0.55 
                           ),
                           itemCount: _products.length,
                           itemBuilder: (context, index) {
                             final product = _products[index];
                             String pId = product['id'] ?? product['_id'];
                             
-                            // Xử lý tên đa ngôn ngữ
-                            String pName = "Sản phẩm";
+                            // Xử lý tên đa ngôn ngữ thông minh
+                            String pName = labels["lbl_default_product"]!;
                             if (product['name'] is Map) {
-                              pName = product['name'][_lang] ?? product['name']['vi'] ?? "Sản phẩm";
+                              pName = product['name'][_lang] ?? product['name']['vi'] ?? labels["lbl_default_product"]!;
                             } else if (product['name'] is String) {
                               pName = product['name'];
                             }

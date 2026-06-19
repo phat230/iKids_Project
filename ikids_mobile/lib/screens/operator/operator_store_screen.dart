@@ -17,7 +17,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   final _storage = const FlutterSecureStorage();
   
   bool _isLoading = true;
-  String _lang = "vi";
+  String _lang = "vi"; // Sẽ được ghi đè bằng cấu hình hệ thống
   String _token = "";
   
   List<dynamic> _products = [];
@@ -32,7 +32,8 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   
   XFile? _pickedImage; 
 
-  final Map<String, Map<String, String>> _labels = {
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
+final Map<String, Map<String, String>> _locales = {
     "vi": {
       "title": "Kho hàng iKids",
       "caption": "Thêm mới, chỉnh sửa hoặc gỡ bỏ sản phẩm.",
@@ -43,13 +44,14 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "input_name": "Tên sản phẩm (*)",
       "input_desc": "Mô tả chi tiết",
       "input_price": "Giá bán (VNĐ)",
-      "input_image": "Hình ảnh sản phẩm (*)", // Đã sửa đổi ngữ cảnh
+      "input_image": "Hình ảnh sản phẩm (*)",
       "btn_pick_image": "Chọn ảnh từ thiết bị", 
       "btn_save": "Lưu cập nhật",
       "btn_add": "Đăng sản phẩm",
       "btn_cancel": "Hủy",
       "msg_success": "Thao tác thành công!",
       "msg_err_empty": "⚠️ Thiếu thông tin bắt buộc hoặc giá không hợp lệ!",
+      "msg_err_server": "Lỗi Server xử lý file!",
       "sub_catalog": "📦 Danh mục hàng hóa",
       "search_placeholder": "Tìm kiếm sản phẩm...",
       "no_products": "Chưa có sản phẩm nào trong kho.",
@@ -73,6 +75,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "btn_cancel": "Cancel",
       "msg_success": "Operation successful!",
       "msg_err_empty": "⚠️ Required fields cannot be empty!",
+      "msg_err_server": "Server error processing file!",
       "sub_catalog": "📦 Inventory Catalog",
       "search_placeholder": "Search rewards...",
       "no_products": "The store database is currently empty.",
@@ -92,6 +95,10 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ HỆ THỐNG
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       if (_token.isEmpty) return;
       await _fetchProducts();
@@ -138,7 +145,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     });
   }
 
-  // ✅ ĐÃ THÊM: Hàm gọi Gallery chọn hình ảnh
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -155,7 +161,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       _nameController.text = _getLocalized(product['name']);
       _descController.text = _getLocalized(product['description']);
       _priceController.text = product['price']?.toString() ?? "0";
-      _pickedImage = null; // Khởi tạo lại file chọn ảnh mới
+      _pickedImage = null; 
     });
   }
 
@@ -169,14 +175,14 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     });
   }
 
-  // ✅ ĐÃ SỬA: Chuyển đổi hàm lưu sang định dạng MultipartRequest để tải file nhị phân
   Future<void> _submitForm() async {
+    final labels = _locales[_lang]!;
     final name = _nameController.text.trim();
     final desc = _descController.text.trim();
     final price = double.tryParse(_priceController.text) ?? 0;
 
     if (name.isEmpty || price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_err_empty"]!), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err_empty"]!), backgroundColor: Colors.red));
       return;
     }
 
@@ -187,13 +193,10 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
           ? Uri.parse('${AppConfig.apiTv3}/products/${_editingProduct!['id']}')
           : Uri.parse('${AppConfig.apiTv3}/products');
 
-      // Khởi tạo Request dạng Form-data thay vì gửi chuỗi JSON thuần
       var request = http.MultipartRequest(_editingProduct != null ? 'PUT' : 'POST', url);
       
-      // Cấu hình Headers bảo mật chứng thực Token
       request.headers['Authorization'] = "Bearer $_token";
 
-      // Đẩy các trường văn bản vào Request Fields
       request.fields['name'] = name;
       request.fields['price'] = price.toString();
       request.fields['description'] = desc;
@@ -204,24 +207,21 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
         request.fields['created_at'] = DateTime.now().toIso8601String();
       }
 
-      // Đính kèm tệp ảnh thật từ thiết bị nếu có chọn ảnh
       if (_pickedImage != null) {
         request.files.add(await http.MultipartFile.fromPath('image', _pickedImage!.path));
       } else if (_editingProduct != null) {
-        // Nếu sửa mà không chọn ảnh mới, giữ nguyên URL ảnh cũ
         request.fields['image_url'] = _editingProduct!['image_url'] ?? "static/anh_laptop.jpg";
       }
 
-      // Thực thi gửi gói tin lên hệ thống Server
       var streamedResponse = await request.send();
       var res = await http.Response.fromStream(streamedResponse);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_success"]!), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
         _cancelEdit();
         await _fetchProducts();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi Server xử lý file!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err_server"]!), backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Lỗi Submit: $e");
@@ -231,6 +231,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   }
 
   Future<void> _deleteProduct(String id) async {
+    final labels = _locales[_lang]!;
     setState(() => _isLoading = true);
     try {
       final res = await http.delete(
@@ -238,7 +239,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_success"]!), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
         await _fetchProducts();
       }
     } catch (e) {
@@ -250,7 +251,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final labels = _labels[_lang]!;
+    final labels = _locales[_lang]!;
 
     int totalProducts = _products.length;
     double maxPrice = 0;
@@ -265,8 +266,12 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
+          // ✅ ĐỒNG BỘ GHI VÀO LƯU TRỮ KHI ĐỔI NGÔN NGỮ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -309,7 +314,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                         TextField(controller: _priceController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["input_price"])),
                         const SizedBox(height: 15),
                         
-                        // ✅ ĐÃ SỬA: Khu vực Chọn và hiển thị ảnh xem trước từ máy (Preview)
                         Text(labels["input_image"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
                         const SizedBox(height: 8),
                         GestureDetector(
@@ -325,7 +329,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                             child: _pickedImage != null
                                 ? ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
-                                    child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover), // Hiện ảnh vừa chọn từ máy
+                                    child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover), 
                                   )
                                 : (_editingProduct != null && _editingProduct!['image_url'] != null)
                                     ? ClipRRect(
@@ -335,7 +339,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                                               ? "${AppConfig.baseUrl}/${_editingProduct!['image_url']}"
                                               : _editingProduct!['image_url'],
                                           fit: BoxFit.cover,
-                                        ), // Hiện ảnh cũ có sẵn từ Server khi Edit
+                                        ), 
                                       )
                                     : Column(
                                         mainAxisAlignment: MainAxisAlignment.center,

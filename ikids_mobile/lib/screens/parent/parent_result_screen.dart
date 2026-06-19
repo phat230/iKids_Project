@@ -32,6 +32,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
 
   int _currentViewIndex = 0;
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Báo Cáo Học Tập",
@@ -55,6 +56,18 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       "ai_title": "🤖 AI Phân Tích & Tư Vấn",
       "lbl_done": "Đã làm",
       "lbl_missing": "Chưa làm",
+      "err_conn": "Lỗi kết nối mạng!",
+      "empty_data": "Không có dữ liệu",
+      "lbl_attend": "Chuyên cần",
+      "lbl_test": "Kiểm tra",
+      "lbl_mid": "Giữa kỳ",
+      "lbl_fin": "Cuối kỳ",
+      "lbl_final": "Tổng Kết Điểm: ",
+      "lbl_course": "Môn học",
+      "ai_excellent": "💡 AI Nhận xét: Xin chúc mừng, bé đang học rất xuất sắc môn ",
+      "ai_excellent_score": " với số điểm tổng kết là ",
+      "ai_weak": "Tuy nhiên, môn ",
+      "ai_weak_score": " của bé đang cần chú ý hơn. Phụ huynh hãy đôn đốc bé ôn luyện thêm nhé!",
     },
     "en": {
       "title": "Learning Analytics",
@@ -78,6 +91,18 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       "ai_title": "🤖 AI Insights",
       "lbl_done": "Completed",
       "lbl_missing": "Pending",
+      "err_conn": "Network connection error!",
+      "empty_data": "No data",
+      "lbl_attend": "Attend",
+      "lbl_test": "Test",
+      "lbl_mid": "Midterm",
+      "lbl_fin": "Final",
+      "lbl_final": "Final Grade: ",
+      "lbl_course": "Subject",
+      "ai_excellent": "💡 AI Feedback: Congratulations, the student is excelling in ",
+      "ai_excellent_score": " with a final grade of ",
+      "ai_weak": "However, their ",
+      "ai_weak_score": " score requires more attention. Please encourage them to practice more!",
     }
   };
 
@@ -92,6 +117,10 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _parentId = await _storage.read(key: 'user_id') ?? "";
 
@@ -114,14 +143,12 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
     }
   }
 
-  // ĐÃ SỬA CHỮA HOÀN TOÀN: Logic quét đa tầng (ID và Email) y hệt như Web
   Future<void> _fetchChildData(String childId) async {
     final headers = {"Authorization": "Bearer $_token", "parent-id": _parentId};
     try {
       final childData = _children.firstWhere((c) => c['id'].toString() == childId, orElse: () => {});
       final childEmail = childData['email'] ?? '';
 
-      // 1. Fetch nhanh các dữ liệu nền
       final resAtt = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/attendance/$childId'), headers: headers);
       final resGrades = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv2/grades/$childId'), headers: headers);
       final resProfileTV3 = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/gamification/profile/$childId'), headers: headers);
@@ -146,7 +173,6 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       Map<String, dynamic> tv3Prof = {};
       if (responses[2].statusCode == 200) tv3Prof = jsonDecode(utf8.decode(responses[2].bodyBytes));
 
-      // 2. KHẮC PHỤC LỖI TẠI ĐÂY: Quét chéo tìm "completed_tasks" qua ID trước, nếu không có mới qua Email
       List<dynamic> compTasks = [];
       List<String> keysToTest = [childId]; 
       if (childEmail.isNotEmpty) keysToTest.add(childEmail);
@@ -159,15 +185,12 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
             final tv2Prof = jsonDecode(utf8.decode(resProfTV2.bodyBytes));
             if (tv2Prof.containsKey('completed_tasks') && (tv2Prof['completed_tasks'] as List).isNotEmpty) {
               compTasks = tv2Prof['completed_tasks'];
-              break; // Dừng quét khi đã tìm thấy dữ liệu đúng
+              break; 
             }
           }
-        } catch(e) {
-          debugPrint("Bỏ qua quét: $key");
-        }
+        } catch(e) {}
       }
       
-      // Nếu TV2 có dữ liệu thì ghi đè vào, không thì giữ nguyên của TV3 (phòng hờ)
       tv3Prof['completed_tasks'] = compTasks.isNotEmpty ? compTasks : (tv3Prof['completed_tasks'] ?? []);
       _gameProfile = tv3Prof;
 
@@ -190,8 +213,12 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
         backgroundColor: Colors.amber[700],
         foregroundColor: Colors.white,
         actions: [
+          // ✅ ĐÃ THÊM: NÚT CHUYỂN ĐỔI VÀ LƯU NGÔN NGỮ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -297,14 +324,13 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
       avgScore = "${(total / _realGrades.length).toStringAsFixed(1)}/10";
     }
 
-    // ĐÃ KHẮC PHỤC LOGIC ĐẾM: Xử lý fallback ID bài tập
     List<dynamic> compTasks = _gameProfile['completed_tasks'] ?? [];
     int totalQuizCount = _totalQuizzes.length;
     int doneQuizCount = _totalQuizzes.where((q) {
       String qId = q['id']?.toString() ?? q['_id']?.toString() ?? '';
       if (qId.isEmpty) {
         int idx = _totalQuizzes.indexOf(q);
-        qId = "quiz_backup_id_$idx"; // Khớp y hệt fallback của Streamlit Web
+        qId = "quiz_backup_id_$idx"; 
       }
       return compTasks.contains(qId);
     }).length;
@@ -465,7 +491,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
             height: 220,
             padding: const EdgeInsets.only(right: 20, left: 10, top: 20, bottom: 10),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 5)]),
-            child: _buildLineChartData(),
+            child: _buildLineChartData(labels),
           ),
           const SizedBox(height: 25),
         ],
@@ -517,9 +543,9 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
     );
   }
 
-  Widget _buildLineChartData() {
+  Widget _buildLineChartData(Map<String, String> labels) {
     final subData = _realGrades.firstWhere((g) => g['subject'] == _selectedSubjectChart, orElse: () => {});
-    if (subData.isEmpty) return const Center(child: Text("Không có dữ liệu"));
+    if (subData.isEmpty) return Center(child: Text(labels["empty_data"]!));
 
     List<FlSpot> spots = [
       FlSpot(0, (subData['kt_1'] ?? 0).toDouble()),
@@ -587,7 +613,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
             children: [
               const Icon(Icons.thumb_up, color: Colors.green),
               const SizedBox(width: 10),
-              Expanded(child: Text(_lang == "vi" ? "🎯 Ưu điểm: Bé học tốt nhất môn ${bestSub['subject']} (${bestSub['tong_ket']}/10)." : "🎯 Strength: Excelling in ${bestSub['subject']} (${bestSub['tong_ket']}/10).")),
+              Expanded(child: Text("${labels['ai_excellent']} ${bestSub['subject']} ${labels['ai_excellent_score']} ${bestSub['tong_ket']}/10. 🎉")),
             ],
           )
         ),
@@ -600,7 +626,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
               children: [
                 const Icon(Icons.warning_amber_rounded, color: Colors.orange),
                 const SizedBox(width: 10),
-                Expanded(child: Text(_lang == "vi" ? "⚠️ Cần chú ý: Môn ${weakSub['subject']} đang thấp nhất (${weakSub['tong_ket']}/10). Phụ huynh đôn đốc bé làm bài tập trên Trạm Quiz AI nhé!" : "⚠️ Area for Growth: ${weakSub['subject']} is currently ${weakSub['tong_ket']}/10. Encourage practicing quizzes!")),
+                Expanded(child: Text("${labels['ai_weak']} ${weakSub['subject']} ${labels['ai_weak_score']}")),
               ],
             )
           )
@@ -661,7 +687,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(child: Text(grade['subject'] ?? 'Môn học', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                            Expanded(child: Text(grade['subject'] ?? labels['lbl_course']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(color: rankColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
@@ -673,10 +699,10 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildScoreCol(_lang == "vi" ? "Chuyên cần" : "Attend", grade['chuyen_can']),
-                            _buildScoreCol(_lang == "vi" ? "Kiểm tra" : "Test", grade['tb_kiem_tra']),
-                            _buildScoreCol(_lang == "vi" ? "Giữa kỳ" : "Midterm", grade['giua_ky']),
-                            _buildScoreCol(_lang == "vi" ? "Cuối kỳ" : "Final", grade['cuoi_ky']),
+                            _buildScoreCol(labels["lbl_attend"]!, grade['chuyen_can']),
+                            _buildScoreCol(labels["lbl_test"]!, grade['tb_kiem_tra']),
+                            _buildScoreCol(labels["lbl_mid"]!, grade['giua_ky']),
+                            _buildScoreCol(labels["lbl_fin"]!, grade['cuoi_ky']),
                           ],
                         ),
                         const SizedBox(height: 15),
@@ -687,7 +713,7 @@ class _ParentResultScreenState extends State<ParentResultScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(_lang == "vi" ? "Tổng Kết Điểm: " : "Final Grade: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Text(labels["lbl_final"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                               Text("${grade['tong_ket'] ?? '0.0'}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.amber[900])),
                             ],
                           ),

@@ -15,8 +15,9 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   final _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   String _token = "";
+  String _lang = "vi"; // Ngôn ngữ mặc định
   
-  // ✅ ĐÃ SỬA: Đường dẫn chuẩn xác theo Backend FastAPI
+  // Đường dẫn chuẩn xác theo Backend FastAPI
   String get _apiBase => '${AppConfig.apiTv1}/staff'; 
 
   List<dynamic> _allStaff = [];
@@ -39,12 +40,86 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   final _pPwdCtrl = TextEditingController();
   final _pPhoneCtrl = TextEditingController();
 
-  final Map<String, String> _roleMap = {
-    "Giáo viên (Teacher)": "teacher",
-    "Vận hành (Operator)": "operator",
-    "Quản trị viên (Admin)": "admin",
-    "Phụ huynh (Parent)": "parent",
-    "Học sinh (Student)": "student"
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "title": "Hệ Thống Nhân Sự",
+      "btn_add_account": "Cấp Tài Khoản",
+      "search_hint": "Tìm kiếm...",
+      "empty_list": "Không có tài khoản nào.",
+      "status_active": "Hoạt động",
+      "status_locked": "Bị khóa",
+      "create_title": "Cấp Tài Khoản Mới",
+      "lbl_name": "Họ và tên (*)",
+      "lbl_role": "Vai trò hệ thống (*)",
+      "lbl_parent_link": "🔗 Bảo lãnh Phụ Huynh",
+      "opt_existing_parent": "Đã có tài khoản",
+      "opt_new_parent": "Phụ huynh mới",
+      "lbl_select_parent": "Chọn Phụ huynh",
+      "lbl_parent_name": "Tên Phụ huynh (*)",
+      "lbl_parent_email": "Email Phụ huynh (*)",
+      "lbl_password": "Mật khẩu (*)",
+      "lbl_email_login": "Email Đăng nhập (*)",
+      "lbl_temp_password": "Mật khẩu tạm thời (*)",
+      "lbl_phone": "Số điện thoại",
+      "btn_create": "TẠO TÀI KHOẢN",
+      "edit_title": "Sửa Thông Tin",
+      "lbl_name_short": "Tên",
+      "lbl_phone_short": "Điện thoại",
+      "lbl_status": "Trạng thái",
+      "btn_cancel": "Hủy",
+      "btn_save": "Lưu",
+      "msg_err_empty": "Vui lòng điền đủ thông tin (*)",
+      "msg_err_parent_info": "Thiếu thông tin phụ huynh mới",
+      "msg_err_parent_create": "Lỗi tạo phụ huynh",
+      "msg_err_parent_req": "Học sinh bắt buộc phải có Phụ huynh liên kết",
+      "msg_success_create": "Tạo tài khoản thành công!",
+      "msg_err_server": "Lỗi máy chủ:",
+      "msg_err_general": "Có lỗi xảy ra",
+    },
+    "en": {
+      "title": "Staff Management",
+      "btn_add_account": "New Account",
+      "search_hint": "Search...",
+      "empty_list": "No accounts found.",
+      "status_active": "Active",
+      "status_locked": "Locked",
+      "create_title": "Provision New Account",
+      "lbl_name": "Full Name (*)",
+      "lbl_role": "System Role (*)",
+      "lbl_parent_link": "🔗 Link Parent",
+      "opt_existing_parent": "Existing Parent",
+      "opt_new_parent": "New Parent",
+      "lbl_select_parent": "Select Parent",
+      "lbl_parent_name": "Parent Name (*)",
+      "lbl_parent_email": "Parent Email (*)",
+      "lbl_password": "Password (*)",
+      "lbl_email_login": "Login Email (*)",
+      "lbl_temp_password": "Temporary Password (*)",
+      "lbl_phone": "Phone Number",
+      "btn_create": "CREATE ACCOUNT",
+      "edit_title": "Edit Information",
+      "lbl_name_short": "Name",
+      "lbl_phone_short": "Phone",
+      "lbl_status": "Status",
+      "btn_cancel": "Cancel",
+      "btn_save": "Save",
+      "msg_err_empty": "Please fill in all required fields (*)",
+      "msg_err_parent_info": "Missing new parent information",
+      "msg_err_parent_create": "Error creating parent",
+      "msg_err_parent_req": "Student must have a linked Parent",
+      "msg_success_create": "Account created successfully!",
+      "msg_err_server": "Server error:",
+      "msg_err_general": "An error occurred",
+    }
+  };
+
+  Map<String, String> get _roleMap => {
+    _lang == 'vi' ? "Giáo viên (Teacher)" : "Teacher": "teacher",
+    _lang == 'vi' ? "Vận hành (Operator)" : "Operator": "operator",
+    _lang == 'vi' ? "Quản trị viên (Admin)" : "Admin": "admin",
+    _lang == 'vi' ? "Phụ huynh (Parent)" : "Parent": "parent",
+    _lang == 'vi' ? "Học sinh (Student)" : "Student": "student"
   };
 
   @override
@@ -56,6 +131,10 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   Future<void> _initData() async {
     setState(() => _isLoading = true);
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       await _fetchStaff();
     } catch (e) {
@@ -99,13 +178,14 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
 
   // --- API ACTIONS ---
   Future<void> _provisionAccount() async {
+    final labels = _locales[_lang]!;
     final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim().toLowerCase();
     final pwd = _pwdCtrl.text;
     final phone = _phoneCtrl.text.trim();
 
     if (name.isEmpty || email.isEmpty || pwd.isEmpty) {
-      _showSnackbar("Vui lòng điền đủ thông tin (*)", Colors.orange);
+      _showSnackbar(labels["msg_err_empty"]!, Colors.orange);
       return;
     }
 
@@ -119,7 +199,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
         final pEmail = _pEmailCtrl.text.trim().toLowerCase();
         
         if (pName.isEmpty || pEmail.isEmpty || _pPwdCtrl.text.isEmpty) {
-          _showSnackbar("Thiếu thông tin phụ huynh mới", Colors.orange);
+          _showSnackbar(labels["msg_err_parent_info"]!, Colors.orange);
           setState(() => _isLoading = false);
           return;
         }
@@ -137,14 +217,14 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
           final freshParent = _allStaff.firstWhere((p) => p['email'] == pEmail, orElse: () => null);
           if (freshParent != null) finalParentId = freshParent['id']?.toString() ?? freshParent['_id']?.toString();
         } else {
-          _showSnackbar("Lỗi tạo phụ huynh", Colors.red);
+          _showSnackbar(labels["msg_err_parent_create"]!, Colors.red);
           setState(() => _isLoading = false);
           return;
         }
       }
 
       if (_selectedRole == "student" && finalParentId == null) {
-        _showSnackbar("Học sinh bắt buộc phải có Phụ huynh liên kết", Colors.red);
+        _showSnackbar(labels["msg_err_parent_req"]!, Colors.red);
         setState(() => _isLoading = false);
         return;
       }
@@ -162,21 +242,22 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
       );
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        _showSnackbar("Tạo tài khoản thành công!", Colors.green);
+        _showSnackbar(labels["msg_success_create"]!, Colors.green);
         _clearFormFields();
         Navigator.pop(context);
         await _fetchStaff();
       } else {
-        _showSnackbar("Lỗi máy chủ: ${res.body}", Colors.red);
+        _showSnackbar("${labels['msg_err_server']} ${res.body}", Colors.red);
       }
     } catch (e) {
-      _showSnackbar("Có lỗi xảy ra", Colors.red);
+      _showSnackbar(labels["msg_err_general"]!, Colors.red);
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   void _openCreateDialog() {
+    final labels = _locales[_lang]!;
     _clearFormFields();
     _selectedRole = "teacher";
     _linkMode = "existing";
@@ -202,15 +283,15 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Cấp Tài Khoản Mới", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                    Text(labels["create_title"]!, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.redAccent)),
                     const SizedBox(height: 15),
                     
-                    TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: "Họ và tên (*)", border: OutlineInputBorder())),
+                    TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: labels["lbl_name"], border: const OutlineInputBorder())),
                     const SizedBox(height: 10),
                     
                     DropdownButtonFormField<String>(
                       value: _selectedRole,
-                      decoration: const InputDecoration(labelText: "Vai trò hệ thống (*)", border: OutlineInputBorder()),
+                      decoration: InputDecoration(labelText: labels["lbl_role"], border: const OutlineInputBorder()),
                       items: _roleMap.entries.map((e) => DropdownMenuItem(value: e.value, child: Text(e.key))).toList(),
                       onChanged: (v) {
                         setModalState(() {
@@ -228,19 +309,19 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("🔗 Bảo lãnh Phụ Huynh", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                            Text(labels["lbl_parent_link"]!, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
                             Row(
                               children: [
                                 Radio<String>(value: "existing", groupValue: _linkMode, onChanged: (v) => setModalState(() => _linkMode = v ?? "existing")),
-                                const Text("Đã có tài khoản"),
+                                Text(labels["opt_existing_parent"]!),
                                 const SizedBox(width: 10),
                                 Radio<String>(value: "new", groupValue: _linkMode, onChanged: (v) => setModalState(() => _linkMode = v ?? "new")),
-                                const Text("Phụ huynh mới"),
+                                Text(labels["opt_new_parent"]!),
                               ],
                             ),
                             if (_linkMode == "existing") ...[
                               DropdownButtonFormField<String>(
-                                decoration: const InputDecoration(labelText: "Chọn Phụ huynh", filled: true, fillColor: Colors.white),
+                                decoration: InputDecoration(labelText: labels["lbl_select_parent"], filled: true, fillColor: Colors.white),
                                 value: _selectedParentId,
                                 items: availableParents.map((p) {
                                   return DropdownMenuItem(value: (p['id']?.toString() ?? p['_id']?.toString() ?? ''), child: Text("${p['name'] ?? p['full_name']}"));
@@ -248,11 +329,11 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                 onChanged: (v) => setModalState(() => _selectedParentId = v),
                               )
                             ] else ...[
-                              TextField(controller: _pNameCtrl, decoration: const InputDecoration(labelText: "Tên Phụ huynh (*)", filled: true, fillColor: Colors.white)),
+                              TextField(controller: _pNameCtrl, decoration: InputDecoration(labelText: labels["lbl_parent_name"], filled: true, fillColor: Colors.white)),
                               const SizedBox(height: 5),
-                              TextField(controller: _pEmailCtrl, decoration: const InputDecoration(labelText: "Email Phụ huynh (*)", filled: true, fillColor: Colors.white)),
+                              TextField(controller: _pEmailCtrl, decoration: InputDecoration(labelText: labels["lbl_parent_email"], filled: true, fillColor: Colors.white)),
                               const SizedBox(height: 5),
-                              TextField(controller: _pPwdCtrl, obscureText: true, decoration: const InputDecoration(labelText: "Mật khẩu (*)", filled: true, fillColor: Colors.white)),
+                              TextField(controller: _pPwdCtrl, obscureText: true, decoration: InputDecoration(labelText: labels["lbl_password"], filled: true, fillColor: Colors.white)),
                             ]
                           ],
                         ),
@@ -260,11 +341,11 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                       const SizedBox(height: 10),
                     ],
 
-                    TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: "Email Đăng nhập (*)", border: OutlineInputBorder())),
+                    TextField(controller: _emailCtrl, decoration: InputDecoration(labelText: labels["lbl_email_login"], border: const OutlineInputBorder())),
                     const SizedBox(height: 10),
-                    TextField(controller: _pwdCtrl, obscureText: true, decoration: const InputDecoration(labelText: "Mật khẩu tạm thời (*)", border: OutlineInputBorder())),
+                    TextField(controller: _pwdCtrl, obscureText: true, decoration: InputDecoration(labelText: labels["lbl_temp_password"], border: const OutlineInputBorder())),
                     const SizedBox(height: 10),
-                    TextField(controller: _phoneCtrl, decoration: const InputDecoration(labelText: "Số điện thoại", border: OutlineInputBorder())),
+                    TextField(controller: _phoneCtrl, decoration: InputDecoration(labelText: labels["lbl_phone"], border: const OutlineInputBorder())),
                     
                     const SizedBox(height: 20),
                     SizedBox(
@@ -275,7 +356,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                           setState(() {});
                           _provisionAccount();
                         },
-                        child: const Text("TẠO TÀI KHOẢN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        child: Text(labels["btn_create"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -290,6 +371,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   }
 
   void _openEditDialog(Map<String, dynamic> user) {
+    final labels = _locales[_lang]!;
     final nameCtrl = TextEditingController(text: user['name'] ?? user['full_name'] ?? '');
     final phoneCtrl = TextEditingController(text: user['phone'] ?? user['phone_number'] ?? '');
     String status = user['status'] ?? 'Đang làm việc';
@@ -297,12 +379,12 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Sửa Thông Tin"),
+        title: Text(labels["edit_title"]!),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Tên")),
-            TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Điện thoại")),
+            TextField(controller: nameCtrl, decoration: InputDecoration(labelText: labels["lbl_name_short"])),
+            TextField(controller: phoneCtrl, decoration: InputDecoration(labelText: labels["lbl_phone_short"])),
             DropdownButtonFormField<String>(
               value: status,
               items: ["Đang làm việc", "Nghỉ phép", "Vô hiệu hóa", "Nghỉ việc"].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
@@ -311,7 +393,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(labels["btn_cancel"]!)),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
@@ -322,7 +404,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
               );
               _initData();
             },
-            child: const Text("Lưu"),
+            child: Text(labels["btn_save"]!),
           )
         ],
       ),
@@ -331,18 +413,30 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
 
   @override
   Widget build(BuildContext context) {
+    final labels = _locales[_lang]!;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Hệ Thống Nhân Sự", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.redAccent,
         foregroundColor: Colors.white,
+        actions: [
+          // ✅ NÚT CHUYỂN ĐỔI NGÔN NGỮ VÀ GHI NHỚ
+          TextButton(
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
+            child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.redAccent,
         onPressed: _openCreateDialog,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text("Cấp Tài Khoản", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        label: Text(labels["btn_add_account"]!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
@@ -359,7 +453,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                           controller: _searchCtrl,
                           onChanged: (v) => _applyFilters(),
                           decoration: InputDecoration(
-                            hintText: "Tìm kiếm...",
+                            hintText: labels["search_hint"],
                             prefixIcon: const Icon(Icons.search),
                             contentPadding: const EdgeInsets.symmetric(vertical: 0),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -389,7 +483,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                 ),
                 Expanded(
                   child: _filteredStaff.isEmpty
-                      ? const Center(child: Text("Không có tài khoản nào.", style: TextStyle(color: Colors.grey)))
+                      ? Center(child: Text(labels["empty_list"]!, style: const TextStyle(color: Colors.grey)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(15),
                           itemCount: _filteredStaff.length,
@@ -421,7 +515,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                         const SizedBox(width: 10),
                                         Icon(Icons.circle, size: 10, color: isActive ? Colors.green : Colors.red),
                                         const SizedBox(width: 5),
-                                        Text(isActive ? "Hoạt động" : "Bị khóa", style: TextStyle(fontSize: 10, color: isActive ? Colors.green : Colors.red)),
+                                        Text(isActive ? labels["status_active"]! : labels["status_locked"]!, style: TextStyle(fontSize: 10, color: isActive ? Colors.green : Colors.red)),
                                       ],
                                     )
                                   ],

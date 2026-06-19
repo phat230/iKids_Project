@@ -16,13 +16,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _storage = const FlutterSecureStorage();
   int _selectedIndex = 0;
   bool _isLoading = true;
-  String _lang = "vi";
+  String _lang = "vi"; // Mặc định, sẽ bị ghi đè bởi cấu hình hệ thống
   String _token = "";
 
   List<dynamic> _pendingRequests = [];
   List<dynamic> _historyRequests = [];
   List<dynamic> _depositIssues = [];
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Bảng Điều Khiển Quản Trị",
@@ -42,7 +43,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       "msg_error": "Có lỗi xảy ra, thử lại sau.",
       "lbl_reason": "Lý do",
       "lbl_detail": "Chi tiết",
-      "lbl_logout": "Đăng xuất tài khoản"
+      "lbl_logout": "Đăng xuất tài khoản",
+      "sys_management": "QUẢN TRỊ HỆ THỐNG",
+      "sys_staff": "Quản lý Nhân sự & Phân quyền",
+      "sys_tools": "CÔNG CỤ VẬN HÀNH",
+      "sys_class": "Quản lý Lớp học",
+      "sys_schedule": "Xếp lịch học",
+      "sys_finance": "Quản lý Tài chính & Giao dịch",
+      "sys_store": "Quản lý Cửa hàng iKids",
+      "tab_home": "Dashboard",
+      "tab_noti": "Thông báo",
+      "tab_sys": "Chức năng",
     },
     "en": {
       "title": "Admin Dashboard",
@@ -62,7 +73,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
       "msg_error": "Error occurred, try again.",
       "lbl_reason": "Reason",
       "lbl_detail": "Details",
-      "lbl_logout": "Logout Account"
+      "lbl_logout": "Logout Account",
+      "sys_management": "SYSTEM MANAGEMENT",
+      "sys_staff": "Staff & Role Management",
+      "sys_tools": "OPERATIONAL TOOLS",
+      "sys_class": "Class Management",
+      "sys_schedule": "Scheduling",
+      "sys_finance": "Finance & Transactions",
+      "sys_store": "iKids Store Management",
+      "tab_home": "Dashboard",
+      "tab_noti": "Inbox",
+      "tab_sys": "Settings",
     }
   };
 
@@ -75,10 +96,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _fetchDashboardData() async {
     setState(() => _isLoading = true);
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       final headers = {"Authorization": "Bearer $_token"};
 
-      // ✅ ĐÃ SỬA: Chuyển hướng chuẩn xác sang apiTv1 và apiTv3
       final resPending = http.get(Uri.parse('${AppConfig.apiTv1}/pending-requests'), headers: headers);
       final resHistory = http.get(Uri.parse('${AppConfig.apiTv1}/request-history'), headers: headers);
       final resDeposit = http.get(Uri.parse('${AppConfig.apiTv3}/admin/deposit-issues'), headers: headers);
@@ -99,7 +123,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _handleTV1Request(String reqId, String action) async {
     try {
-      // ✅ ĐÃ SỬA: Gửi lệnh duyệt/từ chối vào đúng TV1
       final res = await http.post(
         Uri.parse('${AppConfig.apiTv1}/requests/$action/$reqId'),
         headers: {"Authorization": "Bearer $_token"}
@@ -117,7 +140,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _resolveDeposit(String issueId) async {
     try {
-      // ✅ ĐÃ SỬA: URL của TV3
       final res = await http.post(
         Uri.parse('${AppConfig.apiTv3}/admin/resolve-deposit/$issueId'),
         headers: {"Authorization": "Bearer $_token"}
@@ -284,17 +306,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text("QUẢN TRỊ HỆ THỐNG", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+        Text(labels["sys_management"]!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.redAccent)),
         const SizedBox(height: 10),
-        _buildMenuCard("Quản lý Nhân sự & Phân quyền", Icons.admin_panel_settings, Colors.redAccent, () => Navigator.pushNamed(context, '/admin-staff')),
+        _buildMenuCard(labels["sys_staff"]!, Icons.admin_panel_settings, Colors.redAccent, () => Navigator.pushNamed(context, '/admin-staff')),
         
         const SizedBox(height: 25),
-        const Text("CÔNG CỤ VẬN HÀNH ", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+        Text(labels["sys_tools"]!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
         const SizedBox(height: 10),
-        _buildMenuCard("Quản lý Lớp học", Icons.class_, Colors.indigo, () => Navigator.pushNamed(context, '/operator-class')),
-        _buildMenuCard("Xếp lịch học", Icons.calendar_month, Colors.purple, () => Navigator.pushNamed(context, '/operator-schedule')),
-        _buildMenuCard("Quản lý Tài chính & Giao dịch", Icons.account_balance_wallet, Colors.orange, () => Navigator.pushNamed(context, '/operator-finance')),
-        _buildMenuCard("Quản lý Cửa hàng iKids", Icons.store, Colors.green, () => Navigator.pushNamed(context, '/operator-store')),
+        _buildMenuCard(labels["sys_class"]!, Icons.class_, Colors.indigo, () => Navigator.pushNamed(context, '/operator-class')),
+        _buildMenuCard(labels["sys_schedule"]!, Icons.calendar_month, Colors.purple, () => Navigator.pushNamed(context, '/operator-schedule')),
+        _buildMenuCard(labels["sys_finance"]!, Icons.account_balance_wallet, Colors.orange, () => Navigator.pushNamed(context, '/operator-finance')),
+        _buildMenuCard(labels["sys_store"]!, Icons.store, Colors.green, () => Navigator.pushNamed(context, '/operator-store')),
         
         const SizedBox(height: 40),
         ElevatedButton.icon(
@@ -338,8 +360,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: Colors.redAccent, 
         foregroundColor: Colors.white,
         actions: [
+          // ✅ LƯU NGÔN NGỮ KHI CHUYỂN
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -349,10 +375,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.redAccent,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Chức năng"),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.dashboard), label: labels["tab_home"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: labels["tab_noti"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.settings), label: labels["tab_sys"]),
         ],
       ),
     );

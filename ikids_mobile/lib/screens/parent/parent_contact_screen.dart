@@ -36,7 +36,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
 
   final Map<String, Map<String, String>> _labels = {
     "vi": {
-      "title": "📩 Liên Hệ & Xin Nghỉ Phép",
+      "title": "📩 Liên Hệ & Xin Nghỉ",
       "tab_new": "📝 Gửi Yêu Cầu",
       "tab_history": "📋 Lịch Sử",
       "lbl_type": "Loại yêu cầu:",
@@ -59,7 +59,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
       "status_rejected": "Từ chối"
     },
     "en": {
-      "title": "📩 Contact & Leave",
+      "title": "📩 Contact & Request",
       "tab_new": "📝 New Request",
       "tab_history": "📋 History",
       "lbl_type": "Request Type:",
@@ -86,6 +86,13 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
   @override
   void initState() {
     super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) setState(() => _lang = savedLang);
     _loadHistory();
   }
 
@@ -122,8 +129,9 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
 
   // Hàm gửi form
   Future<void> _submitForm() async {
+    final labels = _labels[_lang]!;
     if (_contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["err_empty"]!), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_empty"]!), backgroundColor: Colors.red));
       return;
     }
 
@@ -147,7 +155,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
       if (mounted) Navigator.pop(context);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["success_msg"]!), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["success_msg"]!), backgroundColor: Colors.green));
         _contentController.clear();
         _loadHistory();
       }
@@ -170,8 +178,12 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
           backgroundColor: Colors.redAccent,
           foregroundColor: Colors.white,
           actions: [
+            // ✅ NÚT ĐỔI NGÔN NGỮ ĐỒNG BỘ
             TextButton(
-              onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+              onPressed: () async {
+                setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                await _storage.write(key: 'app_lang', value: _lang);
+              },
               child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             )
           ],

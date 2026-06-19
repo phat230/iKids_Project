@@ -16,7 +16,7 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
   final _storage = const FlutterSecureStorage();
   
   bool _isLoading = true;
-  String _lang = "vi";
+  String _lang = "vi"; // Ngôn ngữ mặc định
   String _userId = "";
   String _token = "";
   double _balance = 0.0;
@@ -29,6 +29,7 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
   double _currentAmount = 50000;
   String _memo = "";
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "💳 Nạp Tiền & Quản Lý Ví",
@@ -48,7 +49,8 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
       "placeholder_desc": "VD: Đã chuyển khoản 15 phút trước nhưng chưa nhận được...",
       "btn_submit_report": "💥 Gửi Yêu Cầu Hỗ Trợ",
       "success_report": "✅ Đã gửi yêu cầu thành công!",
-      "err_empty_desc": "⚠️ Vui lòng nhập mô tả sự cố."
+      "err_empty_desc": "⚠️ Vui lòng nhập mô tả sự cố.",
+      "err_conn": "⚠️ Lỗi kết nối mạng!"
     },
     "en": {
       "title": "💳 Wallet Top-up",
@@ -68,7 +70,8 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
       "placeholder_desc": "e.g., Transferred 15 mins ago but no update...",
       "btn_submit_report": "💥 Submit Support Ticket",
       "success_report": "✅ Ticket submitted successfully!",
-      "err_empty_desc": "⚠️ Issue description cannot be empty."
+      "err_empty_desc": "⚠️ Issue description cannot be empty.",
+      "err_conn": "⚠️ Network connection error!"
     }
   };
 
@@ -83,6 +86,10 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _userId = await _storage.read(key: 'user_id') ?? "";
 
@@ -116,8 +123,9 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
 
   // Hàm gửi báo cáo sự cố (Gọi chung API Contact của module TV3)
   Future<void> _submitIssueReport() async {
+    final labels = _labels[_lang]!;
     if (_issueDescController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!['err_empty_desc']!), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels['err_empty_desc']!), backgroundColor: Colors.red));
       return;
     }
 
@@ -141,13 +149,13 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
       if (mounted) Navigator.pop(context);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["success_report"]!), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["success_report"]!), backgroundColor: Colors.green));
         _issueDescController.clear();
         _issueAmountController.clear();
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_conn"]!), backgroundColor: Colors.red));
     }
   }
 
@@ -165,8 +173,12 @@ class _ParentDepositScreenState extends State<ParentDepositScreen> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
+          // ✅ ĐÃ THÊM: NÚT CHUYỂN ĐỔI NGÔN NGỮ ĐỒNG BỘ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],

@@ -31,7 +31,7 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
   final _passController = TextEditingController();
   DateTime _selectedDate = DateTime(2018, 1, 1);
 
-  // Bộ từ điển (Rút gọn cho Mobile)
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Quản Lý Con Em",
@@ -53,7 +53,18 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
       "lbl_create_acc": "Tạo tài khoản cho bé",
       "btn_create": "Tạo & Liên kết",
       "success_created": "Tạo tài khoản thành công!",
-      "no_history": "Chưa có lịch sử giao dịch."
+      "err_create": "Lỗi tạo tài khoản!",
+      "no_history": "Chưa có lịch sử giao dịch.",
+      "dlg_cancel": "Hủy",
+      "dlg_confirm": "Xác nhận",
+      "dlg_send_title": "Gửi tiền cho con",
+      "dlg_withdraw_title": "Rút tiền từ con",
+      "dlg_amount": "Số tiền (VNĐ)",
+      "lbl_name": "Họ và tên bé (*)",
+      "lbl_email": "Email đăng nhập (*)",
+      "lbl_pass": "Mật khẩu (*)",
+      "lbl_dob": "Ngày sinh:",
+      "err_network": "Lỗi mạng, vui lòng thử lại.",
     },
     "en": {
       "title": "Manage Children",
@@ -75,7 +86,18 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
       "lbl_create_acc": "Create Child Account",
       "btn_create": "Create & Link",
       "success_created": "Account created successfully!",
-      "no_history": "No transaction history."
+      "err_create": "Account creation failed!",
+      "no_history": "No transaction history.",
+      "dlg_cancel": "Cancel",
+      "dlg_confirm": "Confirm",
+      "dlg_send_title": "Send money to child",
+      "dlg_withdraw_title": "Withdraw from child",
+      "dlg_amount": "Amount (VND)",
+      "lbl_name": "Child's Full Name (*)",
+      "lbl_email": "Login Email (*)",
+      "lbl_pass": "Password (*)",
+      "lbl_dob": "Date of Birth:",
+      "err_network": "Network error, please try again.",
     }
   };
 
@@ -90,13 +112,16 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _parentId = await _storage.read(key: 'user_id') ?? "";
 
       if (_token.isEmpty || _parentId.isEmpty) return;
       final headers = {"Authorization": "Bearer $_token", "parent-id": _parentId};
 
-      // Gọi đồng loạt 4 API
       final responses = await Future.wait([
         http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/gamification/profile/$_parentId'), headers: headers),
         http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/parent/my-children'), headers: headers),
@@ -119,18 +144,23 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     }
   }
 
-  // --- API Gửi / Rút tiền ---
-  Future<void> _handleMoney(String endpoint, String childId, String title) async {
+  Future<void> _handleMoney(String endpoint, String childId, String titleKey) async {
+    final labels = _labels[_lang]!;
     final amtCtrl = TextEditingController();
     
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(controller: amtCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Số tiền (VNĐ)", border: OutlineInputBorder())),
+        title: Text(labels[titleKey]!),
+        content: TextField(
+          controller: amtCtrl, 
+          keyboardType: TextInputType.number, 
+          decoration: InputDecoration(labelText: labels["dlg_amount"], border: const OutlineInputBorder())
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(labels["dlg_cancel"]!)),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
             onPressed: () async {
               double amount = double.tryParse(amtCtrl.text) ?? 0;
               if (amount <= 0) return;
@@ -144,19 +174,19 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
                   body: jsonEncode({"child_id": childId, "amount": amount})
                 );
                 Navigator.pop(context);
-                if (res.statusCode == 200) _initData(); // Cập nhật lại list
+                if (res.statusCode == 200) _initData(); 
               } catch (e) {
                 Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_network"]!), backgroundColor: Colors.red));
               }
             },
-            child: const Text("Xác nhận"),
+            child: Text(labels["dlg_confirm"]!),
           )
         ],
       )
     );
   }
 
-  // --- API Duyệt yêu cầu ---
   Future<void> _handleApproval(String reqId, String action) async {
     try {
       final res = await http.post(
@@ -170,8 +200,8 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     }
   }
 
-  // --- API Tạo tài khoản con ---
   Future<void> _createChild() async {
+    final labels = _labels[_lang]!;
     if (_nameController.text.isEmpty || _emailController.text.isEmpty || _passController.text.isEmpty) return;
     showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
     
@@ -193,13 +223,14 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
       Navigator.pop(context);
       if (res.statusCode == 200) {
         _nameController.clear(); _emailController.clear(); _passController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["success_created"]!), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["success_created"]!), backgroundColor: Colors.green));
         _initData();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi tạo tài khoản!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_create"]!), backgroundColor: Colors.red));
       }
     } catch (e) {
       Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_network"]!), backgroundColor: Colors.red));
     }
   }
 
@@ -216,7 +247,14 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
           actions: [
-            TextButton(onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"), child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white)))
+            // ✅ ĐÃ THÊM: NÚT CHUYỂN ĐỔI VÀ LƯU NGÔN NGỮ
+            TextButton(
+              onPressed: () async {
+                setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                await _storage.write(key: 'app_lang', value: _lang);
+              }, 
+              child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+            )
           ],
           bottom: TabBar(
             isScrollable: true,
@@ -246,11 +284,9 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     );
   }
 
-  // ================= TAB 1: DANH SÁCH & VÍ TIỀN =================
   Widget _buildListTab(Map<String, String> labels) {
     return Column(
       children: [
-        // Banner Số dư
         Container(
           padding: const EdgeInsets.all(15),
           color: Colors.indigo[50],
@@ -262,7 +298,7 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
                 icon: const Icon(Icons.add, size: 16),
                 label: Text(labels["btn_deposit"]!),
-                onPressed: () => Navigator.pop(context), // Đóng màn hình này để phụ huynh tự ấn vào mục Học Phí ở ngoài
+                onPressed: () => Navigator.pop(context), 
               )
             ],
           ),
@@ -286,9 +322,9 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
                       children: [
                         Row(
                           children: [
-                            Expanded(child: OutlinedButton(onPressed: () => _handleMoney("withdraw-from-child", cId, "Rút tiền từ con"), child: Text(labels["btn_withdraw"]!))),
+                            Expanded(child: OutlinedButton(onPressed: () => _handleMoney("withdraw-from-child", cId, "dlg_withdraw_title"), child: Text(labels["btn_withdraw"]!))),
                             const SizedBox(width: 10),
-                            Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), onPressed: () => _handleMoney("transfer-to-child", cId, "Gửi tiền cho con"), child: Text(labels["btn_send"]!))),
+                            Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), onPressed: () => _handleMoney("transfer-to-child", cId, "dlg_send_title"), child: Text(labels["btn_send"]!))),
                           ],
                         )
                       ],
@@ -301,7 +337,6 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     );
   }
 
-  // ================= TAB 2: PHÊ DUYỆT MUA SẮM =================
   Widget _buildApproveTab(Map<String, String> labels) {
     if (_purchaseRequests.isEmpty) return Center(child: Text(labels["no_requests"]!));
 
@@ -337,7 +372,6 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     );
   }
 
-  // ================= TAB 3: TẠO TÀI KHOẢN CON =================
   Widget _buildAddChildTab(Map<String, String> labels) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -350,11 +384,11 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
             children: [
               Text(labels["lbl_create_acc"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 20),
-              TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Họ và tên bé (*)", border: OutlineInputBorder())),
+              TextField(controller: _nameController, decoration: InputDecoration(labelText: labels["lbl_name"], border: const OutlineInputBorder())),
               const SizedBox(height: 15),
-              TextField(controller: _emailController, decoration: const InputDecoration(labelText: "Email đăng nhập (*)", border: OutlineInputBorder())),
+              TextField(controller: _emailController, decoration: InputDecoration(labelText: labels["lbl_email"], border: const OutlineInputBorder())),
               const SizedBox(height: 15),
-              TextField(controller: _passController, obscureText: true, decoration: const InputDecoration(labelText: "Mật khẩu (*)", border: OutlineInputBorder())),
+              TextField(controller: _passController, obscureText: true, decoration: InputDecoration(labelText: labels["lbl_pass"], border: const OutlineInputBorder())),
               const SizedBox(height: 15),
               InkWell(
                 onTap: () async {
@@ -364,11 +398,25 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
                 child: Container(
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Ngày sinh: ${DateFormat('dd/MM/yyyy').format(_selectedDate)}"), const Icon(Icons.calendar_today)]),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                    children: [
+                      Text("${labels['lbl_dob']} ${DateFormat('dd/MM/yyyy').format(_selectedDate)}"), 
+                      const Icon(Icons.calendar_today)
+                    ]
+                  ),
                 ),
               ),
               const SizedBox(height: 25),
-              SizedBox(width: double.infinity, height: 45, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), onPressed: _createChild, child: Text(labels["btn_create"]!)))
+              SizedBox(
+                width: double.infinity, 
+                height: 45, 
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), 
+                  onPressed: _createChild, 
+                  child: Text(labels["btn_create"]!)
+                )
+              )
             ],
           ),
         ),
@@ -376,7 +424,6 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
     );
   }
 
-  // ================= TAB 4: LỊCH SỬ GIAO DỊCH =================
   Widget _buildHistoryTab(Map<String, String> labels) {
     if (_transactionHistory.isEmpty) return Center(child: Text(labels["no_history"]!));
 
@@ -393,7 +440,10 @@ class _ParentChildManagementScreenState extends State<ParentChildManagementScree
             leading: const CircleAvatar(backgroundColor: Colors.indigo, child: Icon(Icons.receipt_long, color: Colors.white)),
             title: Text(group, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(item['created_at']?.toString().substring(0, 10) ?? ''),
-            trailing: Text("${amount > 0 ? '+' : ''}${amount.toStringAsFixed(0)} VNĐ", style: TextStyle(color: amount >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+            trailing: Text(
+              "${amount > 0 ? '+' : ''}${amount.toStringAsFixed(0)} VNĐ", 
+              style: TextStyle(color: amount >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold, fontSize: 14)
+            ),
           ),
         );
       },

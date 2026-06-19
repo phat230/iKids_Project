@@ -29,6 +29,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   
   String _userId = "";
   double _userBalance = 0;
+  String _lang = "vi"; // Ngôn ngữ mặc định
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -36,21 +37,101 @@ class _ParentDashboardState extends State<ParentDashboard> {
   bool _isEditingProfile = false;
   bool _isLoadingProfile = true;
 
-  // ĐÃ LIÊN KẾT ĐẦY ĐỦ TẤT CẢ 7 MÀN HÌNH VÀO MENU
-  final List<Map<String, dynamic>> _menuItems = [
-    {"title": "Điểm số", "icon": Icons.analytics, "color": Colors.amber, "screen": const ParentResultScreen()},
-    {"title": "Lịch & Đăng ký", "icon": Icons.calendar_today, "color": Colors.blue, "screen": const EnrollClassScreen()},
-    {"title": "Học phí & Ví", "icon": Icons.account_balance_wallet, "color": Colors.green, "screen": const ParentDepositScreen()},
-    {"title": "Quản lý con em", "icon": Icons.family_restroom, "color": Colors.teal, "screen": const ParentChildManagementScreen()},
-    {"title": "Cửa hàng", "icon": Icons.storefront, "color": Colors.purple, "screen": const ParentShopScreen()},
-    {"title": "Xin phép nghỉ", "icon": Icons.edit_document, "color": Colors.redAccent, "screen": const ParentContactScreen()},
-    {"title": "Góc kỷ niệm", "icon": Icons.photo_library, "color": Colors.pink, "screen": const ParentMemoriesScreen()},
-  ];
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
+  final Map<String, Map<String, String>> _locales = {
+    "vi": {
+      "greeting": "Xin chào",
+      "balance": "Số dư ví:",
+      "utilities": "Tiện ích cho Phụ huynh",
+      "developing": "Tính năng đang phát triển",
+      "menu_result": "Điểm số",
+      "menu_schedule": "Lịch & Đăng ký",
+      "menu_finance": "Học phí & Ví",
+      "menu_child": "Quản lý con em",
+      "menu_store": "Cửa hàng",
+      "menu_leave": "Xin phép nghỉ",
+      "menu_memory": "Góc kỷ niệm",
+      "tab_home": "Trang chủ",
+      "tab_noti": "Thông báo",
+      "tab_prof": "Cá nhân",
+      "prof_name": "Họ và tên (*)",
+      "prof_phone": "Số điện thoại",
+      "btn_cancel": "Hủy",
+      "btn_save": "Lưu",
+      "btn_edit": "Chỉnh sửa",
+      "lbl_not_updated": "Chưa cập nhật",
+      "msg_success": "Cập nhật thành công!",
+      "msg_err": "Lỗi kết nối!",
+      "btn_pwd": "Đổi mật khẩu",
+      "btn_logout": "Đăng xuất",
+      "pwd_title": "Đổi Mật Khẩu",
+      "pwd_old": "Mật khẩu hiện tại",
+      "pwd_new": "Mật khẩu mới",
+      "pwd_confirm": "Xác nhận mật khẩu mới",
+      "pwd_err_empty": "Vui lòng điền đủ thông tin!",
+      "pwd_err_match": "Mật khẩu xác nhận không khớp!",
+      "pwd_success": "Đổi mật khẩu thành công!",
+    },
+    "en": {
+      "greeting": "Hello",
+      "balance": "Wallet Balance:",
+      "utilities": "Parent Utilities",
+      "developing": "Feature in development",
+      "menu_result": "Results",
+      "menu_schedule": "Schedule & Enroll",
+      "menu_finance": "Tuition & Wallet",
+      "menu_child": "Manage Children",
+      "menu_store": "Store",
+      "menu_leave": "Leave Request",
+      "menu_memory": "Memories",
+      "tab_home": "Home",
+      "tab_noti": "Inbox",
+      "tab_prof": "Profile",
+      "prof_name": "Full Name (*)",
+      "prof_phone": "Phone Number",
+      "btn_cancel": "Cancel",
+      "btn_save": "Save",
+      "btn_edit": "Edit",
+      "lbl_not_updated": "Not updated",
+      "msg_success": "Updated successfully!",
+      "msg_err": "Connection error!",
+      "btn_pwd": "Change Password",
+      "btn_logout": "Logout",
+      "pwd_title": "Change Password",
+      "pwd_old": "Current Password",
+      "pwd_new": "New Password",
+      "pwd_confirm": "Confirm New Password",
+      "pwd_err_empty": "Please fill in all fields!",
+      "pwd_err_match": "Passwords do not match!",
+      "pwd_success": "Password changed successfully!",
+    }
+  };
+
+  // ĐÃ SỬA: Biến Menu thành Getter động để tự dịch khi đổi ngôn ngữ
+  List<Map<String, dynamic>> get _menuItems {
+    final labels = _locales[_lang]!;
+    return [
+      {"title": labels["menu_result"], "icon": Icons.analytics, "color": Colors.amber, "screen": const ParentResultScreen()},
+      {"title": labels["menu_schedule"], "icon": Icons.calendar_today, "color": Colors.blue, "screen": const EnrollClassScreen()},
+      {"title": labels["menu_finance"], "icon": Icons.account_balance_wallet, "color": Colors.green, "screen": const ParentDepositScreen()},
+      {"title": labels["menu_child"], "icon": Icons.family_restroom, "color": Colors.teal, "screen": const ParentChildManagementScreen()},
+      {"title": labels["menu_store"], "icon": Icons.storefront, "color": Colors.purple, "screen": const ParentShopScreen()},
+      {"title": labels["menu_leave"], "icon": Icons.edit_document, "color": Colors.redAccent, "screen": const ParentContactScreen()},
+      {"title": labels["menu_memory"], "icon": Icons.photo_library, "color": Colors.pink, "screen": const ParentMemoriesScreen()},
+    ];
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) setState(() => _lang = savedLang);
+    await _loadUserProfile();
   }
 
   Future<void> _loadUserProfile() async {
@@ -61,7 +142,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
         _userId = decoded["id"]?.toString() ?? decoded["_id"]?.toString() ?? "";
         
         setState(() {
-          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? "Phụ huynh iKids";
+          _nameController.text = decoded["full_name"] ?? decoded["name"] ?? "Parent";
           _phoneController.text = decoded["phone_number"] ?? decoded["phone"] ?? "";
           _bioController.text = decoded["bio"] ?? "";
         });
@@ -87,6 +168,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
 
   void _updateProfile() async {
+    final labels = _locales[_lang]!;
     if (_nameController.text.trim().isEmpty) return;
     setState(() => _isLoadingProfile = true);
     var request = http.MultipartRequest('POST', Uri.parse('${AppConfig.apiUrl}/api/tv3/profile/update/$_userId'));
@@ -94,7 +176,6 @@ class _ParentDashboardState extends State<ParentDashboard> {
     try {
       var response = await request.send();
       if (response.statusCode == 200) {
-        // Cập nhật lại Cache cục bộ để hiển thị ngay
         String? userInfoStr = await _storage.read(key: 'user_info');
         if (userInfoStr != null) {
           Map<String, dynamic> userInfo = jsonDecode(userInfoStr);
@@ -103,10 +184,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
           await _storage.write(key: 'user_info', value: jsonEncode(userInfo));
         }
         setState(() => _isEditingProfile = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cập nhật thành công!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_success"]!), backgroundColor: Colors.green));
       }
     } catch(e) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err"]!), backgroundColor: Colors.red));
     } finally {
       setState(() => _isLoadingProfile = false);
     }
@@ -114,6 +195,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   // ================= BỔ SUNG: HỘP THOẠI ĐỔI MẬT KHẨU =================
   void _showChangePasswordDialog() {
+    final labels = _locales[_lang]!;
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     final confirmPassCtrl = TextEditingController();
@@ -127,39 +209,39 @@ class _ParentDashboardState extends State<ParentDashboard> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
+              title: Row(
                 children: [
-                  Icon(Icons.lock_reset, color: Colors.orange),
-                  SizedBox(width: 10),
-                  Text("Đổi Mật Khẩu", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const Icon(Icons.lock_reset, color: Colors.orange),
+                  const SizedBox(width: 10),
+                  Text(labels["pwd_title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ],
               ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(controller: oldPassCtrl, decoration: const InputDecoration(labelText: "Mật khẩu hiện tại"), obscureText: true),
+                    TextField(controller: oldPassCtrl, decoration: InputDecoration(labelText: labels["pwd_old"]), obscureText: true),
                     const SizedBox(height: 10),
-                    TextField(controller: newPassCtrl, decoration: const InputDecoration(labelText: "Mật khẩu mới"), obscureText: true),
+                    TextField(controller: newPassCtrl, decoration: InputDecoration(labelText: labels["pwd_new"]), obscureText: true),
                     const SizedBox(height: 10),
-                    TextField(controller: confirmPassCtrl, decoration: const InputDecoration(labelText: "Xác nhận mật khẩu mới"), obscureText: true),
+                    TextField(controller: confirmPassCtrl, decoration: InputDecoration(labelText: labels["pwd_confirm"]), obscureText: true),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: isChanging ? null : () => Navigator.pop(dialogContext),
-                  child: const Text("Hủy", style: TextStyle(color: Colors.grey)),
+                  child: Text(labels["btn_cancel"]!, style: const TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                   onPressed: isChanging ? null : () async {
                     if (oldPassCtrl.text.isEmpty || newPassCtrl.text.isEmpty || confirmPassCtrl.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Vui lòng điền đủ thông tin!"), backgroundColor: Colors.red));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["pwd_err_empty"]!), backgroundColor: Colors.red));
                       return;
                     }
                     if (newPassCtrl.text != confirmPassCtrl.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mật khẩu xác nhận không khớp!"), backgroundColor: Colors.red));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["pwd_err_match"]!), backgroundColor: Colors.red));
                       return;
                     }
 
@@ -168,7 +250,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                       bool success = await _apiService.changePassword(oldPassCtrl.text, newPassCtrl.text);
                       if (success) {
                         if (mounted) Navigator.pop(dialogContext);
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Đổi mật khẩu thành công!"), backgroundColor: Colors.green));
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["pwd_success"]!), backgroundColor: Colors.green));
                       }
                     } catch (e) {
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst("Exception: ", "")), backgroundColor: Colors.red));
@@ -177,7 +259,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   },
                   child: isChanging 
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                    : const Text("Xác nhận"),
+                    : Text(labels["btn_save"]!),
                 ),
               ],
             );
@@ -188,30 +270,57 @@ class _ParentDashboardState extends State<ParentDashboard> {
   }
   // ====================================================================
 
-  Widget _buildHomeTab() {
+  Widget _buildHomeTab(Map<String, String> labels) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.only(top: 30, bottom: 20, left: 20, right: 20),
           decoration: const BoxDecoration(
             color: Colors.green,
             borderRadius: BorderRadius.only(bottomLeft: Radius.circular(30), bottomRight: Radius.circular(30)),
+            boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))]
           ),
-          child: Column(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Xin chào, ${_nameController.text.split(' ').last}! 👨‍👩‍👧", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 5),
-              Text("Số dư ví: ${_userBalance.toStringAsFixed(0)} VNĐ", style: const TextStyle(fontSize: 16, color: Colors.yellowAccent, fontWeight: FontWeight.bold)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("${labels['greeting']}, ${_nameController.text.split(' ').last}! 👨‍👩‍👧", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 5),
+                    Text("${labels['balance']} ${_userBalance.toStringAsFixed(0)} VNĐ", style: const TextStyle(fontSize: 16, color: Colors.yellowAccent, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              // Nút chuyển đổi đa ngôn ngữ đồng bộ
+              GestureDetector(
+                onTap: () async {
+                  setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                  await _storage.write(key: 'app_lang', value: _lang);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.5))),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.language, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              )
             ],
           ),
         ),
         const SizedBox(height: 15),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text("Tiện ích cho Phụ huynh", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(labels["utilities"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
         Expanded(
           child: GridView.builder(
@@ -225,7 +334,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                   if (item['screen'] != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => item['screen']));
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tính năng đang phát triển")));
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["developing"]!)));
                   }
                 },
                 borderRadius: BorderRadius.circular(20),
@@ -240,7 +349,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
                     children: [
                       Icon(item['icon'], size: 45, color: item['color']),
                       const SizedBox(height: 8),
-                      Text(item['title'], style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: item['color'])),
+                      Text(item['title'], textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: item['color'])),
                     ],
                   ),
                 ),
@@ -252,7 +361,7 @@ class _ParentDashboardState extends State<ParentDashboard> {
     );
   }
 
-  Widget _buildProfileTab() {
+  Widget _buildProfileTab(Map<String, String> labels) {
     if (_isLoadingProfile) return const Center(child: CircularProgressIndicator());
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -270,25 +379,25 @@ class _ParentDashboardState extends State<ParentDashboard> {
             child: _isEditingProfile
                 ? Column(
                     children: [
-                      TextField(controller: _nameController, decoration: const InputDecoration(labelText: "Họ và tên (*)")),
-                      TextField(controller: _phoneController, decoration: const InputDecoration(labelText: "Số điện thoại")),
+                      TextField(controller: _nameController, decoration: InputDecoration(labelText: labels["prof_name"])),
+                      TextField(controller: _phoneController, decoration: InputDecoration(labelText: labels["prof_phone"])),
                       const SizedBox(height: 25),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton(onPressed: () => setState(() => _isEditingProfile = false), child: const Text("Hủy"))),
+                          Expanded(child: OutlinedButton(onPressed: () => setState(() => _isEditingProfile = false), child: Text(labels["btn_cancel"]!))),
                           const SizedBox(width: 10),
-                          Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), onPressed: _updateProfile, child: const Text("Lưu"))),
+                          Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), onPressed: _updateProfile, child: Text(labels["btn_save"]!))),
                         ],
                       ),
                     ],
                   )
                 : Column(
                     children: [
-                      ListTile(leading: const Icon(Icons.person, color: Colors.green), title: Text(_nameController.text.isEmpty ? "Chưa cập nhật" : _nameController.text, style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ListTile(leading: const Icon(Icons.person, color: Colors.green), title: Text(_nameController.text.isEmpty ? labels["lbl_not_updated"]! : _nameController.text, style: const TextStyle(fontWeight: FontWeight.bold))),
                       const Divider(height: 1),
-                      ListTile(leading: const Icon(Icons.phone, color: Colors.green), title: Text(_phoneController.text.isEmpty ? "Chưa cập nhật" : _phoneController.text)),
+                      ListTile(leading: const Icon(Icons.phone, color: Colors.green), title: Text(_phoneController.text.isEmpty ? labels["lbl_not_updated"]! : _phoneController.text)),
                       const SizedBox(height: 20),
-                      SizedBox(width: double.infinity, child: OutlinedButton.icon(style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.green)), onPressed: () => setState(() => _isEditingProfile = true), icon: const Icon(Icons.edit, color: Colors.green), label: const Text("Chỉnh sửa", style: TextStyle(color: Colors.green)))),
+                      SizedBox(width: double.infinity, child: OutlinedButton.icon(style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.green)), onPressed: () => setState(() => _isEditingProfile = true), icon: const Icon(Icons.edit, color: Colors.green), label: Text(labels["btn_edit"]!, style: const TextStyle(color: Colors.green)))),
                     ],
                   ),
           ),
@@ -301,14 +410,14 @@ class _ParentDashboardState extends State<ParentDashboard> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.lock, color: Colors.orange),
-                  title: const Text("Đổi mật khẩu"),
+                  title: Text(labels["btn_pwd"]!),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: _showChangePasswordDialog,
                 ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text("Đăng xuất", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  title: Text(labels["btn_logout"]!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                   onTap: _handleLogout,
                 ),
               ],
@@ -321,7 +430,9 @@ class _ParentDashboardState extends State<ParentDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> tabs = [_buildHomeTab(), const NotificationScreen(), _buildProfileTab()];
+    final labels = _locales[_lang]!;
+    final List<Widget> tabs = [_buildHomeTab(labels), const NotificationScreen(), _buildProfileTab(labels)];
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(child: tabs[_selectedIndex]),
@@ -329,10 +440,10 @@ class _ParentDashboardState extends State<ParentDashboard> {
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.green,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Trang chủ"),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Cá nhân"),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: labels["tab_home"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: labels["tab_noti"]),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: labels["tab_prof"]),
         ],
       ),
     );

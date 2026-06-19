@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart'; 
 import 'package:google_fonts/google_fonts.dart';
 import '../../services/api_service.dart';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -13,7 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
   final _apiService = ApiService();
-  
+  final _storage = const FlutterSecureStorage();
   bool _isLoading = false;
   bool _isObscured = true;
   String _lang = "vi"; // Mặc định là Tiếng Việt giống Web
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   setState(() {
                   _lang = _lang == "vi" ? "en" : "vi";
                    });
-                  await const FlutterSecureStorage().write(key: 'app_lang', value: _lang);
+                 await _storage.write(key: 'app_lang', value: _lang);
                   },
                   icon: const Icon(Icons.language, color: Colors.cyanAccent),
                   label: Text(

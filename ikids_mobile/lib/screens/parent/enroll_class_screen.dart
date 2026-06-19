@@ -52,10 +52,12 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
       "btn_enroll": "Xác Nhận Đăng Ký Lớp",
       "success_enrolled": "Đã đăng ký thành công cho bé!",
       "err_failed_enroll": "Đăng ký thất bại. Lớp học có thể đã đầy.",
+      "lbl_teacher_arranging": "Đang xếp giáo viên",
+      "msg_err_conn": "Lỗi kết nối mạng, vui lòng thử lại.",
     },
     "en": {
-      "title": "Course Enrollment for Children",
-      "subtitle": "Below is the list of active open classes. Parents can review and select the most suitable option.",
+      "title": "Course Enrollment",
+      "subtitle": "Below is the list of active open classes. Parents can select the most suitable option.",
       "err_login": "Authentication required. Please log in with a Parent account.",
       "warn_no_child": "No student profiles found. Please create a profile for your child first!",
       "expander_schedule": "Children's Current Timetable",
@@ -77,6 +79,8 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
       "btn_enroll": "Confirm Enrollment",
       "success_enrolled": "Registration successful for your child!",
       "err_failed_enroll": "Enrollment failed. Class might be fully occupied.",
+      "lbl_teacher_arranging": "Arranging instructor",
+      "msg_err_conn": "Network error, please try again.",
     }
   };
 
@@ -94,6 +98,10 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _parentId = await _storage.read(key: 'user_id') ?? "";
 
@@ -149,6 +157,7 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
   }
 
   Future<void> _enrollClass(String classId) async {
+    final labels = _labels[_lang]!;
     if (_selectedChildIdForEnroll == null) return;
     
     showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
@@ -170,19 +179,19 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("${_labels[_lang]!['success_enrolled']}"),
+          content: Text(labels['success_enrolled']!),
           backgroundColor: Colors.green,
         ));
         _initData();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("${_labels[_lang]!['err_failed_enroll']}"),
+          content: Text(labels['err_failed_enroll']!),
           backgroundColor: Colors.red,
         ));
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi mạng, vui lòng thử lại.")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_err_conn"]!)));
     }
   }
 
@@ -201,8 +210,12 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _initData),
+          // ✅ NÚT ĐỔI NGÔN NGỮ ĐỒNG BỘ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -286,7 +299,6 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
       List studentsInClass = (cls["student_ids"] as List<dynamic>?) ?? [];
       if (studentsInClass.contains(childId)) {
         
-        // ĐÃ KHẮC PHỤC LỖI .get() CUỐI CÙNG TẠI ĐÂY
         String cId = cls["id"]?.toString() ?? cls["_id"]?.toString() ?? "";
         
         var sched = _schedules.firstWhere((s) => s["class_id"]?.toString() == cId, orElse: () => null);
@@ -346,10 +358,9 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
                   child: Text(displaySession, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 11)),
                 )),
                 ..._daysOfWeekVi.map((dayVi) {
-                  ListCellCardData? slotClasses = matrix[rawSession]![dayVi];
+                  List<Map<String, dynamic>>? slotClasses = matrix[rawSession]![dayVi];
                   if (slotClasses == null || slotClasses.isEmpty) return const DataCell(Text(""));
                   
-                  // ĐÃ KHẮC PHỤC LỖI OVERFLOW TRÀN VIỀN TẠI ĐÂY BẰNG CÁCH BỌC SCROLL VÀ GIỚI HẠN DÒNG
                   return DataCell(
                     Container(
                       alignment: Alignment.centerLeft,
@@ -418,10 +429,10 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
       itemBuilder: (context, index) {
         final cls = availableClasses[index];
         String classId = cls['id'] ?? cls['_id'] ?? '';
-        String className = cls['class_name'] ?? labels["lbl_class_unknown"];
+        String className = cls['class_name'] ?? labels["lbl_class_unknown"]!;
         
-        String subjectRaw = _scheduleSubjectMap[classId] ?? cls['subject'] ?? labels["lbl_sub_unassigned"];
-        String teacherName = cls['teacher_name'] ?? labels["lbl_teacher_arranging"];
+        String subjectRaw = _scheduleSubjectMap[classId] ?? cls['subject'] ?? labels["lbl_sub_unassigned"]!;
+        String teacherName = cls['teacher_name'] ?? labels["lbl_teacher_arranging"]!;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -464,5 +475,3 @@ class _EnrollClassScreenState extends State<EnrollClassScreen> {
     );
   }
 }
-
-typedef ListCellCardData = List<Map<String, dynamic>>;

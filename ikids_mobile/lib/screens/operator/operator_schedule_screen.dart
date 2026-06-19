@@ -45,6 +45,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
     return "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
   });
 
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Xếp Lịch Học",
@@ -63,8 +64,46 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       "btn_create": "TẠO LỊCH HỌC",
       "success_created": "Đã tạo lịch học thành công!",
       "err_validation": "Vui lòng điền đủ thông tin bắt buộc!",
-      "notif_title": "Thay đổi lịch học",
-      "msg_reschedule": "Thông báo: Lớp {} đổi lịch sang các ngày {} lúc {}. Phòng: {}.",
+      "err_server": "Lỗi hệ thống khi tạo lịch",
+      "unassigned": "Chưa phân công",
+      "lbl_assigned_teacher": "Giáo viên phụ trách:",
+      "empty_schedule": "Chưa có lịch học nào.",
+      "lbl_room_prefix": "Phòng:",
+      "lbl_date_prefix": "Ngày:",
+      "lbl_days_prefix": "Thứ:",
+      "lbl_teacher_prefix": "GV:",
+      "btn_delete": "Xóa",
+      "msg_del_err": "Lỗi hệ thống khi xóa",
+      "msg_del_success": "Đã xóa lịch học!"
+    },
+    "en": {
+      "title": "Schedule Management",
+      "tab_create": "Create Schedule",
+      "tab_list": "Schedule List",
+      "lbl_class": "Select Class (*)",
+      "lbl_teacher": "Teaching Teacher (*)",
+      "lbl_subject": "Subject (*)",
+      "lbl_room": "Room / Format",
+      "lbl_start_date": "Start Date",
+      "lbl_end_date": "End Date",
+      "lbl_start_time": "Start Time",
+      "lbl_end_time": "End Time",
+      "lbl_days": "Days of Week (*)",
+      "lbl_public": "Open Class (Public)",
+      "btn_create": "CREATE SCHEDULE",
+      "success_created": "Schedule created successfully!",
+      "err_validation": "Please fill in all required fields!",
+      "err_server": "System error creating schedule",
+      "unassigned": "Unassigned",
+      "lbl_assigned_teacher": "Assigned Teacher:",
+      "empty_schedule": "No schedules available.",
+      "lbl_room_prefix": "Room:",
+      "lbl_date_prefix": "Date:",
+      "lbl_days_prefix": "Days:",
+      "lbl_teacher_prefix": "Teacher:",
+      "btn_delete": "Delete",
+      "msg_del_err": "System error deleting schedule",
+      "msg_del_success": "Schedule deleted successfully!"
     }
   };
 
@@ -77,6 +116,10 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   Future<void> _initData() async {
     setState(() => _isLoading = true);
     try {
+      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
+      String? savedLang = await _storage.read(key: 'app_lang');
+      if (savedLang != null) _lang = savedLang;
+
       _token = await _storage.read(key: 'jwt_token') ?? "";
       _userId = await _storage.read(key: 'user_id') ?? "";
       
@@ -85,6 +128,21 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       debugPrint("Lỗi Init: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Hàm dịch thứ (Days) sang tiếng Anh
+  String _translateDay(String viDay) {
+    if (_lang == "vi") return viDay;
+    switch (viDay) {
+      case "Thứ 2": return "Mon";
+      case "Thứ 3": return "Tue";
+      case "Thứ 4": return "Wed";
+      case "Thứ 5": return "Thu";
+      case "Thứ 6": return "Fri";
+      case "Thứ 7": return "Sat";
+      case "Chủ nhật": return "Sun";
+      default: return viDay;
     }
   }
 
@@ -113,8 +171,9 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   }
 
   Future<void> _submitCreate() async {
+    final labels = _labels[_lang]!;
     if (_selectedClassId == null || _selectedTeacherId == null || _subjectCtrl.text.isEmpty || _selectedDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!['err_validation']!), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels['err_validation']!), backgroundColor: Colors.red));
       return;
     }
 
@@ -145,12 +204,12 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       body: jsonEncode(payload)
     );
 
-    if (res.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!['success_created']!), backgroundColor: Colors.green));
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels['success_created']!), backgroundColor: Colors.green));
       _initData(); 
     } else {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi hệ thống khi tạo lịch"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels['err_server']!), backgroundColor: Colors.red));
     }
   }
 
@@ -165,6 +224,16 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
           title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
+          actions: [
+            // ✅ ĐÃ THÊM: Nút chuyển đổi ngôn ngữ
+            TextButton(
+              onPressed: () async {
+                setState(() => _lang = _lang == "vi" ? "en" : "vi");
+                await _storage.write(key: 'app_lang', value: _lang);
+              },
+              child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            )
+          ],
           bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
@@ -187,14 +256,12 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
     );
   }
 
-  // ✅ ĐÃ SỬA: Đập đi xây lại toàn bộ UI form tạo lịch y hệt bản Web
   Widget _buildCreateForm(Map<String, String> labels) {
-    
     // Tìm tên Giáo viên phụ trách từ danh sách lớp
-    String assignedTeacher = "Chưa phân công";
+    String assignedTeacher = labels["unassigned"]!;
     if (_selectedClassId != null) {
       final cls = _classes.firstWhere((c) => (c['id'] ?? c['_id']).toString() == _selectedClassId, orElse: () => {});
-      assignedTeacher = cls['teacher_name'] ?? "Chưa phân công";
+      assignedTeacher = cls['teacher_name'] ?? labels["unassigned"]!;
     }
 
     return SingleChildScrollView(
@@ -217,7 +284,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
               ),
               const SizedBox(height: 15),
 
-              // 2. GIÁO VIÊN PHỤ TRÁCH (Khung xanh giống Web)
+              // 2. GIÁO VIÊN PHỤ TRÁCH
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -227,7 +294,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                   border: Border.all(color: Colors.blue.shade100)
                 ),
                 child: Text(
-                  "Giáo viên phụ trách: $assignedTeacher",
+                  "${labels['lbl_assigned_teacher']} $assignedTeacher",
                   style: TextStyle(color: Colors.blue.shade800, fontWeight: FontWeight.w600, fontSize: 15),
                 ),
               ),
@@ -244,7 +311,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                         Text(labels["lbl_teacher"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
                         const SizedBox(height: 5),
                         DropdownButtonFormField<String>(
-                          isExpanded: true, // Chống vỡ layout tên dài
+                          isExpanded: true,
                           decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
                           items: _teachers.map((t) => DropdownMenuItem(value: (t['id'] ?? t['_id']).toString(), child: Text(t['full_name'] ?? t['name'], overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (val) => setState(() => _selectedTeacherId = val),
@@ -270,7 +337,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 4. ROW: NGÀY BẮT ĐẦU & NGÀY KẾT THÚC (MỚI THÊM)
+              // 4. ROW: NGÀY BẮT ĐẦU & NGÀY KẾT THÚC
               Row(
                 children: [
                   Expanded(
@@ -376,8 +443,10 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                             spacing: 6, runSpacing: -6,
                             children: _daysVi.map((day) {
                               bool isSelected = _selectedDays.contains(day);
+                              // Dịch các FilterChip sang Tiếng Anh nếu cần
+                              String dayDisplay = _translateDay(day); 
                               return FilterChip(
-                                label: Text(day, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
+                                label: Text(dayDisplay, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
                                 selected: isSelected,
                                 selectedColor: Colors.blueAccent,
                                 showCheckmark: false,
@@ -441,12 +510,18 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   }
 
   Widget _buildScheduleList(Map<String, String> labels) {
-    if (_schedules.isEmpty) return const Center(child: Text("Chưa có lịch học nào."));
+    if (_schedules.isEmpty) return Center(child: Text(labels["empty_schedule"]!));
+    
     return ListView.builder(
       padding: const EdgeInsets.all(12),
       itemCount: _schedules.length,
       itemBuilder: (context, index) {
         final item = _schedules[index];
+        
+        // Dịch các thứ trong tuần
+        List<dynamic> daysList = item['days_of_week'] ?? [];
+        String daysStr = daysList.map((d) => _translateDay(d.toString())).join(", ");
+
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
@@ -459,20 +534,29 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Phòng: ${item['room']}"),
-                    Text("Ngày: ${item['study_date']}"),
-                    Text("Thứ: ${item['days_of_week'].join(', ')}"),
-                    Text("GV: ${item['teaching_teacher_name']}"),
+                    Text("${labels['lbl_room_prefix']} ${item['room']}"),
+                    Text("${labels['lbl_date_prefix']} ${item['study_date']}"),
+                    Text("${labels['lbl_days_prefix']} $daysStr"),
+                    Text("${labels['lbl_teacher_prefix']} ${item['teaching_teacher_name']}"),
                     const Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton.icon(
                           icon: const Icon(Icons.delete, color: Colors.red), 
-                          label: const Text("Xóa", style: TextStyle(color: Colors.red)), 
+                          label: Text(labels["btn_delete"]!, style: const TextStyle(color: Colors.red)), 
                           onPressed: () async {
-                            final res = await http.delete(Uri.parse('${AppConfig.apiTv1}/schedule/${item['id']}'), headers: {"Authorization": "Bearer $_token"});
-                            if (res.statusCode == 200) _initData();
+                            try {
+                              final res = await http.delete(Uri.parse('${AppConfig.apiTv1}/schedule/${item['id']}'), headers: {"Authorization": "Bearer $_token"});
+                              if (res.statusCode == 200) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_del_success"]!), backgroundColor: Colors.green));
+                                _initData();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_del_err"]!), backgroundColor: Colors.red));
+                              }
+                            } catch(e) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["msg_del_err"]!), backgroundColor: Colors.red));
+                            }
                           }
                         ),
                       ],

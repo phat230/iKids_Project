@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../core/config.dart';
@@ -11,11 +12,12 @@ class ParentMemoriesScreen extends StatefulWidget {
 }
 
 class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
+  final _storage = const FlutterSecureStorage();
   List<dynamic> _memories = [];
   bool _isLoading = true;
   String _lang = "vi";
 
-  // Bộ từ điển song ngữ đồng bộ với Web
+  // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "📸 Góc Kỷ Niệm",
@@ -23,7 +25,12 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
       "info_empty": "✨ Hiện chưa có kỷ niệm nào được chia sẻ. Những khoảnh khắc đáng yêu sẽ xuất hiện tại đây!",
       "default_teacher": "Giáo viên iKids",
       "hint_like": "Hãy nhấn tim để ủng hộ khoảnh khắc này của bé!",
-      "no_description": "Không có mô tả bài viết."
+      "no_description": "Không có mô tả bài viết.",
+      "shared_moment": "đã chia sẻ một khoảnh khắc",
+      "err_fetch": "Lỗi tải dữ liệu",
+      "err_conn": "Lỗi kết nối mạng!",
+      "err_like": "Lỗi kết nối khi thả tim!",
+      "err_img": "Không thể tải ảnh",
     },
     "en": {
       "title": "📸 Class Memories Corner",
@@ -31,13 +38,25 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
       "info_empty": "✨ There are currently no memories shared yet. Adorable moments will appear here soon!",
       "default_teacher": "iKids Teacher",
       "hint_like": "Click the heart button to show love for this moment!",
-      "no_description": "No description provided."
+      "no_description": "No description provided.",
+      "shared_moment": "shared a moment",
+      "err_fetch": "Data loading error",
+      "err_conn": "Network connection error!",
+      "err_like": "Error while liking!",
+      "err_img": "Cannot load image",
     }
   };
 
   @override
   void initState() {
     super.initState();
+    _initData();
+  }
+
+  Future<void> _initData() async {
+    // Đọc ngôn ngữ từ hệ thống
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) setState(() => _lang = savedLang);
     _fetchMemories();
   }
 
@@ -45,24 +64,21 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
   Future<void> _fetchMemories() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
+    final labels = _labels[_lang]!;
     
     try {
       final response = await http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/memories')).timeout(const Duration(seconds: 15));
       
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) {
-          setState(() {
-            _memories = data;
-          });
-        }
+        if (mounted) setState(() => _memories = data);
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi tải dữ liệu: ${response.statusCode}")));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${labels['err_fetch']}: ${response.statusCode}")));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Lỗi kết nối mạng!", style: TextStyle(color: Colors.white)),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(labels["err_conn"]!, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.red,
         ));
       }
@@ -77,13 +93,12 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
       final response = await http.post(Uri.parse('${AppConfig.apiUrl}/api/tv3/memories/$id/like')).timeout(const Duration(seconds: 10));
       
       if (response.statusCode == 200) {
-        // Tăng số tim trên giao diện ngay lập tức
         setState(() {
           _memories[index]['likes'] = (_memories[index]['likes'] ?? 0) + 1;
         });
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi kết nối khi thả tim!")));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["err_like"]!)));
     }
   }
 
@@ -100,11 +115,14 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.sync),
-            tooltip: "Làm mới",
             onPressed: _fetchMemories,
           ),
+          // ✅ NÚT ĐỔI NGÔN NGỮ ĐỒNG BỘ
           TextButton(
-            onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
+            onPressed: () async {
+              setState(() => _lang = _lang == "vi" ? "en" : "vi");
+              await _storage.write(key: 'app_lang', value: _lang);
+            },
             child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
@@ -118,7 +136,6 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
                   child: Text(labels["info_empty"]!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
                 )
               )
-            // HIỂN THỊ DẠNG DANH SÁCH CUỘN (Tương tự Feed Facebook)
             : RefreshIndicator(
                 color: Colors.purple,
                 onRefresh: _fetchMemories,
@@ -171,7 +188,7 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
                                     child: Icon(Icons.school, color: Colors.white)
                                   ),
                                   title: Text(teacherName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text("🕒 $timeStr", style: const TextStyle(fontSize: 12)),
+                                  subtitle: Text("${labels['shared_moment']} • $timeStr", style: const TextStyle(fontSize: 12)),
                                 ),
                                 
                                 // 2. Hình ảnh kỷ niệm
@@ -183,11 +200,11 @@ class _ParentMemoriesScreenState extends State<ParentMemoriesScreen> {
                                   errorBuilder: (context, error, stackTrace) => Container(
                                     height: 200,
                                     color: Colors.grey[300],
-                                    child: const Column(
+                                    child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                        Text("Không thể tải ảnh", style: TextStyle(color: Colors.grey))
+                                        const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                        Text(labels["err_img"]!, style: const TextStyle(color: Colors.grey))
                                       ],
                                     ),
                                   ),
