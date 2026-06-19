@@ -17,7 +17,9 @@ def load_css(file_name):
 
 load_css("admin/admin_global.css")
 
+# ✅ ĐÃ SỬA: Chĩa API thẳng vào phân hệ TV1/staff (Theo đúng Backend của bạn)
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
+API_STAFF = f"{BACKEND_URL}/api/tv1/staff"
 lang = st.session_state.get("lang", "vi")
 
 HR_LABELS = {
@@ -80,7 +82,6 @@ HR_LABELS = {
     }
 }
 
-# Nếu ngôn ngữ là tiếng Anh, dùng mặc định tiếng Việt ở đây để ngắn gọn
 if lang != "vi": lang = "vi"
 
 current_role = st.session_state.get("role") or st.session_state.get("user_info", {}).get("role", "")
@@ -100,47 +101,17 @@ role_display_map = {
 }
 inverse_role_display_map = {v: k for k, v in role_display_map.items()}
 
-# ✅ AUTO-DISCOVERY: Tự động quét Backend để tìm đúng link API Quản lý User
 @st.cache_data(ttl=2)
 def fetch_staff():
-    endpoints = [
-        f"{BACKEND_URL}/staff",
-        f"{BACKEND_URL}/api/staff",
-        f"{BACKEND_URL}/api/auth/users",
-    ]
-    for ep in endpoints:
-        try:
-            res = requests.get(ep, headers=headers, timeout=3)
-            if res.status_code == 200:
-                data = res.json()
-                if isinstance(data, list):
-                    # Lưu lại API Base đúng để các hàm Thêm/Xóa gọi theo
-                    st.session_state["staff_api_base"] = ep.replace("/users", "") 
-                    return data
-        except:
-            continue
-    return []
+    try:
+        # Gọi chính xác vào /api/tv1/staff
+        res = requests.get(API_STAFF, headers=headers)
+        return res.json() if res.status_code == 200 else []
+    except Exception as e:
+        st.error(f"Lỗi kết nối API: {e}")
+        return []
 
 all_staff = fetch_staff()
-API_BASE = st.session_state.get("staff_api_base", f"{BACKEND_URL}/staff")
-
-# Hàm helper để lấy đúng URL tùy thuộc cấu trúc API tìm được
-def get_endpoint(action, staff_id=""):
-    if "auth" in API_BASE:
-        if action == "add": return f"{API_BASE}/register"
-        if action == "update": return f"{API_BASE}/users/{staff_id}"
-        if action == "delete": return f"{API_BASE}/users/{staff_id}"
-        if action == "pwd": return f"{API_BASE}/users/{staff_id}/password"
-        if action == "disable": return f"{API_BASE}/users/{staff_id}/disable"
-        if action == "enable": return f"{API_BASE}/users/{staff_id}/enable"
-    else:
-        if action == "add": return f"{API_BASE}/add"
-        if action == "update": return f"{API_BASE}/{staff_id}"
-        if action == "delete": return f"{API_BASE}/{staff_id}"
-        if action == "pwd": return f"{API_BASE}/{staff_id}/password"
-        if action == "disable": return f"{API_BASE}/{staff_id}/disable"
-        if action == "enable": return f"{API_BASE}/{staff_id}/enable"
-    return API_BASE
 
 st.title(HR_LABELS[lang]["title"])
 st.markdown(HR_LABELS[lang]["system_desc"])
@@ -195,8 +166,8 @@ with col_add:
                             st.error(HR_LABELS[lang]["warn_empty"])
                             st.stop()
                         
-                        p_payload = {"name": p_name.strip(), "role": "parent", "email": p_email.strip().lower(), "password": p_pwd, "phone": p_phone.strip(), "status": "Active"}
-                        res_p = requests.post(get_endpoint("add"), json=p_payload, headers=headers)
+                        p_payload = {"name": p_name.strip(), "role": "parent", "email": p_email.strip().lower(), "password": p_pwd, "phone": p_phone.strip(), "status": "Đang làm việc"}
+                        res_p = requests.post(f"{API_STAFF}/add", json=p_payload, headers=headers)
                         
                         if res_p.status_code in [200, 201]:
                             fetch_staff.clear()
@@ -208,10 +179,10 @@ with col_add:
                             st.error(res_p.json().get("detail", HR_LABELS[lang]["err_parent_create"]))
                             st.stop()
 
-                payload = {"name": new_name.strip(), "role": new_role, "email": new_email.strip().lower(), "password": new_password, "phone": new_phone.strip(), "status": "Active"}
-                if new_role == "student" and selected_parent_id: payload["parent_id"] = selected_parent_id
+                payload = {"name": new_name.strip(), "role": new_role, "email": new_email.strip().lower(), "password": new_password, "phone": new_phone.strip(), "status": "Đang làm việc", "is_active": True}
+                if new_role == "student" and selected_parent_id: payload["student_id_ref"] = selected_parent_id
                     
-                res = requests.post(get_endpoint("add"), json=payload, headers=headers)
+                res = requests.post(f"{API_STAFF}/add", json=payload, headers=headers)
                 if res.status_code in [200, 201]:
                     msg = f"{HR_LABELS[lang]['success_created']} {new_email}"
                     st.success(msg)
@@ -258,7 +229,7 @@ if all_staff:
     elif not filtered_df.empty:
         for idx, row in filtered_df.head(10).iterrows():
             staff_id = row.get('id', row.get('_id'))
-            current_status = row.get('status', 'Active')
+            current_status = row.get('status', 'Đang làm việc')
             with st.expander(f"👤 {row['name']} ({row['email']}) - {row['role_display']}"):
                 tab1, tab2, tab3 = st.tabs([HR_LABELS[lang]["tab_edit"], HR_LABELS[lang]["tab_pwd"], HR_LABELS[lang]["tab_delete"]])
                 with tab1:
@@ -266,10 +237,10 @@ if all_staff:
                         edit_name = st.text_input(HR_LABELS[lang]["col_name"], value=row.get('name', ''))
                         edit_email = st.text_input(HR_LABELS[lang]["col_email"], value=row.get('email', ''))
                         edit_phone = st.text_input(HR_LABELS[lang]["col_phone"], value=row.get('phone', ''))
-                        edit_status = st.selectbox(HR_LABELS[lang]["col_status"], ["Active", "Disabled", "Nghỉ phép", "Đang làm việc", "Vô hiệu hóa"], index=0)
+                        edit_status = st.selectbox(HR_LABELS[lang]["col_status"], ["Đang làm việc", "Nghỉ phép", "Vô hiệu hóa", "Nghỉ việc"], index=0)
                         
                         if st.form_submit_button(HR_LABELS[lang]["btn_save_changes"]):
-                            res = requests.put(get_endpoint("update", staff_id), json={"name": edit_name.strip(), "email": edit_email.strip().lower(), "phone": edit_phone.strip(), "status": edit_status}, headers=headers)
+                            res = requests.put(f"{API_STAFF}/{staff_id}", json={"name": edit_name.strip(), "email": edit_email.strip().lower(), "phone": edit_phone.strip(), "status": edit_status}, headers=headers)
                             if res.status_code == 200:
                                 st.success(HR_LABELS[lang]["success_update"])
                                 fetch_staff.clear()
@@ -277,19 +248,19 @@ if all_staff:
                 with tab2:
                     new_pwd = st.text_input(HR_LABELS[lang]["field_password"], type="password", key=f"pwd_{staff_id}")
                     if st.button(HR_LABELS[lang]["btn_save_pwd"], key=f"btn_pwd_{staff_id}") and new_pwd:
-                        if requests.put(get_endpoint("pwd", staff_id), json={"password": new_pwd}, headers=headers).status_code == 200:
+                        if requests.put(f"{API_STAFF}/{staff_id}/password", json={"password": new_pwd}, headers=headers).status_code == 200:
                             st.success(HR_LABELS[lang]["success_pwd"])
                 with tab3:
                     c_btn1, c_btn2 = st.columns(2)
-                    is_disabled = current_status in ["Vô hiệu hóa", "Disabled"]
+                    is_disabled = current_status in ["Vô hiệu hóa", "Disabled"] or row.get("is_active") == False
                     if not is_disabled:
                         if c_btn1.button(HR_LABELS[lang]["btn_disable"], use_container_width=True, key=f"disable_{staff_id}"):
-                            requests.put(get_endpoint("disable", staff_id), headers=headers)
+                            requests.put(f"{API_STAFF}/{staff_id}/disable", headers=headers)
                             fetch_staff.clear(); st.rerun()
                     else:
                         if c_btn1.button(HR_LABELS[lang]["btn_enable"], type="primary", use_container_width=True, key=f"enable_{staff_id}"):
-                            requests.put(get_endpoint("enable", staff_id), headers=headers)
+                            requests.put(f"{API_STAFF}/{staff_id}/enable", headers=headers)
                             fetch_staff.clear(); st.rerun()
                     if c_btn2.button(HR_LABELS[lang]["btn_delete_forever"], use_container_width=True, key=f"delete_{staff_id}"):
-                        requests.delete(get_endpoint("delete", staff_id), headers=headers)
+                        requests.delete(f"{API_STAFF}/{staff_id}", headers=headers)
                         fetch_staff.clear(); st.rerun()

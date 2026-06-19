@@ -15,7 +15,9 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   final _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   String _token = "";
-  String _apiBase = ""; // Lưu đường dẫn chuẩn sau khi dò tìm
+  
+  // ✅ ĐÃ SỬA: Đường dẫn chuẩn xác theo Backend FastAPI
+  String get _apiBase => '${AppConfig.apiTv1}/staff'; 
 
   List<dynamic> _allStaff = [];
   List<dynamic> _filteredStaff = [];
@@ -63,43 +65,24 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     }
   }
 
-  // ✅ AUTO-DISCOVERY: Hàm tự động quét đường dẫn Backend
   Future<void> _fetchStaff() async {
     final headers = {"Authorization": "Bearer $_token"};
-    final List<String> endpoints = [
-      '${AppConfig.apiUrl}/staff',
-      '${AppConfig.apiUrl}/api/staff',
-      '${AppConfig.apiUrl}/api/auth/users',
-    ];
-
-    for (String url in endpoints) {
-      try {
-        final res = await http.get(Uri.parse(url), headers: headers).timeout(const Duration(seconds: 3));
-        if (res.statusCode == 200) {
-          final data = jsonDecode(utf8.decode(res.bodyBytes));
-          if (data is List) {
-            setState(() {
-              _allStaff = data;
-              _applyFilters();
-              _apiBase = url.replaceAll('/users', ''); // Chuẩn hóa thành base url
-            });
-            return; // Thoát vòng lặp khi đã tìm thấy dữ liệu
-          }
+    try {
+      final res = await http.get(Uri.parse(_apiBase), headers: headers);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(res.bodyBytes));
+        if (data is List) {
+          setState(() {
+            _allStaff = data;
+            _applyFilters();
+          });
         }
-      } catch (_) {}
+      } else {
+        debugPrint("Lỗi fetch: ${res.statusCode} - ${res.body}");
+      }
+    } catch (e) {
+      debugPrint("Không thể tải danh sách tài khoản: $e");
     }
-    debugPrint("Không thể tải danh sách tài khoản từ Backend.");
-  }
-
-  // Hàm sinh đường dẫn hành động động
-  String _getEndpoint(String action, [String id = ""]) {
-    bool isAuth = _apiBase.contains("auth");
-    if (action == "add") return isAuth ? "$_apiBase/register" : "$_apiBase/add";
-    if (action == "update" || action == "delete") return isAuth ? "$_apiBase/users/$id" : "$_apiBase/$id";
-    if (action == "pwd") return isAuth ? "$_apiBase/users/$id/password" : "$_apiBase/$id/password";
-    if (action == "disable") return isAuth ? "$_apiBase/users/$id/disable" : "$_apiBase/$id/disable";
-    if (action == "enable") return isAuth ? "$_apiBase/users/$id/enable" : "$_apiBase/$id/enable";
-    return _apiBase;
   }
 
   void _applyFilters() {
@@ -130,6 +113,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     String? finalParentId = _selectedParentId;
 
     try {
+      // 1. Tạo phụ huynh mới nếu cần
       if (_selectedRole == "student" && _linkMode == "new") {
         final pName = _pNameCtrl.text.trim();
         final pEmail = _pEmailCtrl.text.trim().toLowerCase();
@@ -141,9 +125,11 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
         }
 
         final pRes = await http.post(
-          Uri.parse(_getEndpoint("add")),
+          Uri.parse('$_apiBase/add'),
           headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
-          body: jsonEncode({"name": pName, "role": "parent", "email": pEmail, "password": _pPwdCtrl.text, "phone": _pPhoneCtrl.text.trim(), "status": "Active"})
+          body: jsonEncode({
+            "name": pName, "role": "parent", "email": pEmail, "password": _pPwdCtrl.text, "phone": _pPhoneCtrl.text.trim(), "status": "Đang làm việc", "is_active": true
+          })
         );
 
         if (pRes.statusCode == 200 || pRes.statusCode == 201) {
@@ -163,11 +149,14 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
         return;
       }
 
-      final payload = {"name": name, "role": _selectedRole, "email": email, "password": pwd, "phone": phone, "status": "Active"};
-      if (_selectedRole == "student" && finalParentId != null) payload["parent_id"] = finalParentId;
+      // 2. Tạo tài khoản chính
+      final payload = {
+        "name": name, "role": _selectedRole, "email": email, "password": pwd, "phone": phone, "status": "Đang làm việc", "is_active": true
+      };
+      if (_selectedRole == "student" && finalParentId != null) payload["student_id_ref"] = finalParentId;
 
       final res = await http.post(
-        Uri.parse(_getEndpoint("add")),
+        Uri.parse('$_apiBase/add'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
         body: jsonEncode(payload)
       );
@@ -303,7 +292,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
   void _openEditDialog(Map<String, dynamic> user) {
     final nameCtrl = TextEditingController(text: user['name'] ?? user['full_name'] ?? '');
     final phoneCtrl = TextEditingController(text: user['phone'] ?? user['phone_number'] ?? '');
-    String status = user['status'] ?? 'Active';
+    String status = user['status'] ?? 'Đang làm việc';
 
     showDialog(
       context: context,
@@ -316,7 +305,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
             TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: "Điện thoại")),
             DropdownButtonFormField<String>(
               value: status,
-              items: ["Active", "Disabled", "Đang làm việc", "Vô hiệu hóa"].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+              items: ["Đang làm việc", "Nghỉ phép", "Vô hiệu hóa", "Nghỉ việc"].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
               onChanged: (v) => status = v ?? status,
             )
           ],
@@ -327,7 +316,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
             onPressed: () async {
               Navigator.pop(ctx);
               await http.put(
-                Uri.parse(_getEndpoint("update", (user['id'] ?? user['_id']).toString())),
+                Uri.parse('$_apiBase/${user['id'] ?? user['_id']}'),
                 headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
                 body: jsonEncode({"name": nameCtrl.text, "phone": phoneCtrl.text, "status": status})
               );
@@ -407,7 +396,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                           itemBuilder: (context, index) {
                             final user = _filteredStaff[index];
                             final roleColor = _getRoleColor(user['role'] ?? user['quyen']);
-                            final isActive = user['status'] != "Disabled" && user['status'] != "Vô hiệu hóa";
+                            final isActive = user['is_active'] == true;
 
                             return Card(
                               elevation: 2,
@@ -444,7 +433,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                     IconButton(
                                       icon: const Icon(Icons.delete, color: Colors.red), 
                                       onPressed: () async {
-                                        await http.delete(Uri.parse(_getEndpoint("delete", (user['id'] ?? user['_id']).toString())), headers: {"Authorization": "Bearer $_token"});
+                                        await http.delete(Uri.parse('$_apiBase/${user['id'] ?? user['_id']}'), headers: {"Authorization": "Bearer $_token"});
                                         _initData();
                                       }
                                     ),
