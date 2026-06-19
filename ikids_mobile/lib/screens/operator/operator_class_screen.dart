@@ -36,60 +36,32 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   final Map<String, Map<String, String>> _labels = {
     "vi": {
-      "title": "Quản Lý Lớp Học & Học Viên",
-      "subtitle": "Tạo lớp học mới, xếp học viên, xem danh sách và chỉnh sửa/xóa lớp.",
-      "tab_create": "Tạo Lớp Học",
+      "title": "Quản Lý Lớp Học",
+      "subtitle": "Khởi tạo, sắp xếp giáo viên và quản lý danh sách học viên.",
+      "tab_create": "Tạo Lớp Mới",
       "tab_manage": "Quản Lý Lớp",
-      "form_create_header": "Nhập thông tin lớp học",
+      "form_create_header": "Thông Tin Lớp Học Mới",
       "input_name": "Tên lớp học (*)",
       "input_desc": "Ghi chú nội bộ",
       "input_teacher": "Giáo viên phụ trách (*)",
-      "warn_no_teacher": "Chưa có giáo viên hợp lệ.",
-      "btn_create": "Tạo Lớp Mới",
-      "err_fields": "Vui lòng điền đủ (*)",
-      "success_created": "Tạo lớp thành công!",
-      "select_class": "Chọn lớp để quản lý:",
+      "warn_no_teacher": "Không tìm thấy giáo viên hợp lệ.",
+      "btn_create": "TẠO LỚP HỌC",
+      "err_fields": "⚠️ Vui lòng điền đủ thông tin có dấu (*)",
+      "success_created": "✅ Tạo lớp thành công!",
+      "select_class": "Chọn lớp học cần quản lý:",
       "sub_students": "Danh Sách Học Viên",
-      "sub_edit": "Sửa Thông Tin",
-      "sub_delete": "Xóa Lớp",
-      "lbl_teacher": "Giáo viên:",
-      "no_students": "Lớp này chưa có học sinh.",
-      "btn_remove": "Xóa",
+      "sub_edit": "Cập Nhật Thông Tin",
+      "sub_delete": "Xóa Lớp Học",
+      "lbl_teacher": "Đổi giáo viên phụ trách:",
+      "no_students": "Lớp học này hiện chưa có học sinh nào.",
+      "btn_remove": "Xóa khỏi lớp",
       "success_removed": "Đã xóa học sinh khỏi lớp!",
-      "btn_save": "Lưu Thay Đổi",
-      "success_updated": "Cập nhật lớp thành công!",
-      "warn_delete": "Hành động này là vĩnh viễn!",
-      "btn_delete": "Xác nhận Xóa lớp",
+      "btn_save": "LƯU THAY ĐỔI",
+      "success_updated": "Cập nhật thông tin lớp thành công!",
+      "warn_delete": "CẢNH BÁO: Hành động này là vĩnh viễn và không thể khôi phục. Toàn bộ dữ liệu của lớp học này sẽ bị xóa bỏ khỏi hệ thống!",
+      "btn_delete": "XÁC NHẬN XÓA LỚP",
       "success_deleted": "Đã xóa lớp thành công!",
-      "msg_error": "Có lỗi xảy ra, vui lòng thử lại.",
-    },
-    "en": {
-      "title": "Class & Student Management",
-      "subtitle": "Provision classes, enroll students, and modify registries.",
-      "tab_create": "Create Class",
-      "tab_manage": "Manage Classes",
-      "form_create_header": "Enter Class Specifications",
-      "input_name": "Class Name (*)",
-      "input_desc": "Internal Notes",
-      "input_teacher": "Assigned Teacher (*)",
-      "warn_no_teacher": "No valid teachers found.",
-      "btn_create": "Create New Class",
-      "err_fields": "Fill in required fields (*)",
-      "success_created": "Class created successfully!",
-      "select_class": "Select class:",
-      "sub_students": "Student List",
-      "sub_edit": "Edit Profile",
-      "sub_delete": "Delete Class",
-      "lbl_teacher": "Instructor:",
-      "no_students": "No students enrolled yet.",
-      "btn_remove": "Remove",
-      "success_removed": "Student removed from class!",
-      "btn_save": "Save Changes",
-      "success_updated": "Class updated successfully!",
-      "warn_delete": "This action is permanent!",
-      "btn_delete": "Confirm Deletion",
-      "success_deleted": "Class deleted successfully!",
-      "msg_error": "An error occurred.",
+      "msg_error": "Lỗi kết nối đến máy chủ. Vui lòng thử lại.",
     }
   };
 
@@ -118,7 +90,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   Future<void> _fetchTeachers() async {
     final headers = {"Authorization": "Bearer $_token"};
     try {
-      // 1. Thử API Teachers chuẩn ở TV1
+      // 1. Lấy danh sách từ bảng Teachers (TV1)
       var res = await http.get(Uri.parse('${AppConfig.apiTv1}/teachers'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var data = jsonDecode(utf8.decode(res.bodyBytes));
@@ -128,7 +100,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         }
       }
       
-      // 2. Fallback quét Auth Users
+      // 2. Dự phòng: Quét từ bảng Users (Auth)
       res = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: headers).timeout(const Duration(seconds: 5));
       if (res.statusCode == 200) {
         var rawData = jsonDecode(utf8.decode(res.bodyBytes));
@@ -147,7 +119,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   Future<void> _fetchClasses() async {
     try {
-      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes')).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         _classes = jsonDecode(utf8.decode(res.bodyBytes));
@@ -160,8 +131,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   Future<void> _fetchClassStudents(String classId) async {
     setState(() => _isLoading = true);
     try {
-      // ✅ SỬA: Dùng AppConfig.apiTv1
-      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'));
+      final headers = {"Authorization": "Bearer $_token"};
+      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'), headers: headers);
       if (res.statusCode == 200) {
         _studentsInClass = jsonDecode(utf8.decode(res.bodyBytes));
       } else {
@@ -174,10 +145,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
     }
   }
 
-  // --- ACTIONS ---
   Future<void> _createClass() async {
-    final labels = _labels[_lang]!;
-    if (_createNameCtrl.text.isEmpty || _createTeacherId == null) {
+    final labels = _labels["vi"]!;
+    if (_createNameCtrl.text.trim().isEmpty || _createTeacherId == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_fields"]!), backgroundColor: Colors.orange));
       return;
     }
@@ -187,7 +157,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       final teacher = _teachers.firstWhere((t) => (t['id'] ?? t['_id']).toString() == _createTeacherId);
       final payload = {
         "class_name": _createNameCtrl.text.trim(),
-        "subject": _lang == "vi" ? "Chưa xác định" : "Unassigned",
+        "subject": "Unassigned",
         "teacher_id": _createTeacherId,
         "teacher_name": teacher['name'] ?? teacher['full_name'],
         "student_ids": [],
@@ -196,7 +166,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         "status": "active"
       };
 
-      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.post(
         Uri.parse('${AppConfig.apiTv1}/classes/create'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
@@ -220,8 +189,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _updateClass() async {
-    final labels = _labels[_lang]!;
-    if (_editNameCtrl.text.isEmpty) {
+    final labels = _labels["vi"]!;
+    if (_editNameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(labels["err_fields"]!), backgroundColor: Colors.orange));
       return;
     }
@@ -241,7 +210,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         }
       }
 
-      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.put(
         Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
@@ -262,10 +230,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _deleteClass() async {
-    final labels = _labels[_lang]!;
+    final labels = _labels["vi"]!;
     setState(() => _isLoading = true);
     try {
-      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.delete(
         Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId'),
         headers: {"Authorization": "Bearer $_token"}
@@ -283,10 +250,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
   }
 
   Future<void> _removeStudent(String studentId) async {
-    final labels = _labels[_lang]!;
+    final labels = _labels["vi"]!;
     setState(() => _isLoading = true);
     try {
-      // ✅ SỬA: Dùng AppConfig.apiTv1
       final res = await http.delete(
         Uri.parse('${AppConfig.apiTv1}/classes/$_selectedClassId/students/$studentId'),
         headers: {"Authorization": "Bearer $_token"}
@@ -302,10 +268,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
     }
   }
 
-  // --- UI RENDER ---
   @override
   Widget build(BuildContext context) {
-    final labels = _labels[_lang]!;
+    final labels = _labels["vi"]!;
 
     return DefaultTabController(
       length: 2,
@@ -315,12 +280,6 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
           title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           backgroundColor: Colors.indigo,
           foregroundColor: Colors.white,
-          actions: [
-            TextButton(
-              onPressed: () => setState(() => _lang = _lang == "vi" ? "en" : "vi"),
-              child: Text(_lang.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            )
-          ],
           bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white60,
@@ -384,11 +343,11 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
                   const SizedBox(height: 25),
                   SizedBox(
                     width: double.infinity,
-                    height: 45,
+                    height: 50,
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                       onPressed: _createClass,
-                      child: Text(labels["btn_create"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: Text(labels["btn_create"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
                     ),
                   )
                 ],
@@ -414,33 +373,31 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(labels["select_class"]!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  value: _selectedClassId,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 16),
-                  items: _classes.map((c) {
-                    String cId = (c['id'] ?? c['_id']).toString();
-                    return DropdownMenuItem(value: cId, child: Text(c['class_name'] ?? ''));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) {
-                      setState(() {
-                        _selectedClassId = val;
-                        final selClass = _classes.firstWhere((c) => (c['id'] ?? c['_id']).toString() == val);
-                        _editNameCtrl.text = selClass['class_name'] ?? '';
-                        _editDescCtrl.text = selClass['description'] ?? '';
-                        _editTeacherId = selClass['teacher_id']?.toString();
-                        // Tránh lỗi nếu Teacher ID không nằm trong danh sách giáo viên hiện tại
-                        if (!_teachers.any((t) => (t['id'] ?? t['_id']).toString() == _editTeacherId)) {
-                          _editTeacherId = null; 
-                        }
-                      });
-                      _fetchClassStudents(val);
-                    }
-                  },
-                ),
+              Text(labels["select_class"]!, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                value: _selectedClassId,
+                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10)),
+                items: _classes.map((c) {
+                  String cId = (c['id'] ?? c['_id']).toString();
+                  return DropdownMenuItem(value: cId, child: Text(c['class_name'] ?? ''));
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _selectedClassId = val;
+                      final selClass = _classes.firstWhere((c) => (c['id'] ?? c['_id']).toString() == val);
+                      _editNameCtrl.text = selClass['class_name'] ?? '';
+                      _editDescCtrl.text = selClass['description'] ?? '';
+                      _editTeacherId = selClass['teacher_id']?.toString();
+                      if (!_teachers.any((t) => (t['id'] ?? t['_id']).toString() == _editTeacherId)) {
+                        _editTeacherId = null; 
+                      }
+                    });
+                    _fetchClassStudents(val);
+                  }
+                },
               )
             ],
           ),
@@ -456,7 +413,7 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
                 children: [
                   _buildSubTabBtn(0, Icons.people, labels["sub_students"]!),
                   _buildSubTabBtn(1, Icons.edit, labels["sub_edit"]!),
-                  _buildSubTabBtn(2, Icons.delete, labels["sub_delete"]!),
+                  _buildSubTabBtn(2, Icons.delete_forever, labels["sub_delete"]!),
                 ],
               ),
             ),
@@ -488,8 +445,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
           child: Column(
             children: [
               Icon(icon, size: 20, color: isSelected ? Colors.white : Colors.indigo[300]),
-              const SizedBox(height: 2),
-              Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.indigo[300])),
+              const SizedBox(height: 4),
+              Text(title, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.indigo[300])),
             ],
           ),
         ),
@@ -499,8 +456,21 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
 
   Widget _buildSubTabContent(Map<String, String> labels) {
     if (_subTabIndex == 0) {
-      // DANH SÁCH HỌC SINH
-      if (_studentsInClass.isEmpty) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(labels["no_students"]!)));
+      // ---------------- DANH SÁCH HỌC SINH ----------------
+      if (_studentsInClass.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 40), 
+            child: Column(
+              children: [
+                Icon(Icons.person_off, size: 60, color: Colors.grey.shade400),
+                const SizedBox(height: 10),
+                Text(labels["no_students"]!, style: const TextStyle(color: Colors.grey, fontSize: 16)),
+              ],
+            )
+          )
+        );
+      }
       
       return ListView.builder(
         shrinkWrap: true,
@@ -508,8 +478,9 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
         itemCount: _studentsInClass.length,
         itemBuilder: (context, index) {
           final student = _studentsInClass[index];
-          String sId = student['id'] ?? student['_id'] ?? student['Mã HS'] ?? '';
-          String sName = student['name'] ?? student['Tên Học Sinh'] ?? 'Unknown';
+          // SỬA: Map chuẩn cấu trúc key từ API Get chi tiết học sinh lớp
+          String sId = student['Mã HS']?.toString() ?? student['id']?.toString() ?? student['_id']?.toString() ?? '';
+          String sName = student['Tên Học Sinh']?.toString() ?? student['name']?.toString() ?? 'Unknown';
           
           return Card(
             margin: const EdgeInsets.only(bottom: 10),
@@ -519,7 +490,8 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
               title: Text(sName, style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text("ID: $sId"),
               trailing: IconButton(
-                icon: const Icon(Icons.remove_circle, color: Colors.red),
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                tooltip: labels["btn_remove"],
                 onPressed: () => _removeStudent(sId),
               ),
             ),
@@ -528,17 +500,18 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       );
 
     } else if (_subTabIndex == 1) {
-      // CHỈNH SỬA THÔNG TIN
+      // ---------------- CHỈNH SỬA THÔNG TIN ----------------
       return Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(controller: _editNameCtrl, decoration: InputDecoration(labelText: labels["input_name"])),
               const SizedBox(height: 10),
-              TextField(controller: _editDescCtrl, decoration: InputDecoration(labelText: labels["input_desc"])),
-              const SizedBox(height: 15),
+              TextField(controller: _editDescCtrl, maxLines: 3, decoration: InputDecoration(labelText: labels["input_desc"])),
+              const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 decoration: InputDecoration(labelText: labels["lbl_teacher"]),
                 value: _editTeacherId,
@@ -552,10 +525,12 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
               const SizedBox(height: 25),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                height: 45,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white),
                   onPressed: _updateClass,
-                  child: Text(labels["btn_save"]!),
+                  label: Text(labels["btn_save"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               )
             ],
@@ -564,22 +539,24 @@ class _OperatorClassScreenState extends State<OperatorClassScreen> {
       );
 
     } else {
-      // XÓA LỚP
+      // ---------------- XÓA LỚP ----------------
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.red[200]!)),
         child: Column(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 50),
+            const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 60),
             const SizedBox(height: 15),
-            Text(labels["warn_delete"]!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+            Text(labels["warn_delete"]!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red, fontSize: 14)),
+            const SizedBox(height: 25),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              height: 45,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.delete_forever),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                 onPressed: _deleteClass,
-                child: Text(labels["btn_delete"]!),
+                label: Text(labels["btn_delete"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             )
           ],

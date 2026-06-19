@@ -78,9 +78,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
       _token = await _storage.read(key: 'jwt_token') ?? "";
       final headers = {"Authorization": "Bearer $_token"};
 
-      final resPending = http.get(Uri.parse('${AppConfig.apiUrl}/pending-requests'), headers: headers);
-      final resHistory = http.get(Uri.parse('${AppConfig.apiUrl}/request-history'), headers: headers);
-      final resDeposit = http.get(Uri.parse('${AppConfig.apiUrl}/api/tv3/admin/deposit-issues'), headers: headers);
+      // ✅ ĐÃ SỬA: Chuyển hướng chuẩn xác sang apiTv1 và apiTv3
+      final resPending = http.get(Uri.parse('${AppConfig.apiTv1}/pending-requests'), headers: headers);
+      final resHistory = http.get(Uri.parse('${AppConfig.apiTv1}/request-history'), headers: headers);
+      final resDeposit = http.get(Uri.parse('${AppConfig.apiTv3}/admin/deposit-issues'), headers: headers);
 
       final responses = await Future.wait([resPending, resHistory, resDeposit]);
 
@@ -98,8 +99,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _handleTV1Request(String reqId, String action) async {
     try {
+      // ✅ ĐÃ SỬA: Gửi lệnh duyệt/từ chối vào đúng TV1
       final res = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/$action/$reqId'),
+        Uri.parse('${AppConfig.apiTv1}/requests/$action/$reqId'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -115,8 +117,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Future<void> _resolveDeposit(String issueId) async {
     try {
+      // ✅ ĐÃ SỬA: URL của TV3
       final res = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/api/tv3/admin/resolve-deposit/$issueId'),
+        Uri.parse('${AppConfig.apiTv3}/admin/resolve-deposit/$issueId'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -349,7 +352,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.notifications), label: "Thông báo"),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "chức năng"),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Chức năng"),
         ],
       ),
     );

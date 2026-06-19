@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io'; // ✅ Thêm xử lý File
 import 'package:fl_chart/fl_chart.dart';
+import 'package:path_provider/path_provider.dart'; // ✅ Thêm thư viện đường dẫn
+import 'package:share_plus/share_plus.dart'; // ✅ Thêm thư viện chia sẻ file
 import '../../core/config.dart';
 
 class OperatorFinanceScreen extends StatefulWidget {
@@ -95,6 +98,52 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
       }
     } catch (e) {
       debugPrint("Lỗi cập nhật: $e");
+    }
+  }
+
+  // ✅ ĐÃ THÊM: Xử lý xuất và chia sẻ file CSV (Tương thích Excel)
+  Future<void> _exportToCsv() async {
+    try {
+      if (_allTransactions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Không có dữ liệu để xuất!"), backgroundColor: Colors.orange));
+        return;
+      }
+
+      // Tạo tiêu đề cột cho file CSV
+      String csvData = "Mã GD,Nhóm,Loại GD/Sản phẩm,Số tiền (VNĐ),Trạng thái,Ngày tạo,Ghi chú\n";
+
+      // Đổ dữ liệu vào file
+      for (var t in _allTransactions) {
+        String id = t['id']?.toString() ?? '';
+        String group = t['group']?.toString() ?? '';
+        String type = t['type']?.toString() ?? t['item_name']?.toString() ?? t['product_name']?.toString() ?? '';
+        String amount = _getMoneyValue(t).toStringAsFixed(0);
+        String status = t['status']?.toString() ?? '';
+        String date = t['created_at']?.toString() ?? '';
+        String note = t['note']?.toString() ?? '';
+
+        // Dọn dẹp dữ liệu tránh làm vỡ cấu trúc CSV
+        type = type.replaceAll(',', ';');
+        note = note.replaceAll(',', ';').replaceAll('\n', ' ');
+
+        csvData += "$id,$group,$type,$amount,$status,$date,$note\n";
+      }
+
+      // Lấy đường dẫn lưu trữ tạm thời trên điện thoại
+      final directory = await getTemporaryDirectory();
+      final String filePath = '${directory.path}/Bao_Cao_Tai_Chinh_iKids.csv';
+      final File file = File(filePath);
+
+      // Ghi byte BOM (0xEF, 0xBB, 0xBF) để Excel mở ra không bị lỗi Font Tiếng Việt
+      await file.writeAsBytes([0xEF, 0xBB, 0xBF]); 
+      await file.writeAsString(csvData, mode: FileMode.append, encoding: utf8);
+
+      // Gọi bảng chia sẻ của thiết bị (Share qua Zalo, Telegram, Email, Lưu vào máy...)
+      await Share.shareXFiles([XFile(filePath)], text: 'Báo cáo Giao dịch Tài chính iKids');
+
+    } catch (e) {
+      debugPrint("Lỗi xuất file CSV: $e");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi tạo file báo cáo!"), backgroundColor: Colors.red));
     }
   }
 
@@ -241,9 +290,10 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
           foregroundColor: Colors.white,
           actions: [
             IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchTransactions),
+            // ✅ ĐÃ SỬA: Nút tải trên AppBar kích hoạt hàm xuất CSV
             IconButton(
               icon: const Icon(Icons.download), 
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tính năng xuất Excel khả dụng trên Web.")))
+              onPressed: _exportToCsv
             ),
           ],
           bottom: const TabBar(
@@ -314,7 +364,6 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
   // --- HÀM RENDER BIỂU ĐỒ & THỐNG KÊ ---
   Widget _buildStatsTab() {
     double totalAmount = _allTransactions.fold(0.0, (sum, item) => sum + _getMoneyValue(item));
-    int uniqueGroups = _allTransactions.map((t) => t['group']).toSet().length;
 
     // Chuẩn bị dữ liệu biểu đồ
     Map<String, int> countMap = {};
@@ -340,6 +389,19 @@ class _OperatorFinanceScreenState extends State<OperatorFinanceScreen> {
               const SizedBox(width: 10),
               Expanded(child: _buildMetricCard("Tổng dòng tiền", "${totalAmount.toStringAsFixed(0)}đ", Icons.attach_money, Colors.orange)),
             ],
+          ),
+          const SizedBox(height: 20),
+
+          // ✅ ĐÃ THÊM: Nút bấm xuất Báo cáo to rõ ràng ở Tab Thống kê
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.download),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              onPressed: _exportToCsv,
+              label: const Text("XUẤT BÁO CÁO (EXCEL/CSV)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
           ),
           const SizedBox(height: 30),
 

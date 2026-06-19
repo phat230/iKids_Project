@@ -16,6 +16,9 @@ dependencies:
   youtube_player_flutter: ^9.1.1
   fl_chart: ^1.2.0
   intl: ^0.20.2
+  image_picker: ^1.2.2
+  path_provider: ^2.1.6
+  share_plus: ^12.0.2
 
 dev_dependencies:
   flutter_test:

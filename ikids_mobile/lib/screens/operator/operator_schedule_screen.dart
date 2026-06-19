@@ -48,7 +48,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Xếp Lịch Học",
-      "tab_create": "Tạo Lịch Mới",
+      "tab_create": "Tạo Lịch Học Mới",
       "tab_list": "Danh Sách Lịch",
       "lbl_class": "Chọn lớp học (*)",
       "lbl_teacher": "Giáo viên giảng dạy (*)",
@@ -58,33 +58,13 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       "lbl_end_date": "Ngày kết thúc",
       "lbl_start_time": "Giờ bắt đầu",
       "lbl_end_time": "Giờ kết thúc",
-      "lbl_days": "Thứ trong tuần (*)",
-      "lbl_public": "Công khai đăng ký",
+      "lbl_days": "Lịch học trong tuần (*)",
+      "lbl_public": "Mở lớp (Công khai cho phụ huynh đăng ký)",
       "btn_create": "TẠO LỊCH HỌC",
       "success_created": "Đã tạo lịch học thành công!",
       "err_validation": "Vui lòng điền đủ thông tin bắt buộc!",
       "notif_title": "Thay đổi lịch học",
       "msg_reschedule": "Thông báo: Lớp {} đổi lịch sang các ngày {} lúc {}. Phòng: {}.",
-    },
-    "en": {
-      "title": "Class Scheduler",
-      "tab_create": "New Schedule",
-      "tab_list": "Current Timetables",
-      "lbl_class": "Select Class (*)",
-      "lbl_teacher": "Assigned Lecturer (*)",
-      "lbl_subject": "Subject (*)",
-      "lbl_room": "Classroom / Venue",
-      "lbl_start_date": "Start Date",
-      "lbl_end_date": "End Date",
-      "lbl_start_time": "Start Time",
-      "lbl_end_time": "End Time",
-      "lbl_days": "Weekly Days (*)",
-      "lbl_public": "Public Enrollment",
-      "btn_create": "GENERATE TIMETABLE",
-      "success_created": "Timetable scheduled successfully!",
-      "err_validation": "Please fill in all required fields!",
-      "notif_title": "Schedule Update",
-      "msg_reschedule": "Notice: Class {} rescheduled to {} at {}. Room: {}.",
     }
   };
 
@@ -109,13 +89,11 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   }
 
   Future<void> _fetchTeachers() async {
-    // SỬA: Gọi từ TV1 thay vì auth để đồng bộ danh sách giáo viên đang dạy
     final res = await http.get(Uri.parse('${AppConfig.apiTv1}/teachers'), headers: {"Authorization": "Bearer $_token"});
     if (res.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(res.bodyBytes));
       _teachers = data;
     } else {
-      // Fallback nếu api TV1 lỗi
       final authRes = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: {"Authorization": "Bearer $_token"});
       if (authRes.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(authRes.bodyBytes));
@@ -125,44 +103,13 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
   }
 
   Future<void> _fetchClasses() async {
-    // SỬA: Dùng AppConfig.apiTv1
     final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes'));
     if (res.statusCode == 200) _classes = jsonDecode(utf8.decode(res.bodyBytes));
   }
 
   Future<void> _fetchSchedules() async {
-    // SỬA: Dùng AppConfig.apiTv1
     final res = await http.get(Uri.parse('${AppConfig.apiTv1}/schedule/list'), headers: {"Authorization": "Bearer $_token"});
     if (res.statusCode == 200) _schedules = jsonDecode(utf8.decode(res.bodyBytes));
-  }
-
-  // Gửi thông báo tự động cho Phụ huynh & Học sinh
-  Future<void> _dispatchNotifications(String classId, String className, String content) async {
-    try {
-      // Lấy danh sách học sinh từ TV1
-      final res = await http.get(Uri.parse('${AppConfig.apiTv1}/classes/$classId/students/details'), headers: {"Authorization": "Bearer $_token"});
-      if (res.statusCode == 200) {
-        final List<dynamic> students = jsonDecode(utf8.decode(res.bodyBytes));
-        for (var s in students) {
-          final payload = {
-            "sender_id": _userId,
-            "sender_role": "operator",
-            "sender_name": "Bộ phận Vận hành",
-            "receiver_id": s['Mã HS'],
-            "receiver_role": "student",
-            "type": "schedule",
-            "title": _labels[_lang]!['notif_title'],
-            "content": content
-          };
-          // Bắn thông báo (API gốc)
-          await http.post(Uri.parse('${AppConfig.baseUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
-          
-          payload["receiver_role"] = "parent";
-          payload["receiver_id"] = "all"; // Backend sẽ tự phân giải sang phụ huynh của học sinh này
-          await http.post(Uri.parse('${AppConfig.baseUrl}/api/notifications/send'), headers: {"Content-Type": "application/json"}, body: jsonEncode(payload));
-        }
-      }
-    } catch (e) { debugPrint("Lỗi gửi tin: $e"); }
   }
 
   Future<void> _submitCreate() async {
@@ -192,12 +139,15 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
       "status": "active"
     };
 
-    // SỬA: Gửi vào API_TV1
-    final res = await http.post(Uri.parse('${AppConfig.apiTv1}/schedule/create'), headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"}, body: jsonEncode(payload));
+    final res = await http.post(
+      Uri.parse('${AppConfig.apiTv1}/schedule/create'), 
+      headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"}, 
+      body: jsonEncode(payload)
+    );
 
     if (res.statusCode == 200) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!['success_created']!), backgroundColor: Colors.green));
-      _initData(); // Tải lại toàn bộ lịch
+      _initData(); 
     } else {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi hệ thống khi tạo lịch"), backgroundColor: Colors.red));
@@ -210,6 +160,7 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
           title: Text(labels["title"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           backgroundColor: Colors.indigo,
@@ -236,62 +187,252 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
     );
   }
 
+  // ✅ ĐÃ SỬA: Đập đi xây lại toàn bộ UI form tạo lịch y hệt bản Web
   Widget _buildCreateForm(Map<String, String> labels) {
+    
+    // Tìm tên Giáo viên phụ trách từ danh sách lớp
+    String assignedTeacher = "Chưa phân công";
+    if (_selectedClassId != null) {
+      final cls = _classes.firstWhere((c) => (c['id'] ?? c['_id']).toString() == _selectedClassId, orElse: () => {});
+      assignedTeacher = cls['teacher_name'] ?? "Chưa phân công";
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 3,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. CHỌN LỚP HỌC
+              Text(labels["lbl_class"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+              const SizedBox(height: 5),
               DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: labels["lbl_class"]),
+                decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
                 items: _classes.map((c) => DropdownMenuItem(value: (c['id'] ?? c['_id']).toString(), child: Text(c['class_name']))).toList(),
                 onChanged: (val) => setState(() => _selectedClassId = val),
               ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: labels["lbl_teacher"]),
-                items: _teachers.map((t) => DropdownMenuItem(value: (t['id'] ?? t['_id']).toString(), child: Text(t['full_name'] ?? t['name']))).toList(),
-                onChanged: (val) => setState(() => _selectedTeacherId = val),
-              ),
-              const SizedBox(height: 10),
-              TextField(controller: _subjectCtrl, decoration: InputDecoration(labelText: labels["lbl_subject"])),
-              const SizedBox(height: 10),
-              TextField(controller: _roomCtrl, decoration: InputDecoration(labelText: labels["lbl_room"])),
               const SizedBox(height: 15),
-              const Text("Lịch học trong tuần:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Wrap(
-                spacing: 8,
-                children: _daysVi.map((day) {
-                  bool isSelected = _selectedDays.contains(day);
-                  return FilterChip(
-                    label: Text(day, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black)),
-                    selected: isSelected,
-                    selectedColor: Colors.indigo,
-                    onSelected: (bool selected) {
-                      setState(() {
-                        if (selected) _selectedDays.add(day);
-                        else _selectedDays.remove(day);
-                      });
-                    },
-                  );
-                }).toList(),
+
+              // 2. GIÁO VIÊN PHỤ TRÁCH (Khung xanh giống Web)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade100)
+                ),
+                child: Text(
+                  "Giáo viên phụ trách: $assignedTeacher",
+                  style: TextStyle(color: Colors.blue.shade800, fontWeight: FontWeight.w600, fontSize: 15),
+                ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
+
+              // 3. ROW: GIÁO VIÊN GIẢNG DẠY & MÔN HỌC
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: DropdownButtonFormField<String>(value: _startTime, items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(), onChanged: (v) => setState(() => _startTime = v!), decoration: InputDecoration(labelText: labels["lbl_start_time"]))),
-                  const SizedBox(width: 10),
-                  Expanded(child: DropdownButtonFormField<String>(value: _endTime, items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(), onChanged: (v) => setState(() => _endTime = v!), decoration: InputDecoration(labelText: labels["lbl_end_time"]))),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_teacher"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        DropdownButtonFormField<String>(
+                          isExpanded: true, // Chống vỡ layout tên dài
+                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                          items: _teachers.map((t) => DropdownMenuItem(value: (t['id'] ?? t['_id']).toString(), child: Text(t['full_name'] ?? t['name'], overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (val) => setState(() => _selectedTeacherId = val),
+                        ),
+                      ]
+                    )
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_subject"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        TextField(
+                          controller: _subjectCtrl, 
+                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 13, horizontal: 10))
+                        ),
+                      ]
+                    )
+                  ),
                 ],
               ),
-              const SizedBox(height: 15),
-              CheckboxListTile(title: Text(labels["lbl_public"]!), value: _isPublic, onChanged: (v) => setState(() => _isPublic = v!), activeColor: Colors.indigo),
               const SizedBox(height: 20),
-              SizedBox(width: double.infinity, height: 45, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo, foregroundColor: Colors.white), onPressed: _submitCreate, child: Text(labels["btn_create"]!))),
+
+              // 4. ROW: NGÀY BẮT ĐẦU & NGÀY KẾT THÚC (MỚI THÊM)
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_start_date"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                            alignment: Alignment.centerLeft,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))
+                          ),
+                          onPressed: () async {
+                            DateTime? picked = await showDatePicker(context: context, initialDate: _startDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                            if (picked != null) setState(() => _startDate = picked);
+                          },
+                          child: Text(DateFormat('yyyy/MM/dd').format(_startDate), style: const TextStyle(color: Colors.black87)),
+                        ),
+                      ],
+                    )
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_end_date"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+                            alignment: Alignment.centerLeft,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))
+                          ),
+                          onPressed: () async {
+                            DateTime? picked = await showDatePicker(context: context, initialDate: _endDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                            if (picked != null) setState(() => _endDate = picked);
+                          },
+                          child: Text(DateFormat('yyyy/MM/dd').format(_endDate), style: const TextStyle(color: Colors.black87)),
+                        ),
+                      ],
+                    )
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 5. ROW: GIỜ BẮT ĐẦU & GIỜ KẾT THÚC
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_start_time"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        DropdownButtonFormField<String>(
+                          value: _startTime, 
+                          items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(), 
+                          onChanged: (v) => setState(() => _startTime = v!), 
+                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)
+                        )
+                      ]
+                    )
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_end_time"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        DropdownButtonFormField<String>(
+                          value: _endTime, 
+                          items: _timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(), 
+                          onChanged: (v) => setState(() => _endTime = v!), 
+                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true)
+                        )
+                      ]
+                    )
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // 6. ROW: LỊCH HỌC TRONG TUẦN & PHÒNG HỌC
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_days"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(color: Colors.grey.shade50, border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(5)),
+                          child: Wrap(
+                            spacing: 6, runSpacing: -6,
+                            children: _daysVi.map((day) {
+                              bool isSelected = _selectedDays.contains(day);
+                              return FilterChip(
+                                label: Text(day, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
+                                selected: isSelected,
+                                selectedColor: Colors.blueAccent,
+                                showCheckmark: false,
+                                onSelected: (bool selected) {
+                                  setState(() {
+                                    if (selected) _selectedDays.add(day);
+                                    else _selectedDays.remove(day);
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    )
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(labels["lbl_room"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 5),
+                        TextField(
+                          controller: _roomCtrl, 
+                          decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(vertical: 13, horizontal: 10))
+                        ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+              
+              const SizedBox(height: 15),
+              // 7. CHECKBOX MỞ LỚP
+              CheckboxListTile(
+                title: Text(labels["lbl_public"]!, style: const TextStyle(fontSize: 14)), 
+                value: _isPublic, 
+                onChanged: (v) => setState(() => _isPublic = v!), 
+                activeColor: Colors.blueAccent,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+              
+              const SizedBox(height: 20),
+              // 8. BUTTON TẠO LỊCH
+              SizedBox(
+                width: double.infinity, 
+                height: 50, 
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), 
+                  onPressed: _submitCreate, 
+                  child: Text(labels["btn_create"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                )
+              ),
             ],
           ),
         ),
@@ -330,7 +471,6 @@ class _OperatorScheduleScreenState extends State<OperatorScheduleScreen> {
                           icon: const Icon(Icons.delete, color: Colors.red), 
                           label: const Text("Xóa", style: TextStyle(color: Colors.red)), 
                           onPressed: () async {
-                            // SỬA: Xóa trên API_TV1
                             final res = await http.delete(Uri.parse('${AppConfig.apiTv1}/schedule/${item['id']}'), headers: {"Authorization": "Bearer $_token"});
                             if (res.statusCode == 200) _initData();
                           }

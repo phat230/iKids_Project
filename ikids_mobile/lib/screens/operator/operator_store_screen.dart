@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io'; 
+import 'package:image_picker/image_picker.dart';
 import '../../core/config.dart';
 
 class OperatorStoreScreen extends StatefulWidget {
@@ -27,7 +29,8 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   final _searchController = TextEditingController();
-  final _imageUrlController = TextEditingController(); // ✅ ĐÃ THÊM: Controller cho link ảnh
+  
+  XFile? _pickedImage; 
 
   final Map<String, Map<String, String>> _labels = {
     "vi": {
@@ -40,7 +43,8 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "input_name": "Tên sản phẩm (*)",
       "input_desc": "Mô tả chi tiết",
       "input_price": "Giá bán (VNĐ)",
-      "input_image": "Link ảnh minh họa (URL)", // ✅ ĐÃ THÊM: Nhãn cho trường ảnh
+      "input_image": "Hình ảnh sản phẩm (*)", // Đã sửa đổi ngữ cảnh
+      "btn_pick_image": "Chọn ảnh từ thiết bị", 
       "btn_save": "Lưu cập nhật",
       "btn_add": "Đăng sản phẩm",
       "btn_cancel": "Hủy",
@@ -62,7 +66,8 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       "input_name": "Product Name (*)",
       "input_desc": "Detailed Description",
       "input_price": "Price (Points/VND)",
-      "input_image": "Image URL (Optional)", // ✅ ĐÃ THÊM: Nhãn tiếng Anh
+      "input_image": "Product Image (*)",
+      "btn_pick_image": "Pick Image from Device",
       "btn_save": "Save Changes",
       "btn_add": "Publish Product",
       "btn_cancel": "Cancel",
@@ -100,7 +105,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
   Future<void> _fetchProducts() async {
     try {
       final res = await http.get(
-        Uri.parse('${AppConfig.apiTv3}/products'), // Sử dụng apiTv3 từ AppConfig
+        Uri.parse('${AppConfig.apiTv3}/products'),
         headers: {"Authorization": "Bearer $_token"}
       );
       if (res.statusCode == 200) {
@@ -133,17 +138,24 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     });
   }
 
+  // ✅ ĐÃ THÊM: Hàm gọi Gallery chọn hình ảnh
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (image != null) {
+      setState(() {
+        _pickedImage = image;
+      });
+    }
+  }
+
   void _startEdit(Map<String, dynamic> product) {
     setState(() {
       _editingProduct = product;
       _nameController.text = _getLocalized(product['name']);
       _descController.text = _getLocalized(product['description']);
       _priceController.text = product['price']?.toString() ?? "0";
-      
-      // ✅ ĐÃ THÊM: Nạp lại link ảnh cũ nếu có
-      String existingImg = product['image_url']?.toString() ?? "";
-      if (existingImg == "static/placeholder.png") existingImg = "";
-      _imageUrlController.text = existingImg;
+      _pickedImage = null; // Khởi tạo lại file chọn ảnh mới
     });
   }
 
@@ -153,19 +165,15 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
       _nameController.clear();
       _descController.clear();
       _priceController.clear();
-      _imageUrlController.clear(); // ✅ Xóa trắng ô nhập ảnh
+      _pickedImage = null;
     });
   }
 
+  // ✅ ĐÃ SỬA: Chuyển đổi hàm lưu sang định dạng MultipartRequest để tải file nhị phân
   Future<void> _submitForm() async {
     final name = _nameController.text.trim();
     final desc = _descController.text.trim();
     final price = double.tryParse(_priceController.text) ?? 0;
-    
-    // ✅ Lấy link ảnh từ Textfield, nếu rỗng thì dùng ảnh mặc định
-    final imgUrl = _imageUrlController.text.trim().isNotEmpty 
-        ? _imageUrlController.text.trim() 
-        : "static/anh_laptop.jpg";
 
     if (name.isEmpty || price <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_err_empty"]!), backgroundColor: Colors.red));
@@ -175,36 +183,45 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final payload = {
-        "name": name,
-        "price": price,
-        "description": desc,
-        "image_url": imgUrl, // ✅ Đẩy link ảnh lên Backend
-        "updated_at": DateTime.now().toIso8601String()
-      };
+      Uri url = _editingProduct != null 
+          ? Uri.parse('${AppConfig.apiTv3}/products/${_editingProduct!['id']}')
+          : Uri.parse('${AppConfig.apiTv3}/products');
 
-      http.Response res;
+      // Khởi tạo Request dạng Form-data thay vì gửi chuỗi JSON thuần
+      var request = http.MultipartRequest(_editingProduct != null ? 'PUT' : 'POST', url);
+      
+      // Cấu hình Headers bảo mật chứng thực Token
+      request.headers['Authorization'] = "Bearer $_token";
+
+      // Đẩy các trường văn bản vào Request Fields
+      request.fields['name'] = name;
+      request.fields['price'] = price.toString();
+      request.fields['description'] = desc;
+      
       if (_editingProduct != null) {
-        res = await http.put(
-          Uri.parse('${AppConfig.apiTv3}/products/${_editingProduct!['id']}'),
-          headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
-          body: jsonEncode(payload)
-        );
+        request.fields['updated_at'] = DateTime.now().toIso8601String();
       } else {
-        payload["created_at"] = DateTime.now().toIso8601String();
-        res = await http.post(
-          Uri.parse('${AppConfig.apiTv3}/products'),
-          headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
-          body: jsonEncode(payload)
-        );
+        request.fields['created_at'] = DateTime.now().toIso8601String();
       }
+
+      // Đính kèm tệp ảnh thật từ thiết bị nếu có chọn ảnh
+      if (_pickedImage != null) {
+        request.files.add(await http.MultipartFile.fromPath('image', _pickedImage!.path));
+      } else if (_editingProduct != null) {
+        // Nếu sửa mà không chọn ảnh mới, giữ nguyên URL ảnh cũ
+        request.fields['image_url'] = _editingProduct!['image_url'] ?? "static/anh_laptop.jpg";
+      }
+
+      // Thực thi gửi gói tin lên hệ thống Server
+      var streamedResponse = await request.send();
+      var res = await http.Response.fromStream(streamedResponse);
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_labels[_lang]!["msg_success"]!), backgroundColor: Colors.green));
         _cancelEdit();
         await _fetchProducts();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi Server!"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lỗi Server xử lý file!"), backgroundColor: Colors.red));
       }
     } catch (e) {
       debugPrint("Lỗi Submit: $e");
@@ -264,7 +281,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                 Text(labels["caption"]!, style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                 const SizedBox(height: 15),
 
-                // --- KHỐI THỐNG KÊ ---
                 Row(
                   children: [
                     Expanded(child: _buildStatCard(labels["stat_total"]!, "$totalProducts", Icons.inventory_2, Colors.blue)),
@@ -274,7 +290,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // --- FORM THÊM / SỬA ---
+                // --- FORM THÊM / SỬA CHỨA BỘ CHỌN ẢNH THẬT ---
                 Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -291,19 +307,48 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                         TextField(controller: _nameController, decoration: InputDecoration(labelText: labels["input_name"])),
                         const SizedBox(height: 10),
                         TextField(controller: _priceController, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: labels["input_price"])),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 15),
                         
-                        // ✅ ĐÃ THÊM: Ô nhập Link Hình Ảnh
-                        TextField(
-                          controller: _imageUrlController, 
-                          decoration: InputDecoration(
-                            labelText: labels["input_image"],
-                            hintText: "https://...",
-                            prefixIcon: const Icon(Icons.link, color: Colors.teal)
-                          )
+                        // ✅ ĐÃ SỬA: Khu vực Chọn và hiển thị ảnh xem trước từ máy (Preview)
+                        Text(labels["input_image"]!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            width: double.infinity,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[50],
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid)
+                            ),
+                            child: _pickedImage != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(File(_pickedImage!.path), fit: BoxFit.cover), // Hiện ảnh vừa chọn từ máy
+                                  )
+                                : (_editingProduct != null && _editingProduct!['image_url'] != null)
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: Image.network(
+                                          _editingProduct!['image_url'].toString().startsWith("static")
+                                              ? "${AppConfig.baseUrl}/${_editingProduct!['image_url']}"
+                                              : _editingProduct!['image_url'],
+                                          fit: BoxFit.cover,
+                                        ), // Hiện ảnh cũ có sẵn từ Server khi Edit
+                                      )
+                                    : Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(Icons.add_a_photo, size: 35, color: Colors.teal),
+                                          const SizedBox(height: 5),
+                                          Text(labels["btn_pick_image"]!, style: const TextStyle(color: Colors.teal, fontSize: 13))
+                                        ],
+                                      ),
+                          ),
                         ),
-                        const SizedBox(height: 10),
                         
+                        const SizedBox(height: 10),
                         TextField(controller: _descController, maxLines: 3, decoration: InputDecoration(labelText: labels["input_desc"])),
                         const SizedBox(height: 20),
                         Row(
@@ -328,7 +373,7 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                 ),
                 const SizedBox(height: 25),
 
-                // --- DANH SÁCH SẢN PHẨM ---
+                // --- DANH SÁCH DANH MỤC SẢN PHẨM ---
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -363,7 +408,6 @@ class _OperatorStoreScreenState extends State<OperatorStoreScreen> {
                       double price = (p['price'] ?? 0).toDouble();
                       String imgUrl = p['image_url']?.toString() ?? "";
                       
-                      // Xử lý URL ảnh an toàn
                       if (imgUrl.isNotEmpty && imgUrl.startsWith("static")) {
                         imgUrl = "${AppConfig.baseUrl}/$imgUrl";
                       } else if (imgUrl.isEmpty) {

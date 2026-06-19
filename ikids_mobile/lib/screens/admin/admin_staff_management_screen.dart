@@ -64,8 +64,9 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
 
   Future<void> _fetchStaff() async {
     try {
+      // ✅ ĐÃ SỬA: Chuyển hướng lấy danh sách tài khoản từ cổng apiAuth (Backend xác thực)
       final res = await http.get(
-        Uri.parse('${AppConfig.apiUrl}/staff'),
+        Uri.parse('${AppConfig.apiAuth}/users'),
         headers: {"Authorization": "Bearer $_token"},
       );
       if (res.statusCode == 200) {
@@ -84,9 +85,9 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
     String query = _searchCtrl.text.toLowerCase().trim();
     setState(() {
       _filteredStaff = _allStaff.where((user) {
-        bool matchesSearch = (user['name'] ?? '').toString().toLowerCase().contains(query) ||
+        bool matchesSearch = (user['name'] ?? user['full_name'] ?? '').toString().toLowerCase().contains(query) ||
             (user['email'] ?? '').toString().toLowerCase().contains(query);
-        bool matchesRole = _selectedFilterRole == "All" || user['role'] == _selectedFilterRole;
+        bool matchesRole = _selectedFilterRole == "All" || user['role'] == _selectedFilterRole || user['quyen'] == _selectedFilterRole;
         return matchesSearch && matchesRole;
       }).toList();
     });
@@ -120,16 +121,17 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
           return;
         }
 
+        // ✅ ĐÃ SỬA: Gửi vào cổng Đăng ký (Register) của hệ thống Auth
         final pRes = await http.post(
-          Uri.parse('${AppConfig.apiUrl}/staff/add'),
+          Uri.parse('${AppConfig.apiAuth}/register'),
           headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
           body: jsonEncode({
             "name": pName, "role": "parent", "email": pEmail, "password": pPwd, "phone": _pPhoneCtrl.text.trim(), "status": "Active"
           })
         );
 
-        if (pRes.statusCode == 200) {
-          final syncRes = await http.get(Uri.parse('${AppConfig.apiUrl}/staff'), headers: {"Authorization": "Bearer $_token"});
+        if (pRes.statusCode == 200 || pRes.statusCode == 201) {
+          final syncRes = await http.get(Uri.parse('${AppConfig.apiAuth}/users'), headers: {"Authorization": "Bearer $_token"});
           if (syncRes.statusCode == 200) {
             final List<dynamic> updatedList = jsonDecode(utf8.decode(syncRes.bodyBytes));
             final freshParent = updatedList.firstWhere((p) => p['email'] == pEmail, orElse: () => null);
@@ -154,13 +156,14 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
       };
       if (_selectedRole == "student" && finalParentId != null) payload["parent_id"] = finalParentId;
 
+      // ✅ ĐÃ SỬA: Gửi vào cổng Đăng ký (Register) của hệ thống Auth
       final res = await http.post(
-        Uri.parse('${AppConfig.apiUrl}/staff/add'),
+        Uri.parse('${AppConfig.apiAuth}/register'),
         headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
         body: jsonEncode(payload)
       );
 
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200 || res.statusCode == 201) {
         _showSnackbar("Tạo tài khoản thành công!", Colors.green);
         _clearFormFields();
         Navigator.pop(context); // Đóng Dialog
@@ -190,7 +193,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
       builder: (ctx) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-            final availableParents = _allStaff.where((s) => s['role'] == 'parent').toList();
+            final availableParents = _allStaff.where((s) => s['role'] == 'parent' || s['quyen'] == 'parent').toList();
             // Fallback an toàn
             if (_selectedParentId != null && !availableParents.any((p) => (p['id']?.toString() ?? p['_id']?.toString()) == _selectedParentId)) {
               _selectedParentId = null;
@@ -246,7 +249,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                 decoration: const InputDecoration(labelText: "Chọn Phụ huynh", filled: true, fillColor: Colors.white),
                                 value: _selectedParentId,
                                 items: availableParents.map((p) {
-                                  return DropdownMenuItem(value: (p['id']?.toString() ?? p['_id']?.toString() ?? ''), child: Text("${p['name']}"));
+                                  return DropdownMenuItem(value: (p['id']?.toString() ?? p['_id']?.toString() ?? ''), child: Text("${p['name'] ?? p['full_name']}"));
                                 }).toList(),
                                 onChanged: (v) => setModalState(() => _selectedParentId = v),
                               )
@@ -295,8 +298,8 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
 
   // --- DIALOGS SỬA NHANH ---
   void _openEditDialog(Map<String, dynamic> user) {
-    final nameCtrl = TextEditingController(text: user['name'] ?? '');
-    final phoneCtrl = TextEditingController(text: user['phone'] ?? '');
+    final nameCtrl = TextEditingController(text: user['name'] ?? user['full_name'] ?? '');
+    final phoneCtrl = TextEditingController(text: user['phone'] ?? user['phone_number'] ?? '');
     String status = user['status'] ?? 'Active';
 
     showDialog(
@@ -320,8 +323,9 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              // ✅ ĐÃ SỬA: Sửa User thông qua apiAuth
               await http.put(
-                Uri.parse('${AppConfig.apiUrl}/staff/${user['id'] ?? user['_id']}'),
+                Uri.parse('${AppConfig.apiAuth}/users/${user['id'] ?? user['_id']}'),
                 headers: {"Content-Type": "application/json", "Authorization": "Bearer $_token"},
                 body: jsonEncode({"name": nameCtrl.text, "phone": phoneCtrl.text, "status": status})
               );
@@ -401,7 +405,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                           itemCount: _filteredStaff.length,
                           itemBuilder: (context, index) {
                             final user = _filteredStaff[index];
-                            final roleColor = _getRoleColor(user['role']);
+                            final roleColor = _getRoleColor(user['role'] ?? user['quyen']);
                             final isActive = user['status'] != "Disabled" && user['status'] != "Vô hiệu hóa";
 
                             return Card(
@@ -410,7 +414,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               child: ListTile(
                                 leading: CircleAvatar(backgroundColor: roleColor.withOpacity(0.2), child: Icon(Icons.person, color: roleColor)),
-                                title: Text(user['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                title: Text(user['name'] ?? user['full_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -422,7 +426,7 @@ class _AdminStaffManagementScreenState extends State<AdminStaffManagementScreen>
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           decoration: BoxDecoration(color: roleColor, borderRadius: BorderRadius.circular(5)),
-                                          child: Text(user['role'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                          child: Text((user['role'] ?? user['quyen'] ?? 'Unknown').toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                         ),
                                         const SizedBox(width: 10),
                                         Icon(Icons.circle, size: 10, color: isActive ? Colors.green : Colors.red),
