@@ -6,17 +6,15 @@
     padding-bottom: 3rem;
 }
 
-/* Định dạng tiêu đề lớn iKids */
 h1 {
-    color: #1e3a8a !important; /* Xanh dương đậm uy tín */
+    color: #1e3a8a !important; 
     font-weight: 800;
     font-size: 2.5rem !important;
 }
 
-h2, h3 {
+h2, h3, h4 {
     color: #0f172a !important;
     font-weight: 700;
-    margin-top: 1.5rem !important;
 }
 
 /* --- 2. HEADER & LOGO --- */
@@ -24,7 +22,7 @@ h2, h3 {
     display: flex;
     align-items: center;
     gap: 20px;
-    padding-bottom: 15px;
+    padding-bottom: 10px;
 }
 
 img[alt="logo"] {
@@ -33,30 +31,36 @@ img[alt="logo"] {
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
 
-/* --- 3. ĐỊNH DẠNG CONTAINER BÀI VIẾT & TIN TỨC (CARDS) --- */
-div[data-testid="stForm"], div[data-testid="stVerticalBlockBorderWrapper"] {
+/* --- 3. ĐỊNH DẠNG TABS CỦA ADMIN --- */
+button[data-baseweb="tab"] {
+    font-size: 1.05rem !important;
+    font-weight: 600 !important;
+    padding: 10px 20px !important;
+}
+
+/* --- 4. ĐỊNH DẠNG CONTAINER BÀI VIẾT & TIN TỨC --- */
+div[data-testid="stVerticalBlockBorderWrapper"] {
     background-color: #ffffff;
     border-radius: 16px !important;
     border: 1px solid #e2e8f0 !important;
-    padding: 24px !important;
+    padding: 15px !important;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.02), 0 4px 6px -2px rgba(0, 0, 0, 0.02) !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 15px;
 }
 
-/* Hiệu ứng di chuột mượt mà cho các bài viết tin tức */
 div[data-testid="stVerticalBlockBorderWrapper"]:hover {
     transform: translateY(-4px);
     border-color: #3b82f6 !important;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
 }
 
-/* Bo góc mượt mà cho tất cả hình ảnh minh họa bài đăng */
 div[data-testid="stImage"] img {
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.04);
 }
 
-/* --- 4. HỆ THỐNG NÚT BẤM (BUTTONS) BIÊN TẬP CMS --- */
+/* --- 5. HỆ THỐNG NÚT BẤM --- */
 .stButton > button {
     border-radius: 8px !important;
     font-weight: 600 !important;
@@ -64,27 +68,27 @@ div[data-testid="stImage"] img {
     transition: all 0.2s ease-in-out !important;
 }
 
-/* Nút chính (Đăng bài, Cập nhật tổng) */
 .stButton > button[kind="primary"] {
     background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
     color: white !important;
     border: none !important;
     box-shadow: 0 4px 6px rgba(30, 58, 138, 0.15) !important;
 }
+
 .stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
+    transform: translateY(-2px) !important;
     filter: brightness(1.1);
     box-shadow: 0 6px 12px rgba(30, 58, 138, 0.25) !important;
 }
 
-/* Nút Xóa bài viết thô (Chuyển sang màu đỏ cảnh báo khi hover) */
-.stButton > button:has(p:contains("Xóa")):hover {
+.stButton > button:has(p:contains("Xóa")):hover, 
+.stButton > button:has(p:contains("Delete")):hover {
     background-color: #ef4444 !important;
     color: white !important;
     border-color: #dc2626 !important;
 }
 
-/* --- 5. FOOTER LIÊN HỆ GIAO DIỆN PHỤ HUYNH --- */
+/* --- 6. FOOTER LIÊN HỆ --- */
 .contact-footer {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
     color: #f8fafc !important;
@@ -100,6 +104,7 @@ div[data-testid="stImage"] img {
     border-bottom: 2px solid #3b82f6;
     padding-bottom: 8px;
     margin-bottom: 15px;
+    color: white !important;
 }
 
 .contact-footer p {
