@@ -24,10 +24,12 @@ def save_uploaded_file(uploaded_file):
         save_dir = os.path.abspath(os.path.join(current_dir, "static/uploads"))
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        file_path = os.path.join(save_dir, uploaded_file.name)
+        # ✅ FIX: Bỏ khoảng trắng trong tên file để tránh lỗi URL
+        safe_name = uploaded_file.name.replace(" ", "_")
+        file_path = os.path.join(save_dir, safe_name)
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
-        return f"static/uploads/{uploaded_file.name}"
+        return f"static/uploads/{safe_name}"
     return ""
 
 def get_localized_value(data_field, lang="vi", default_val=""):
@@ -45,10 +47,20 @@ def get_localized_value(data_field, lang="vi", default_val=""):
                 return data_field
     return default_val
 
+# ✅ HÀM MỚI: Đồng bộ logic hiển thị ảnh hệt như Mobile App
+def get_valid_image_url(img_path):
+    path = str(img_path).strip() if img_path else ""
+    if not path or "anh_laptop.jpg" in path:
+        return "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop"
+    if path.startswith("http"):
+        return path
+    clean_path = path[1:] if path.startswith("/") else path
+    return f"{BACKEND_URL}/{clean_path}?v={int(time.time())}"
+
 # Tải CSS làm đẹp toàn cục
 load_css("CSS/home_style.css")
 
-# ================= 2. QUẢN LÝ NGÔN NGỮ, CACHE & PHÂN QUYỀN =================
+# ================= 2. QUẢN LÝ NGÔN NGỮ & CACHE =================
 current_lang = st.session_state.get("lang", "vi")
 role = st.session_state.get("role", "guest").lower()
 is_operator = role in ["operator", "admin"]
@@ -63,8 +75,6 @@ UI_LABELS = {
         "btn_submit_news": "🚀 Xác nhận Đăng bài",
         "btn_edit_contact": "✏️ Sửa thông tin Liên hệ",
         "btn_save_all_about": "💾 CẬP NHẬT GIỚI THIỆU",
-        "preview_title": "👀 Xem trước",
-        "preview_info": "Giao diện phụ huynh sẽ nhìn thấy:",
         "input_title": "Tiêu đề bài viết",
         "input_layout": "Bố cục hiển thị:",
         "input_width": "Độ rộng ảnh (px):",
@@ -79,8 +89,6 @@ UI_LABELS = {
         "btn_submit_news": "🚀 Publish",
         "btn_edit_contact": "✏️ Edit Contact",
         "btn_save_all_about": "💾 UPDATE ABOUT US",
-        "preview_title": "👀 Live Preview",
-        "preview_info": "What parents will see:",
         "input_title": "Article Title",
         "input_layout": "Layout:",
         "input_width": "Image Width (px):",
@@ -94,11 +102,10 @@ def get_cms_data(endpoint):
         res = requests.get(f"{API_URL}/{endpoint}", timeout=5)
         if res.status_code == 200:
             return res.json()
-    except Exception as e:
+    except Exception:
         pass
     return None
 
-# ✅ HÀM LÀM SẠCH CACHE ĐỂ DỮ LIỆU CẬP NHẬT TỨC THÌ
 def refresh_cms():
     get_cms_data.clear()
     time.sleep(0.5)
@@ -109,7 +116,7 @@ contact_data = get_cms_data("contact") or {}
 all_posts = get_cms_data("posts") or []
 if isinstance(all_posts, dict): all_posts = []
 
-# ================= 3. HEADER GIAO DIỆN BIỂU MẪU =================
+# ================= 3. HEADER GIAO DIỆN =================
 st.markdown("<div class='header-container'>", unsafe_allow_html=True)
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
@@ -127,10 +134,9 @@ about_content_display = get_localized_value(about_data.get('content'), lang=curr
 
 # ================= QUẢN LÝ GIAO DIỆN (ADMIN/OPERATOR) =================
 if is_operator:
-    # ✅ GOM GỌN VÀO TABS CHO ĐỠ RỐI MẮT
     tab_about, tab_news, tab_contact = st.tabs(["🏢 Giới thiệu", "📰 Tin tức & Sự kiện", "📞 Liên hệ"])
     
-    # ---------------- TAB 1: GIỚI THIỆU ----------------
+    # --- TAB GIỚI THIỆU ---
     with tab_about:
         new_about_title = st.text_input(UI_LABELS[current_lang]["input_title"], value=about_title_vi)
         c_lay, c_size = st.columns(2)
@@ -160,9 +166,9 @@ if is_operator:
                     "images": final_imgs, "layout": l_val, "img_width": about_img_width
                 })
                 st.success("Đã cập nhật Giới thiệu!")
-                refresh_cms() # Xóa Cache và tải lại
+                refresh_cms()
 
-    # ---------------- TAB 2: TIN TỨC ----------------
+    # --- TAB TIN TỨC ---
     with tab_news:
         if "editing_post_data" not in st.session_state:
             st.session_state.editing_post_data = None
@@ -171,7 +177,6 @@ if is_operator:
             st.session_state.show_add = True
             st.session_state.editing_post_data = None
         
-        # FORM THÊM MỚI
         if st.session_state.get("show_add"):
             with st.container(border=True):
                 st.write("#### 📝 Soạn bài mới")
@@ -194,7 +199,6 @@ if is_operator:
                         st.success("Đăng bài thành công!")
                         refresh_cms()
 
-        # FORM SỬA BÀI
         if st.session_state.editing_post_data:
             p_edit = st.session_state.editing_post_data
             p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
@@ -226,11 +230,7 @@ if is_operator:
         for p in all_posts:
             p_id = p.get('id', p.get('_id'))
             with st.container(border=True):
-                img_p = p.get('image_url') or "static/anh_laptop.jpg"
-                if img_p.startswith("static/") and not os.path.exists(img_p):
-                    img_p = "static/anh_laptop.jpg"
-
-                p_width = int(p.get('img_width', 300))
+                img_p = get_valid_image_url(p.get('image_url'))
                 p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
                 
                 c1, c2, c3 = st.columns([2, 5, 2])
@@ -245,7 +245,7 @@ if is_operator:
                         requests.delete(f"{API_URL}/posts/{p_id}")
                         refresh_cms()
 
-    # ---------------- TAB 3: LIÊN HỆ ----------------
+    # --- TAB LIÊN HỆ ---
     with tab_contact:
         contact_addr_vi = get_localized_value(contact_data.get('address'), lang="vi")
         with st.container(border=True):
@@ -259,15 +259,12 @@ if is_operator:
                 st.success("Đã cập nhật thông tin liên hệ!")
                 refresh_cms()
 
-
-# ================= GIAO DIỆN KHÁCH / PHỤ HUYNH CHÍNH THỨC =================
+# ================= GIAO DIỆN KHÁCH / PHỤ HUYNH =================
 else:
-    # 1. GIỚI THIỆU (Giao diện chuẩn Landing Page)
     st.subheader(UI_LABELS[current_lang]["about_header"])
     layout = about_data.get('layout', 'left')
     images = about_data.get('images', [])
-    img_main = images[0] if images else "static/anh_laptop.jpg"
-    if img_main.startswith("static/") and not os.path.exists(img_main): img_main = "static/anh_laptop.jpg"
+    img_main = get_valid_image_url(images[0] if images else "")
     i_width = int(about_data.get('img_width', 500))
 
     with st.container(border=True):
@@ -286,7 +283,6 @@ else:
     st.write("")
     st.divider()
 
-    # 2. TIN TỨC & SỰ KIỆN
     st.subheader(UI_LABELS[current_lang]["news_header"])
     display_posts = [p for p in all_posts if p.get('status') == 'published']
     
@@ -295,17 +291,17 @@ else:
     else:
         for p in display_posts:
             with st.container(border=True):
-                img_p = p.get('image_url') or "static/anh_laptop.jpg"
-                if img_p.startswith("static/") and not os.path.exists(img_p): img_p = "static/anh_laptop.jpg"
+                img_p = get_valid_image_url(p.get('image_url'))
                 p_width = int(p.get('img_width', 400))
                 p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
                 p_content_display = get_localized_value(p.get('content'), lang=current_lang, default_val="No Content")
                 
-                if p.get('layout') == "left":
+                p_layout = p.get('layout', 'left')
+                if p_layout == "left":
                     c1, c2 = st.columns([1, 2])
                     c1.image(img_p, width=p_width)
                     c2.markdown(f"### {p_title_display}\n{p_content_display}", unsafe_allow_html=True)
-                elif p.get('layout') == "right":
+                elif p_layout == "right":
                     c1, c2 = st.columns([2, 1])
                     c1.markdown(f"### {p_title_display}\n{p_content_display}", unsafe_allow_html=True)
                     c2.image(img_p, width=p_width)
@@ -313,8 +309,7 @@ else:
                     st.image(img_p, width=p_width)
                     st.markdown(f"### {p_title_display}\n{p_content_display}", unsafe_allow_html=True)
 
-    # 3. FOOTER LIÊN HỆ
-    contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật / Updating")
+    contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật")
     st.markdown(f"""
     <div class="contact-footer">
         <h3>{UI_LABELS[current_lang]['contact_header']}</h3>

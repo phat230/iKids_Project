@@ -1,4 +1,6 @@
 # backend/modules/tv3_community/router.py
+import os
+import shutil
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Request
 from core.database import get_db
 from .schemas import PurchaseRequest, DepositRequest, ContactMessageCreate
@@ -23,7 +25,6 @@ from deep_translator import GoogleTranslator
 router = APIRouter()
 translator = GoogleTranslator(source='vi', target='en')
 # --- 1. CỬA HÀNG (DÀNH CHO NGƯỜI DÙNG) ---
-
 @router.get("/products")
 async def api_get_products(db = Depends(get_db)):
     """Lấy danh sách sản phẩm từ MongoDB"""
@@ -273,11 +274,12 @@ async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db
 # --- 10. QUẢN LÝ NỘI DUNG TRANG CHỦ (CMS ĐA NGÔN NGỮ CHUẨN KIẾN TRÚC) ---
 @router.post("/upload_image")
 async def upload_image_from_mobile(file: UploadFile = File(...)):
-    """✅ THÊM MỚI: API hứng file ảnh từ Mobile App và lưu vào thư mục static/uploads"""
+    """API hứng file ảnh từ Mobile App và lưu vào thư mục static/uploads"""
     try:
-        save_dir = "static" if os.getenv("RENDER") else "static/uploads"
         save_dir = "static/uploads"
-        os.makedirs(save_dir, exist_ok=True)
+        
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
         
         safe_filename = file.filename.replace(" ", "_")
         file_path = f"{save_dir}/{safe_filename}"
@@ -287,8 +289,8 @@ async def upload_image_from_mobile(file: UploadFile = File(...)):
             
         return {"status": "success", "image_url": file_path}
     except Exception as e:
+        print(f" LỖI UPLOAD ẢNH BACKEND: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Lỗi lưu ảnh: {str(e)}")
-
 @router.get("/posts")
 async def get_all_posts(status: str = None, db = Depends(get_db)):
     query = {}

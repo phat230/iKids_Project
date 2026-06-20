@@ -26,7 +26,7 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
   final _aboutTitleCtrl = TextEditingController();
   final _aboutContentCtrl = TextEditingController();
   String _aboutLayout = "left";
-  XFile? _pickedAboutImage; // Biến chứa file ảnh thật chọn từ điện thoại
+  XFile? _pickedAboutImage; 
 
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
@@ -35,7 +35,7 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
   final _postTitleCtrl = TextEditingController();
   final _postContentCtrl = TextEditingController();
   String _postLayout = "left";
-  XFile? _pickedPostImage; // Biến chứa file ảnh thật chọn từ điện thoại
+  XFile? _pickedPostImage; 
 
   @override
   void initState() {
@@ -80,7 +80,6 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
     }
   }
 
-  // Mở thư viện chọn ảnh
   Future<void> _pickImage({required bool isAbout}) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
@@ -92,7 +91,7 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
     }
   }
 
-  // HÀM CHUYÊN DỤNG: Đẩy file ảnh lên Server Python
+  // ✅ HÀM UPLOAD ẢNH CHUYÊN SÂU: Bắt lỗi triệt để
   Future<String?> _uploadImageToServer(XFile imageFile) async {
     try {
       var request = http.MultipartRequest('POST', Uri.parse('${AppConfig.apiUrl}/api/tv3/upload_image'));
@@ -103,27 +102,39 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['image_url']; // Backend sẽ trả về VD: "static/uploads/anh.jpg"
+        return data['image_url']; 
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi Server khi tải ảnh lên (Mã: ${response.statusCode})"), backgroundColor: Colors.red));
+        }
       }
     } catch (e) {
-      debugPrint("Lỗi upload ảnh: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Lỗi mạng khi tải ảnh: $e"), backgroundColor: Colors.red));
+      }
     }
-    return null;
+    return null; // Trả về null nếu thất bại
   }
 
   Future<void> _updateAbout() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Nếu có chọn ảnh mới thì Upload trước
       List<String> finalImages = [];
+      
+      // ✅ NẾU CÓ CHỌN ẢNH MỚI -> BẮT BUỘC PHẢI UPLOAD THÀNH CÔNG MỚI ĐI TIẾP
       if (_pickedAboutImage != null) {
         String? newImgPath = await _uploadImageToServer(_pickedAboutImage!);
-        if (newImgPath != null) finalImages.add(newImgPath);
+        if (newImgPath != null) {
+          finalImages.add(newImgPath);
+        } else {
+          // Upload ảnh xịt -> Dừng lại luôn
+          setState(() => _isLoading = false);
+          return;
+        }
       } else if (_aboutData['images'] != null && (_aboutData['images'] as List).isNotEmpty) {
-        finalImages.add(_aboutData['images'][0]); // Dùng lại ảnh cũ
+        finalImages.add(_aboutData['images'][0]);
       }
 
-      // 2. Gửi JSON cấu hình
       final payload = {
         "title": _aboutTitleCtrl.text.trim(),
         "content": _aboutContentCtrl.text.trim(),
@@ -157,14 +168,19 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Upload ảnh trước nếu có
       String imagePath = "";
+      
+      // ✅ NẾU CÓ ẢNH -> UPLOAD TRƯỚC. LỖI THÌ DỪNG LẠI.
       if (_pickedPostImage != null) {
         String? uploadedPath = await _uploadImageToServer(_pickedPostImage!);
-        if (uploadedPath != null) imagePath = uploadedPath;
+        if (uploadedPath != null) {
+          imagePath = uploadedPath;
+        } else {
+          setState(() => _isLoading = false);
+          return; // Dừng lại, không đăng bài ảo
+        }
       }
 
-      // 2. Gửi JSON tạo bài viết
       final payload = {
         "title": _postTitleCtrl.text.trim(),
         "content": _postContentCtrl.text.trim(),
@@ -215,7 +231,6 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
     }
   }
 
-  // Khung giao diện chọn ảnh
   Widget _buildImagePickerBox({required XFile? pickedFile, required String? currentImgUrl, required VoidCallback onTap}) {
     String validUrl = "";
     if (currentImgUrl != null && currentImgUrl.isNotEmpty) {
@@ -384,7 +399,13 @@ class _OperatorCmsScreenState extends State<OperatorCmsScreen> {
             itemBuilder: (context, index) {
               final p = _posts[index];
               String imgUrl = p['image_url'] ?? "";
-              if (imgUrl.isNotEmpty && !imgUrl.startsWith("http")) imgUrl = "${AppConfig.apiUrl}/$imgUrl";
+              
+              // Cập nhật lại đường dẫn để hiển thị ảnh mặc định nếu trống
+              if (imgUrl.isEmpty) {
+                imgUrl = "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
+              } else if (!imgUrl.startsWith("http")) {
+                imgUrl = "${AppConfig.apiUrl}/$imgUrl?v=${DateTime.now().millisecondsSinceEpoch}";
+              }
 
               return Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

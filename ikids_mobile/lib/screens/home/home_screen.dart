@@ -94,24 +94,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return field.toString();
   }
 
-  // ✅ ĐÃ SỬA: Đưa ảnh mặc định về đúng "static/anh_laptop.jpg" giống bên Web
-String _getValidImageUrl(dynamic imgPath) {
+  // ✅ ĐÃ SỬA: Hàm này hiện tại sẽ ƯU TIÊN hiển thị hình ảnh từ API trả về (static/uploads/...)
+  String _getValidImageUrl(dynamic imgPath) {
     String path = imgPath?.toString() ?? "";
     
-    // 1. Nếu bài viết không có ảnh, hoặc đang dùng cái tên "anh_laptop.jpg" bị thiếu trên server
-    // -> Trả về thẳng một bức ảnh lớp học mặc định từ internet cho an toàn & đẹp.
-    if (path.isEmpty || path.contains("anh_laptop.jpg")) {
+    // Nếu path rỗng HOẶC chứa chữ anh_laptop.jpg thì mới xài ảnh trên Unsplash
+    if (path.trim().isEmpty || path.contains("anh_laptop.jpg")) {
       return "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
     }
     
-    // 2. Nếu là ảnh do Admin/Operator vừa tải lên từ điện thoại
+    // Xử lý ảnh tải lên từ Server iKids (Ví dụ: static/uploads/xyz.jpg)
     String finalUrl = path;
     if (!path.startsWith("http")) {
       String cleanPath = path.startsWith("/") ? path.substring(1) : path;
       finalUrl = "${AppConfig.apiUrl}/$cleanPath";
     }
     
-    // Gắn thêm thời gian để ép Flutter tải lại ảnh mới (chống Cache)
     return "$finalUrl?v=${DateTime.now().millisecondsSinceEpoch}";
   }
 
@@ -158,7 +156,7 @@ String _getValidImageUrl(dynamic imgPath) {
                         fit: StackFit.expand,
                         children: [
                           Image.network(
-                            _getValidImageUrl("static/anh_laptop.jpg"), // Dùng ảnh mặc định cho Banner to
+                            "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=1200&auto=format&fit=crop", // Banner to dùng ảnh trường học mặc định
                             fit: BoxFit.cover,
                             errorBuilder: (_,__,___) => Container(color: Colors.indigo.shade800),
                           ),
@@ -181,18 +179,15 @@ String _getValidImageUrl(dynamic imgPath) {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- 1. KHỐI GIỚI THIỆU ---
                           _buildSectionHeader(labels["lbl_about"]!),
-                          _buildAboutCard(),
+                          _buildAboutCard(labels),
                           const SizedBox(height: 35),
 
-                          // --- 2. KHỐI TIN TỨC & SỰ KIỆN ---
                           _buildSectionHeader(labels["lbl_news"]!),
                           const SizedBox(height: 10),
                           _buildNewsFeed(labels),
                           const SizedBox(height: 35),
 
-                          // --- 3. FOOTER THÔNG TIN LIÊN HỆ ---
                           _buildContactFooter(labels),
                           const SizedBox(height: 30),
                         ],
@@ -212,8 +207,7 @@ String _getValidImageUrl(dynamic imgPath) {
     );
   }
 
-  // ✅ ĐÃ SỬA: Card Giới thiệu nay đã đọc biến "layout" (left, right, full)
-  Widget _buildAboutCard() {
+  Widget _buildAboutCard(Map<String, String> labels) {
     String aboutTitle = _getLocalized(_aboutData['title'], "iKids Education");
     String aboutContent = _getLocalized(_aboutData['content'], "");
     aboutContent = aboutContent.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -223,7 +217,6 @@ String _getValidImageUrl(dynamic imgPath) {
     
     String layout = _aboutData['layout'] ?? "left";
 
-    // Khối chữ
     Widget textContent = Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -236,7 +229,6 @@ String _getValidImageUrl(dynamic imgPath) {
       ),
     );
 
-    // Khối ảnh (tự chỉnh kích thước dựa trên layout)
     Widget imageContent = ClipRRect(
       borderRadius: layout == "full" 
         ? const BorderRadius.vertical(top: Radius.circular(15)) 
@@ -258,11 +250,10 @@ String _getValidImageUrl(dynamic imgPath) {
           ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [imageContent, Expanded(child: textContent)])
           : layout == "right"
               ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: textContent), imageContent])
-              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [imageContent, textContent]), // Banner Full
+              : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [imageContent, textContent]), 
     );
   }
 
-  // ✅ ĐÃ SỬA: Card Tin tức nay đã đọc biến "layout" (left, right, full)
   Widget _buildNewsFeed(Map<String, String> labels) {
     if (_posts.isEmpty) {
       return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(labels["msg_empty_news"]!, style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))));
@@ -281,7 +272,6 @@ String _getValidImageUrl(dynamic imgPath) {
         String pImg = _getValidImageUrl(p['image_url']);
         String layout = p['layout'] ?? "left";
 
-        // Khối chữ cho bài viết
         Widget textContent = Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
@@ -296,7 +286,6 @@ String _getValidImageUrl(dynamic imgPath) {
           ),
         );
 
-        // Khối ảnh cho bài viết
         Widget imageContent = ClipRRect(
           borderRadius: layout == "full" 
             ? const BorderRadius.vertical(top: Radius.circular(12)) 
