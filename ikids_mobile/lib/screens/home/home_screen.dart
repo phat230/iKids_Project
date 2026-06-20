@@ -94,22 +94,29 @@ class _HomeScreenState extends State<HomeScreen> {
     return field.toString();
   }
 
-  // ✅ ĐÃ SỬA: Hàm này hiện tại sẽ ƯU TIÊN hiển thị hình ảnh từ API trả về (static/uploads/...)
+  // ✅ ENHANCED: More robust handling of base URLs and paths, handles full URLs, fallbacks, and slashes.
   String _getValidImageUrl(dynamic imgPath) {
     String path = imgPath?.toString() ?? "";
     
-    // Nếu path rỗng HOẶC chứa chữ anh_laptop.jpg thì mới xài ảnh trên Unsplash
+    // defines fallbacks for rỗng HOẶC chứa chữ anh_laptop.jpg
+    final fallbackUrl = "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
+
     if (path.trim().isEmpty || path.contains("anh_laptop.jpg")) {
-      return "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
+      return fallbackUrl;
     }
     
-    // Xử lý ảnh tải lên từ Server iKids (Ví dụ: static/uploads/xyz.jpg)
-    String finalUrl = path;
-    if (!path.startsWith("http")) {
-      String cleanPath = path.startsWith("/") ? path.substring(1) : path;
-      finalUrl = "${AppConfig.apiUrl}/$cleanPath";
+    // Xử lý path starts with http
+    if (path.startsWith("http")) {
+      return path;
     }
     
+    // Construct URL from AppConfig.apiUrl, removing leading/trailing slashes for proper combination.
+    final baseUrl = AppConfig.apiUrl.endsWith('/') ? AppConfig.apiUrl.substring(0, AppConfig.apiUrl.length - 1) : AppConfig.apiUrl;
+    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    
+    final finalUrl = "$baseUrl/$cleanPath";
+    
+    // Bust the cache with a timestamp
     return "$finalUrl?v=${DateTime.now().millisecondsSinceEpoch}";
   }
 
@@ -175,19 +182,53 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSectionHeader(labels["lbl_about"]!),
                           _buildAboutCard(labels),
                           const SizedBox(height: 35),
-
                           _buildSectionHeader(labels["lbl_news"]!),
-                          const SizedBox(height: 10),
-                          _buildNewsFeed(labels),
-                          const SizedBox(height: 35),
+                        ],
+                      ),
+                    ),
+                  ),
 
+                  // ✅ REFACTORED: SliverList replaces the nested ListView.builder for proper scrolling
+                  _posts.isEmpty
+                      ? SliverToBoxAdapter(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Text(
+                                labels["msg_empty_news"]!,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      : SliverList(
+                          delegate: SliverChildBuilderDelegate(
+                            (context, index) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                child: _buildNewsPostItem(_posts[index], labels),
+                              );
+                            },
+                            childCount: _posts.length,
+                          ),
+                        ),
+
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 20),
                           _buildContactFooter(labels),
                           const SizedBox(height: 30),
                         ],
@@ -229,6 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
+    // About card uses fixed aspect ratio or fixed size, which is appropriate.
     Widget imageContent = ClipRRect(
       borderRadius: layout == "full" 
         ? const BorderRadius.vertical(top: Radius.circular(15)) 
@@ -238,7 +280,12 @@ class _HomeScreenState extends State<HomeScreen> {
         height: layout == "full" ? 200 : 150, 
         width: layout == "full" ? double.infinity : 130, 
         fit: BoxFit.cover, 
-        errorBuilder: (_, __, ___) => Container(color: Colors.grey[300], width: 130, height: 150, child: const Icon(Icons.business))
+        errorBuilder: (_, __, ___) => Container(
+          color: Colors.grey[300], 
+          width: 130, 
+          height: 150, 
+          child: const Icon(Icons.business),
+        ),
       ),
     );
 
@@ -254,68 +301,104 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNewsFeed(Map<String, String> labels) {
-    if (_posts.isEmpty) {
-      return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text(labels["msg_empty_news"]!, style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))));
-    }
+  // ✅ REFACTORED: This function replaces nested ListView for balanced news post items
+  Widget _buildNewsPostItem(dynamic p, Map<String, String> labels) {
+    String pTitle = _getLocalized(p['title'], "No Title");
+    String pContent = _getLocalized(p['content'], "");
+    pContent = pContent.replaceAll(RegExp(r'<[^>]*>'), ''); 
+    
+    String pImg = _getValidImageUrl(p['image_url']);
+    String layout = p['layout'] ?? "left";
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _posts.length,
-      itemBuilder: (context, index) {
-        final p = _posts[index];
-        String pTitle = _getLocalized(p['title'], "No Title");
-        String pContent = _getLocalized(p['content'], "");
-        pContent = pContent.replaceAll(RegExp(r'<[^>]*>'), ''); 
-        
-        String pImg = _getValidImageUrl(p['image_url']);
-        String layout = p['layout'] ?? "left";
+    Widget textContent = Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(pTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          Text(pContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: layout == "full" ? 3 : 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 8),
+          Text("🕒 ${p['date'] ?? ''}", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
 
-        Widget textContent = Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(pTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 6),
-              Text(pContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: layout == "full" ? 3 : 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 8),
-              Text("🕒 ${p['date'] ?? ''}", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        );
+    // Fallback Container in `errorBuilder` now has a reasonable fixed size.
+    Widget imageContentFallback = Container(
+      width: layout == "full" ? double.infinity : 100,
+      height: layout == "full" ? 160 : 100,
+      color: Colors.grey[200],
+      child: const Icon(Icons.image),
+    );
 
-        Widget imageContent = ClipRRect(
-          borderRadius: layout == "full" 
-            ? const BorderRadius.vertical(top: Radius.circular(12)) 
-            : BorderRadius.circular(8),
-          child: Image.network(
-            pImg, 
-            width: layout == "full" ? double.infinity : 100, 
-            height: layout == "full" ? 160 : 100, 
-            fit: BoxFit.cover, 
-            errorBuilder: (_, __, ___) => Container(width: 100, height: 100, color: Colors.grey[200], child: const Icon(Icons.image))
-          ),
-        );
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (layout == "full")
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  pImg, 
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => imageContentFallback,
+                ),
+              ),
+            ),
+          
+          if (layout == "full") textContent,
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: layout == "full"
-            ? Column(
+          if (layout != "full")
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [imageContent, textContent],
-              )
-            : Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: layout == "left"
-                  ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [imageContent, const SizedBox(width: 10), Expanded(child: textContent)])
-                  : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: textContent), const SizedBox(width: 10), imageContent]),
-              )
-        );
-      },
+                children: [
+                  if (layout == "left")
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image.network(
+                          pImg, 
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => imageContentFallback,
+                        ),
+                      ),
+                    ),
+                  
+                  if (layout == "left") const SizedBox(width: 10),
+                  
+                  // Text and other side image scale correctly.
+                  Expanded(flex: layout == "left" ? 2 : 1, child: textContent),
+                  
+                  if (layout == "right") const SizedBox(width: 10),
+
+                  if (layout == "right")
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 100,
+                        height: 100,
+                        child: Image.network(
+                          pImg, 
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => imageContentFallback,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
