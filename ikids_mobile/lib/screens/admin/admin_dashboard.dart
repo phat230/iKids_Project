@@ -16,14 +16,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
   final _storage = const FlutterSecureStorage();
   int _selectedIndex = 0;
   bool _isLoading = true;
-  String _lang = "vi"; // Mặc định, sẽ bị ghi đè bởi cấu hình hệ thống
+  String _lang = "vi"; 
   String _token = "";
 
   List<dynamic> _pendingRequests = [];
   List<dynamic> _historyRequests = [];
   List<dynamic> _depositIssues = [];
 
-  // ================= BỘ TỪ ĐIỂN SONG NGỮ HOÀN CHỈNH =================
   final Map<String, Map<String, String>> _labels = {
     "vi": {
       "title": "Bảng Điều Khiển Quản Trị",
@@ -51,6 +50,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       "sys_schedule": "Xếp lịch học",
       "sys_finance": "Quản lý Tài chính & Giao dịch",
       "sys_store": "Quản lý Cửa hàng iKids",
+      "sys_cms": "Quản lý Nội dung Trang chủ", // ✅ THÊM MỚI
       "tab_home": "Dashboard",
       "tab_noti": "Thông báo",
       "tab_sys": "Chức năng",
@@ -81,6 +81,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       "sys_schedule": "Scheduling",
       "sys_finance": "Finance & Transactions",
       "sys_store": "iKids Store Management",
+      "sys_cms": "Homepage Content (CMS)", // ✅ THÊM MỚI
       "tab_home": "Dashboard",
       "tab_noti": "Inbox",
       "tab_sys": "Settings",
@@ -96,7 +97,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Future<void> _fetchDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      // ✅ ĐỌC NGÔN NGỮ TỪ BỘ NHỚ LÚC KHỞI TẠO
       String? savedLang = await _storage.read(key: 'app_lang');
       if (savedLang != null) _lang = savedLang;
 
@@ -158,7 +158,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
   }
 
-  // --- UI COMPONENTS ---
   Widget _buildMetricCard(String title, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -193,7 +192,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. CHỈ SỐ TỔNG QUAN
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -208,10 +206,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     _buildMetricCard(labels["metric_tv3_issues"]!, "${_depositIssues.length}", Colors.blue),
                   ],
                 ),
-                
                 const SizedBox(height: 30),
-                
-                // 2. YÊU CẦU TV1 ĐANG CHỜ
                 Text(labels["sub_tv1_pending"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.redAccent)),
                 const SizedBox(height: 10),
                 _pendingRequests.isEmpty 
@@ -250,7 +245,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
                 const SizedBox(height: 30),
 
-                // 3. SỰ CỐ NẠP TIỀN TV3
                 Text(labels["sub_tv3"]!, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
                 const SizedBox(height: 10),
                 _depositIssues.isEmpty 
@@ -279,7 +273,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     
                 const SizedBox(height: 30),
 
-                // 4. LỊCH SỬ XÉT DUYỆT
                 ExpansionTile(
                   title: Text(labels["sub_tv1_history"]!, style: const TextStyle(fontWeight: FontWeight.bold)),
                   collapsedBackgroundColor: Colors.white,
@@ -300,7 +293,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  // --- MENU ĐIỀU KHIỂN HỆ THỐNG CHO ADMIN ---
   Widget _buildSystemTab() {
     final labels = _labels[_lang]!;
     return ListView(
@@ -317,6 +309,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         _buildMenuCard(labels["sys_schedule"]!, Icons.calendar_month, Colors.purple, () => Navigator.pushNamed(context, '/operator-schedule')),
         _buildMenuCard(labels["sys_finance"]!, Icons.account_balance_wallet, Colors.orange, () => Navigator.pushNamed(context, '/operator-finance')),
         _buildMenuCard(labels["sys_store"]!, Icons.store, Colors.green, () => Navigator.pushNamed(context, '/operator-store')),
+        
+        // ✅ THÊM NÚT QUẢN LÝ CMS TRANG CHỦ
+        _buildMenuCard(labels["sys_cms"]!, Icons.web, Colors.teal, () => Navigator.pushNamed(context, '/operator-cms')),
         
         const SizedBox(height: 40),
         ElevatedButton.icon(
@@ -360,7 +355,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: Colors.redAccent, 
         foregroundColor: Colors.white,
         actions: [
-          // ✅ LƯU NGÔN NGỮ KHI CHUYỂN
           TextButton(
             onPressed: () async {
               setState(() => _lang = _lang == "vi" ? "en" : "vi");

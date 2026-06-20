@@ -37,6 +37,8 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
       "menu_finance_sub": "Duyệt ví tiền, xuất báo cáo",
       "menu_store": "Cửa hàng Đổi thưởng",
       "menu_store_sub": "Quản lý kho quà tặng iKids",
+      "menu_cms": "Quản lý Trang chủ (CMS)",
+      "menu_cms_sub": "Đăng tin tức, sửa phần giới thiệu",
       "btn_logout": "Đăng xuất khỏi ca trực",
       "tab_dashboard": "Điều khiển",
       "tab_noti": "Thông báo",
@@ -55,6 +57,8 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
       "menu_finance_sub": "Approve wallets, export reports",
       "menu_store": "Reward Store",
       "menu_store_sub": "Manage iKids gift inventory",
+      "menu_cms": "Homepage CMS",
+      "menu_cms_sub": "Post news, edit about us section",
       "btn_logout": "Log out of shift",
       "tab_dashboard": "Dashboard",
       "tab_noti": "Inbox",
@@ -188,6 +192,15 @@ class _OperatorDashboardState extends State<OperatorDashboard> {
                 Icons.storefront, 
                 Colors.blue, 
                 () => Navigator.pushNamed(context, '/operator-store')
+              ),
+
+              // ✅ THÊM NÚT QUẢN LÝ CMS TRANG CHỦ
+              _buildMenuCard(
+                labels["menu_cms"]!, 
+                labels["menu_cms_sub"]!, 
+                Icons.web, 
+                Colors.teal, 
+                () => Navigator.pushNamed(context, '/operator-cms')
               ),
             ],
           ),

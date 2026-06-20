@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart'; 
 import 'package:google_fonts/google_fonts.dart';
-import '../../services/api_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../services/api_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,9 +15,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passController = TextEditingController();
   final _apiService = ApiService();
   final _storage = const FlutterSecureStorage();
+  
   bool _isLoading = false;
   bool _isObscured = true;
-  String _lang = "vi"; // Mặc định là Tiếng Việt giống Web
+  String _lang = "vi"; // Sẽ cập nhật từ bộ nhớ
 
   // ================= BỘ TỪ ĐIỂN SONG NGỮ =================
   final Map<String, Map<String, String>> _locales = {
@@ -45,6 +47,20 @@ class _LoginScreenState extends State<LoginScreen> {
       "err_auth": "Account is inactive or blocked."
     }
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  // Tự động đọc ngôn ngữ đã chọn ở Trang Chủ
+  Future<void> _loadLanguage() async {
+    String? savedLang = await _storage.read(key: 'app_lang');
+    if (savedLang != null) {
+      setState(() => _lang = savedLang);
+    }
+  }
 
   void _login() async {
     if (_emailController.text.isEmpty || _passController.text.isEmpty) {
@@ -106,7 +122,17 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Stack(
             children: [
-              // --- NÚT CHUYỂN NGÔN NGỮ Ở GÓC TRÊN CÙNG BÊN PHẢI ---
+              // --- NÚT QUAY LẠI TRANG CHỦ (GÓC TRÁI) ---
+              Positioned(
+                top: 10,
+                left: 10,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+
+              // --- NÚT CHUYỂN NGÔN NGỮ Ở GÓC PHẢI ---
               Positioned(
                 top: 10,
                 right: 20,

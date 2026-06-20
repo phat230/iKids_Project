@@ -1,6 +1,9 @@
 // lib/routes/app_router.dart
 import 'package:flutter/material.dart';
 
+// --- Import Trang chủ (Public) ---
+import '../screens/home/home_screen.dart';
+
 // --- Import các trang Auth ---
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
@@ -19,6 +22,7 @@ import '../screens/operator/operator_finance_screen.dart';
 import '../screens/operator/operator_store_screen.dart';
 import '../screens/operator/operator_class_screen.dart';
 import '../screens/operator/operator_schedule_screen.dart';
+import '../screens/operator/operator_cms_screen.dart';
 
 // --- Import các trang Chức năng Giáo viên ---
 import '../screens/teacher/teacher_journal_screen.dart';
@@ -30,9 +34,11 @@ import '../screens/teacher/teacher_assignment_screen.dart';
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
-      // 1. Nhóm Auth
+      // 1. Nhóm Public & Auth
       case '/':
-        return MaterialPageRoute(builder: (_) => const LoginScreen());
+        return MaterialPageRoute(builder: (_) => const HomeScreen()); // Mở app lên là vào Trang chủ
+      case '/login':
+        return MaterialPageRoute(builder: (_) => const LoginScreen()); // Trang đăng nhập dời ra đây
       case '/register':
         return MaterialPageRoute(builder: (_) => const RegisterScreen());
       case '/forgot-password':
@@ -61,6 +67,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const OperatorClassScreen());
       case '/operator-schedule':
         return MaterialPageRoute(builder: (_) => const OperatorScheduleScreen());
+      case '/operator-cms':
+        return MaterialPageRoute(builder: (_) => const OperatorCmsScreen());
 
       // 4. Nhóm Chức năng Giáo viên
       case '/teacher-journal':
