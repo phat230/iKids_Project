@@ -94,29 +94,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return field.toString();
   }
 
-  // ✅ ENHANCED: More robust handling of base URLs and paths, handles full URLs, fallbacks, and slashes.
   String _getValidImageUrl(dynamic imgPath) {
     String path = imgPath?.toString() ?? "";
     
-    // defines fallbacks for rỗng HOẶC chứa chữ anh_laptop.jpg
     final fallbackUrl = "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
 
     if (path.trim().isEmpty || path.contains("anh_laptop.jpg")) {
       return fallbackUrl;
     }
     
-    // Xử lý path starts with http
     if (path.startsWith("http")) {
       return path;
     }
     
-    // Construct URL from AppConfig.apiUrl, removing leading/trailing slashes for proper combination.
     final baseUrl = AppConfig.apiUrl.endsWith('/') ? AppConfig.apiUrl.substring(0, AppConfig.apiUrl.length - 1) : AppConfig.apiUrl;
     final cleanPath = path.startsWith('/') ? path.substring(1) : path;
     
     final finalUrl = "$baseUrl/$cleanPath";
-    
-    // Bust the cache with a timestamp
     return "$finalUrl?v=${DateTime.now().millisecondsSinceEpoch}";
   }
 
@@ -163,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fit: StackFit.expand,
                         children: [
                           Image.network(
-                            "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=1200&auto=format&fit=crop", // Banner to dùng ảnh trường học mặc định
+                            "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=1200&auto=format&fit=crop", 
                             fit: BoxFit.cover,
                             errorBuilder: (_,__,___) => Container(color: Colors.indigo.shade800),
                           ),
@@ -187,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSectionHeader(labels["lbl_about"]!),
-                          _buildAboutCard(labels),
+                          _buildAboutCard(),
                           const SizedBox(height: 35),
                           _buildSectionHeader(labels["lbl_news"]!),
                         ],
@@ -195,40 +189,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // ✅ REFACTORED: SliverList replaces the nested ListView.builder for proper scrolling
-                  _posts.isEmpty
-                      ? SliverToBoxAdapter(
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Text(
-                                labels["msg_empty_news"]!,
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                                child: _buildNewsPostItem(_posts[index], labels),
-                              );
-                            },
-                            childCount: _posts.length,
-                          ),
-                        ),
+                  // Khối Tin Tức (Lướt Ngang)
+                  SliverToBoxAdapter(
+                    child: _buildHorizontalNewsFeed(labels),
+                  ),
 
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
                           _buildContactFooter(labels),
                           const SizedBox(height: 30),
                         ],
@@ -248,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAboutCard(Map<String, String> labels) {
+  Widget _buildAboutCard() {
     String aboutTitle = _getLocalized(_aboutData['title'], "iKids Education");
     String aboutContent = _getLocalized(_aboutData['content'], "");
     aboutContent = aboutContent.replaceAll(RegExp(r'<[^>]*>'), '');
@@ -270,7 +241,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
 
-    // About card uses fixed aspect ratio or fixed size, which is appropriate.
     Widget imageContent = ClipRRect(
       borderRadius: layout == "full" 
         ? const BorderRadius.vertical(top: Radius.circular(15)) 
@@ -301,103 +271,110 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ✅ REFACTORED: This function replaces nested ListView for balanced news post items
-  Widget _buildNewsPostItem(dynamic p, Map<String, String> labels) {
-    String pTitle = _getLocalized(p['title'], "No Title");
-    String pContent = _getLocalized(p['content'], "");
-    pContent = pContent.replaceAll(RegExp(r'<[^>]*>'), ''); 
-    
-    String pImg = _getValidImageUrl(p['image_url']);
-    String layout = p['layout'] ?? "left";
+  Widget _buildHorizontalNewsFeed(Map<String, String> labels) {
+    if (_posts.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Text(
+            labels["msg_empty_news"]!,
+            style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+          ),
+        ),
+      );
+    }
 
-    Widget textContent = Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(pTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), maxLines: 2, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 6),
-          Text(pContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: layout == "full" ? 3 : 2, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 8),
-          Text("🕒 ${p['date'] ?? ''}", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-
-    // Fallback Container in `errorBuilder` now has a reasonable fixed size.
-    Widget imageContentFallback = Container(
-      width: layout == "full" ? double.infinity : 100,
-      height: layout == "full" ? 160 : 100,
-      color: Colors.grey[200],
-      child: const Icon(Icons.image),
-    );
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (layout == "full")
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(
-                  pImg, 
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => imageContentFallback,
-                ),
-              ),
-            ),
+    return SizedBox(
+      height: 300, 
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal, 
+        physics: const BouncingScrollPhysics(), 
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        itemCount: _posts.length,
+        itemBuilder: (context, index) {
+          final p = _posts[index];
+          String pTitle = _getLocalized(p['title'], "No Title");
+          String pContent = _getLocalized(p['content'], "");
+          pContent = pContent.replaceAll(RegExp(r'<[^>]*>'), ''); 
           
-          if (layout == "full") textContent,
+          String pImg = _getValidImageUrl(p['image_url']);
 
-          if (layout != "full")
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NewsDetailScreen(
+                    postData: p,
+                    imageUrl: pImg,
+                    lang: _lang,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              width: 250,
+              margin: const EdgeInsets.only(right: 16, bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4))
+                ],
+              ),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (layout == "left")
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 100,
-                        height: 100,
-                        child: Image.network(
-                          pImg, 
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => imageContentFallback,
-                        ),
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                    child: Image.network(
+                      pImg, 
+                      height: 140, 
+                      width: double.infinity, 
+                      fit: BoxFit.cover, 
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 140, width: double.infinity, color: Colors.grey[200], child: const Icon(Icons.image, color: Colors.grey)
+                      )
+                    ),
+                  ),
+                  
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(pTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 6),
+                          Text(pContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          const Spacer(), 
+                          
+                          // Hàng dưới cùng chứa Ngày tháng & Nút Đọc chi tiết
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.access_time_filled, size: 13, color: Colors.blueGrey),
+                                  const SizedBox(width: 4),
+                                  Text("${p['date'] ?? ''}", style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                              Text(
+                                _lang == "vi" ? "Đọc chi tiết ➔" : "Read more ➔",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo.shade700),
+                              )
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  
-                  if (layout == "left") const SizedBox(width: 10),
-                  
-                  // Text and other side image scale correctly.
-                  Expanded(flex: layout == "left" ? 2 : 1, child: textContent),
-                  
-                  if (layout == "right") const SizedBox(width: 10),
-
-                  if (layout == "right")
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 100,
-                        height: 100,
-                        child: Image.network(
-                          pImg, 
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => imageContentFallback,
-                        ),
-                      ),
-                    ),
+                  )
                 ],
               ),
             ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -437,6 +414,100 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             TextSpan(text: "$title ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.cyanAccent)),
             TextSpan(text: value),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =======================================================================
+//  MÀN HÌNH MỚI: CHI TIẾT TIN TỨC (Dùng chung file để tránh rườm rà)
+// =======================================================================
+class NewsDetailScreen extends StatelessWidget {
+  final dynamic postData;
+  final String imageUrl;
+  final String lang;
+
+  const NewsDetailScreen({
+    super.key,
+    required this.postData,
+    required this.imageUrl,
+    required this.lang,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Xử lý ngôn ngữ
+    String pTitle = postData['title'] is Map ? (postData['title'][lang] ?? postData['title']['vi'] ?? "") : postData['title'].toString();
+    String rawContent = postData['content'] is Map ? (postData['content'][lang] ?? postData['content']['vi'] ?? "") : postData['content'].toString();
+    
+    // Loại bỏ thẻ HTML để hiển thị sạch sẽ
+    String cleanContent = rawContent.replaceAll(RegExp(r'<[^>]*>'), '');
+    String dateStr = postData['date'] ?? '';
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: Text(lang == "vi" ? "Chi tiết tin tức" : "News Details", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        backgroundColor: Colors.indigo.shade900,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Ảnh bìa cực lớn
+            Image.network(
+              imageUrl,
+              width: double.infinity,
+              height: 250,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                height: 250, width: double.infinity, color: Colors.grey[200], 
+                child: const Icon(Icons.image, size: 50, color: Colors.grey)
+              ),
+            ),
+            
+            // 2. Nội dung bài báo
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    pTitle,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.indigo.shade900, height: 1.3),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month_rounded, size: 16, color: Colors.blueGrey),
+                      const SizedBox(width: 6),
+                      Text(
+                        dateStr,
+                        style: const TextStyle(fontSize: 13, color: Colors.blueGrey, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(thickness: 1, color: Colors.black12),
+                  ),
+                  
+                  Text(
+                    cleanContent,
+                    style: const TextStyle(fontSize: 16, height: 1.7, color: Colors.black87),
+                  ),
+                  
+                  const SizedBox(height: 50), 
+                ],
+              ),
+            ),
           ],
         ),
       ),

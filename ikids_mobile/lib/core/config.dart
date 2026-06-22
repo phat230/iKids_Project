@@ -1,8 +1,7 @@
 // lib/core/config.dart
 class AppConfig {
   // Địa chỉ Backend thực tế trên Render
-  static const String baseUrl = "https://ikids-project.onrender.com"; 
-  
+  static const String apiUrl = "https://ikids-backend-api.onrender.com";  
   static const String apiUrl = baseUrl; 
   
 static const int connectTimeout = 60;  

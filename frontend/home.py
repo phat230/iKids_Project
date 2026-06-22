@@ -8,7 +8,7 @@ from streamlit_quill import st_quill
 from deep_translator import GoogleTranslator
 
 # Lấy API_URL linh hoạt từ biến môi trường
-BACKEND_URL = os.getenv("API_URL", "http://localhost:8000")
+BACKEND_URL = "https://ikids-backend-api.onrender.com"
 API_URL = f"{BACKEND_URL}/api/tv3"
 
 # ================= 1. HÀM HỖ TRỢ =================
