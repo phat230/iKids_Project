@@ -17,6 +17,13 @@ h2, h3, h4 {
     font-weight: 700;
 }
 
+/* CHỐNG VỠ KHUNG KHI GÕ CHỮ DÀI KHÔNG DẤU CÁCH */
+p, span, div {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+}
+
 /* --- 2. HEADER & LOGO --- */
 .header-container {
     display: flex;
@@ -55,9 +62,11 @@ div[data-testid="stVerticalBlockBorderWrapper"]:hover {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
 }
 
+/* TỰ ĐỘNG CẮT ẢNH CHO VỪA KHUNG VÀ BO GÓC */
 div[data-testid="stImage"] img {
     border-radius: 12px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    object-fit: cover !important; 
 }
 
 /* --- 5. HỆ THỐNG NÚT BẤM --- */
