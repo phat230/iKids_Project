@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import os
 import time
+import re
 from streamlit_quill import st_quill
 from deep_translator import GoogleTranslator
 
@@ -56,11 +57,14 @@ def get_valid_image_url(img_path):
     clean_path = path[1:] if path.startswith("/") else path
     return f"{BACKEND_URL}/{clean_path}?v={int(time.time())}"
 
-# ✅ HÀM GIAO DIỆN CHUẨN: Dùng chung cho Preview và Khách (Cải thiện bố cục đẹp)
+def strip_html_tags(text):
+    """Hàm dọn dẹp thẻ HTML để đoạn trích dẫn tin tức lướt ngang được hiển thị sạch sẽ"""
+    return re.sub(r'<[^>]+>', '', text)
+
 def display_about_card(title, content, img_obj_or_url, layout, img_width):
     with st.container(border=True):
         if layout == "left":
-            c1, c2 = st.columns([1, 2.5]) # Tỷ lệ 1 Ảnh : 2.5 Chữ
+            c1, c2 = st.columns([1, 2.5]) 
             with c1: st.image(img_obj_or_url, use_container_width=True)
             with c2:
                 st.markdown(f"<h3 style='margin-top:0;'>{title}</h3>", unsafe_allow_html=True)
@@ -76,27 +80,38 @@ def display_about_card(title, content, img_obj_or_url, layout, img_width):
             st.markdown(f"<h3 style='margin-top:15px;'>{title}</h3>", unsafe_allow_html=True)
             st.markdown(content, unsafe_allow_html=True)
 
-def display_news_card(title, content, img_obj_or_url, layout, img_width, date):
-    with st.container(border=True):
-        if layout == "left":
-            c1, c2 = st.columns([1, 2.5])
-            with c1: st.image(img_obj_or_url, use_container_width=True)
-            with c2:
-                st.markdown(f"<h3 style='margin-top:0; margin-bottom:5px;'>{title}</h3>", unsafe_allow_html=True)
-                st.markdown(f"<span style='color: #64748b; font-size: 0.85rem;'>🕒 {date}</span>", unsafe_allow_html=True)
-                st.markdown(content, unsafe_allow_html=True)
-        elif layout == "right":
-            c1, c2 = st.columns([2.5, 1])
-            with c1:
-                st.markdown(f"<h3 style='margin-top:0; margin-bottom:5px;'>{title}</h3>", unsafe_allow_html=True)
-                st.markdown(f"<span style='color: #64748b; font-size: 0.85rem;'>🕒 {date}</span>", unsafe_allow_html=True)
-                st.markdown(content, unsafe_allow_html=True)
-            with c2: st.image(img_obj_or_url, use_container_width=True)
-        else:
-            st.image(img_obj_or_url, width=img_width if img_width else None, use_container_width=(not img_width))
-            st.markdown(f"<h3 style='margin-top:15px; margin-bottom:5px;'>{title}</h3>", unsafe_allow_html=True)
-            st.markdown(f"<span style='color: #64748b; font-size: 0.85rem;'>🕒 {date}</span>", unsafe_allow_html=True)
-            st.markdown(content, unsafe_allow_html=True)
+# TẠO BĂNG CHUYỀN LƯỚT NGANG CHO TIN TỨC TRÊN WEB
+def render_horizontal_news_carousel(posts, lang, labels):
+    if not posts:
+        st.info(labels["msg_empty_news"])
+        return
+
+    # Khởi tạo khung bọc HTML (CSS đã được đưa sang file home_style.css)
+    carousel_html = '<div class="news-carousel-wrapper">'
+
+    for p in posts:
+        img_url = get_valid_image_url(p.get('image_url'))
+        title = get_localized_value(p.get('title'), lang=lang, default_val="No Title")
+        raw_content = get_localized_value(p.get('content'), lang=lang, default_val="")
+        clean_content = strip_html_tags(raw_content) # Xóa thẻ HTML để không vỡ layout
+        date = p.get('date', '')
+
+        # Tạo từng thẻ HTML
+        card_html = f"""
+        <div class="news-card-hz">
+            <img class="news-img-hz" src="{img_url}" onerror="this.src='https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop'">
+            <div class="news-body-hz">
+                <h4 class="news-title-hz">{title}</h4>
+                <div class="news-date-hz">🕒 {date}</div>
+                <p class="news-excerpt-hz">{clean_content}</p>
+            </div>
+        </div>
+        """
+        carousel_html += card_html
+
+    carousel_html += "</div>"
+    st.markdown(carousel_html, unsafe_allow_html=True)
+
 
 load_css("CSS/home_style.css")
 
@@ -227,36 +242,30 @@ if is_operator:
             st.session_state.show_add = True
             st.session_state.editing_post_data = None
         
-        # FORM THÊM MỚI (CÓ XEM TRƯỚC)
+        # FORM THÊM MỚI
         if st.session_state.get("show_add"):
             with st.container(border=True):
                 st.write("#### 📝 Soạn bài mới")
                 nt = st.text_input("Tiêu đề tin tức (*)", key="add_nt")
-                c_nl, c_ns = st.columns(2)
-                nl = c_nl.selectbox("Bố cục:", ["Ảnh Trái", "Ảnh Phải", "Banner"], key="add_nl")
-                ns = c_ns.slider("Kích thước ảnh:", 100, 800, 400, key="add_ns")
+                
+                # Bỏ thanh chọn Layout bên Web vì giờ giao diện lướt ngang ép buộc 1 kiểu
+                st.info("💡 Lưu ý: Tin tức sẽ được hiển thị dạng thẻ Lướt Ngang (Ảnh trên, Chữ dưới) cho chuẩn mobile.")
+                ns = st.slider("Kích thước ảnh:", 100, 800, 400, key="add_ns")
                 nc = st_quill(placeholder="Nội dung...", html=True, key="q_add_news")
                 ni = st.file_uploader("Tải ảnh đại diện", type=["png", "jpg", "jpeg"], key="add_ni")
-                
-                # XEM TRƯỚC TIN TỨC
-                st.markdown("---")
-                st.markdown(f"**{UI_LABELS[current_lang]['preview_title']}**")
-                p_layout = "left" if nl == "Ảnh Trái" else ("right" if nl == "Ảnh Phải" else "full")
-                display_news_card(nt if nt else "Tiêu đề Demo", nc if nc else "Nội dung demo...", ni if ni else get_valid_image_url(""), p_layout, ns, time.strftime("%d/%m/%Y"))
-                st.markdown("<br>", unsafe_allow_html=True)
 
                 if st.button(UI_LABELS[current_lang]["btn_submit_news"]):
                     if nt and nc:
                         img_path = save_uploaded_file(ni) if ni else ""
                         requests.post(f"{API_URL}/posts", json={
                             "title": nt, "content": nc, "image_url": img_path, 
-                            "layout": p_layout, "img_width": ns, "status": "published", "date": time.strftime("%d/%m/%Y")
+                            "layout": "full", "img_width": ns, "status": "published", "date": time.strftime("%d/%m/%Y")
                         })
                         st.session_state.show_add = False
                         st.success("Đăng bài thành công!")
                         refresh_cms()
 
-        # FORM SỬA BÀI (CÓ XEM TRƯỚC)
+        # FORM SỬA BÀI
         if st.session_state.editing_post_data:
             p_edit = st.session_state.editing_post_data
             p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
@@ -265,33 +274,22 @@ if is_operator:
             with st.container(border=True):
                 st.write(f"#### 🛠️ Sửa bài: {p_edit_title_vi}")
                 et = st.text_input("Sửa tiêu đề", value=p_edit_title_vi)
-                ec_l, ec_s = st.columns(2)
-                el = ec_l.selectbox("Sửa bố cục:", ["Ảnh Trái", "Ảnh Phải", "Banner"], 
-                                    index=0 if p_edit.get('layout')=="left" else (1 if p_edit.get('layout')=="right" else 2))
-                es = ec_s.slider("Kích thước ảnh:", 100, 800, int(p_edit.get('img_width', 400)))
+                es = st.slider("Kích thước ảnh:", 100, 800, int(p_edit.get('img_width', 400)))
                 ec = st_quill(value=p_edit_content_vi, html=True, key="q_edit_news")
                 ei = st.file_uploader("Đổi ảnh đại diện:", type=["png", "jpg", "jpeg"])
-                
-                # XEM TRƯỚC SỬA BÀI
-                st.markdown("---")
-                st.markdown(f"**{UI_LABELS[current_lang]['preview_title']}**")
-                p_layout = "left" if el == "Ảnh Trái" else ("right" if el == "Ảnh Phải" else "full")
-                preview_img = ei if ei else get_valid_image_url(p_edit.get('image_url'))
-                display_news_card(et, ec, preview_img, p_layout, es, p_edit.get('date', time.strftime("%d/%m/%Y")))
-                st.markdown("<br>", unsafe_allow_html=True)
 
                 if st.button(UI_LABELS[current_lang]["btn_save"]):
                     final_img = p_edit.get('image_url')
                     if ei: final_img = save_uploaded_file(ei)
                     requests.put(f"{API_URL}/posts/{p_edit.get('id', p_edit.get('_id'))}", json={
-                        "title": et, "content": ec, "image_url": final_img, "layout": p_layout, "img_width": es
+                        "title": et, "content": ec, "image_url": final_img, "layout": "full", "img_width": es
                     })
                     st.session_state.editing_post_data = None
                     st.success("Lưu thành công!")
                     refresh_cms()
 
         st.divider()
-        st.write(f"**Danh sách bài viết ({len(all_posts)})**")
+        st.write(f"**Danh sách bài viết đã đăng ({len(all_posts)})**")
         for p in all_posts:
             p_id = p.get('id', p.get('_id'))
             with st.container(border=True):
@@ -326,6 +324,7 @@ if is_operator:
 
 # ================= GIAO DIỆN KHÁCH / PHỤ HUYNH =================
 else:
+    # 1. Khối Giới Thiệu
     st.subheader(UI_LABELS[current_lang]["about_header"])
     layout = about_data.get('layout', 'left')
     images = about_data.get('images', [])
@@ -337,22 +336,13 @@ else:
     st.write("")
     st.divider()
 
+    # 2. Khối Tin Tức (Lướt Ngang - Carousel)
     st.subheader(UI_LABELS[current_lang]["news_header"])
     display_posts = [p for p in all_posts if p.get('status') == 'published']
     
-    if not display_posts:
-        st.info("Chưa có tin tức nào được đăng tải." if current_lang == "vi" else "No news posted yet.")
-    else:
-        for p in display_posts:
-            img_p = get_valid_image_url(p.get('image_url'))
-            p_width = int(p.get('img_width', 400))
-            p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
-            p_content_display = get_localized_value(p.get('content'), lang=current_lang, default_val="No Content")
-            p_layout = p.get('layout', 'left')
-            p_date = p.get('date', '')
+    render_horizontal_news_carousel(display_posts, current_lang, UI_LABELS[current_lang])
 
-            display_news_card(p_title_display, p_content_display, img_p, p_layout, p_width, p_date)
-
+    # 3. Khối Liên Hệ
     contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật")
     st.markdown(f"""
     <div class="contact-footer">
