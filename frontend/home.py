@@ -18,22 +18,19 @@ def load_css(file_path):
         with open(absolute_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# ✅ ĐÃ SỬA LỖI: Web không tự lưu ảnh nữa mà đẩy thẳng sang Backend thông qua API
+# ✅ ĐÃ SỬA: Web không tự giấu ảnh nữa, mà đóng gói ném thẳng sang Backend (giống App Mobile)
 def save_uploaded_file(uploaded_file):
     if uploaded_file is not None:
         try:
-            # Gói file lại để gửi qua HTTP
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
-            # Bắn thẳng file sang Backend API (Giống hệt Mobile App)
             res = requests.post(f"{API_URL}/upload_image", files=files)
-            
             if res.status_code == 200:
                 data = res.json()
                 return data.get("image_url", "")
             else:
                 st.error(f"Lỗi Server Backend khi nhận ảnh: {res.text}")
         except Exception as e:
-            st.error(f"Lỗi kết nối khi tải ảnh lên server: {e}")
+            st.error(f"Lỗi kết nối mạng: {e}")
     return ""
 
 def get_localized_value(data_field, lang="vi", default_val=""):
@@ -51,7 +48,7 @@ def get_localized_value(data_field, lang="vi", default_val=""):
                 return data_field
     return default_val
 
-# ✅ HÀM MỚI: Đồng bộ logic hiển thị ảnh hệt như Mobile App
+# ✅ ĐÃ SỬA: Ép Web lấy link ảnh trực tiếp từ Backend, cấm tự tìm trong ổ cứng cục bộ
 def get_valid_image_url(img_path):
     path = str(img_path).strip() if img_path else ""
     if not path or "anh_laptop.jpg" in path:
@@ -253,7 +250,7 @@ if is_operator:
     with tab_contact:
         contact_addr_vi = get_localized_value(contact_data.get('address'), lang="vi")
         with st.container(border=True):
-            st.write("#### ☎️ Cập nhật thông liên lạc")
+            st.write("#### ☎️ Cập nhật thông tin liên lạc")
             new_phone = st.text_input("Hotline", value=contact_data.get('phone', ''))
             new_email = st.text_input("Email hỗ trợ", value=contact_data.get('email', ''))
             new_addr = st.text_input("Địa chỉ trụ sở (Tiếng Việt)", value=contact_addr_vi)
