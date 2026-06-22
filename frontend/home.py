@@ -58,7 +58,6 @@ def get_valid_image_url(img_path):
     return f"{BACKEND_URL}/{clean_path}?v={int(time.time())}"
 
 def strip_html_tags(text):
-    """Hàm dọn dẹp thẻ HTML để đoạn trích dẫn tin tức lướt ngang được hiển thị sạch sẽ"""
     return re.sub(r'<[^>]+>', '', text)
 
 def display_about_card(title, content, img_obj_or_url, layout, img_width):
@@ -80,38 +79,34 @@ def display_about_card(title, content, img_obj_or_url, layout, img_width):
             st.markdown(f"<h3 style='margin-top:15px;'>{title}</h3>", unsafe_allow_html=True)
             st.markdown(content, unsafe_allow_html=True)
 
-# TẠO BĂNG CHUYỀN LƯỚT NGANG CHO TIN TỨC TRÊN WEB
+# ✅ ĐÃ FIX LỖI ÉP SÁT LỀ TRÁI CHỐNG STREAMLIT NHẬN NHẦM THÀNH CODE HTML
 def render_horizontal_news_carousel(posts, lang, labels):
     if not posts:
         st.info(labels["msg_empty_news"])
         return
 
-    # Khởi tạo khung bọc HTML (CSS đã được đưa sang file home_style.css)
-    carousel_html = '<div class="news-carousel-wrapper">'
+    carousel_html = '<div class="news-carousel-wrapper">\n'
 
     for p in posts:
         img_url = get_valid_image_url(p.get('image_url'))
         title = get_localized_value(p.get('title'), lang=lang, default_val="No Title")
         raw_content = get_localized_value(p.get('content'), lang=lang, default_val="")
-        clean_content = strip_html_tags(raw_content) # Xóa thẻ HTML để không vỡ layout
+        clean_content = strip_html_tags(raw_content)
         date = p.get('date', '')
 
-        # Tạo từng thẻ HTML
-        card_html = f"""
-        <div class="news-card-hz">
-            <img class="news-img-hz" src="{img_url}" onerror="this.src='https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop'">
-            <div class="news-body-hz">
-                <h4 class="news-title-hz">{title}</h4>
-                <div class="news-date-hz">🕒 {date}</div>
-                <p class="news-excerpt-hz">{clean_content}</p>
-            </div>
-        </div>
-        """
+        # HTML được ép sát lề trái hoàn toàn
+        card_html = f'''<div class="news-card-hz">
+<img class="news-img-hz" src="{img_url}" onerror="this.src='https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop'">
+<div class="news-body-hz">
+<h4 class="news-title-hz">{title}</h4>
+<div class="news-date-hz">🕒 {date}</div>
+<p class="news-excerpt-hz">{clean_content}</p>
+</div>
+</div>'''
         carousel_html += card_html
 
     carousel_html += "</div>"
     st.markdown(carousel_html, unsafe_allow_html=True)
-
 
 load_css("CSS/home_style.css")
 
@@ -191,7 +186,6 @@ about_content_display = get_localized_value(about_data.get('content'), lang=curr
 if is_operator:
     tab_about, tab_news, tab_contact = st.tabs(["🏢 Giới thiệu", "📰 Tin tức & Sự kiện", "📞 Liên hệ"])
     
-    # --- TAB GIỚI THIỆU ---
     with tab_about:
         new_about_title = st.text_input(UI_LABELS[current_lang]["input_title"], value=about_title_vi)
         c_lay, c_size = st.columns(2)
@@ -207,7 +201,6 @@ if is_operator:
         uploaded_about_imgs = st.file_uploader("Tải ảnh mới từ máy tính:", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
         keep_old = st.checkbox("Giữ lại ảnh cũ", value=True)
 
-        # HỆ THỐNG XEM TRƯỚC GIỚI THIỆU
         st.markdown("---")
         st.markdown(f"#### {UI_LABELS[current_lang]['preview_title']}")
         preview_layout = "left" if about_layout == "Ảnh TRÁI - Chữ PHẢI" else ("right" if about_layout == "Ảnh PHẢI - Chữ TRÁI" else "full")
@@ -233,7 +226,6 @@ if is_operator:
                 st.success("Đã cập nhật Giới thiệu!")
                 refresh_cms()
 
-    # --- TAB TIN TỨC ---
     with tab_news:
         if "editing_post_data" not in st.session_state:
             st.session_state.editing_post_data = None
@@ -242,13 +234,11 @@ if is_operator:
             st.session_state.show_add = True
             st.session_state.editing_post_data = None
         
-        # FORM THÊM MỚI
         if st.session_state.get("show_add"):
             with st.container(border=True):
                 st.write("#### 📝 Soạn bài mới")
                 nt = st.text_input("Tiêu đề tin tức (*)", key="add_nt")
                 
-                # Bỏ thanh chọn Layout bên Web vì giờ giao diện lướt ngang ép buộc 1 kiểu
                 st.info("💡 Lưu ý: Tin tức sẽ được hiển thị dạng thẻ Lướt Ngang (Ảnh trên, Chữ dưới) cho chuẩn mobile.")
                 ns = st.slider("Kích thước ảnh:", 100, 800, 400, key="add_ns")
                 nc = st_quill(placeholder="Nội dung...", html=True, key="q_add_news")
@@ -265,7 +255,6 @@ if is_operator:
                         st.success("Đăng bài thành công!")
                         refresh_cms()
 
-        # FORM SỬA BÀI
         if st.session_state.editing_post_data:
             p_edit = st.session_state.editing_post_data
             p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
@@ -308,7 +297,6 @@ if is_operator:
                         requests.delete(f"{API_URL}/posts/{p_id}")
                         refresh_cms()
 
-    # --- TAB LIÊN HỆ ---
     with tab_contact:
         contact_addr_vi = get_localized_value(contact_data.get('address'), lang="vi")
         with st.container(border=True):
@@ -322,9 +310,7 @@ if is_operator:
                 st.success("Đã cập nhật thông tin liên hệ!")
                 refresh_cms()
 
-# ================= GIAO DIỆN KHÁCH / PHỤ HUYNH =================
 else:
-    # 1. Khối Giới Thiệu
     st.subheader(UI_LABELS[current_lang]["about_header"])
     layout = about_data.get('layout', 'left')
     images = about_data.get('images', [])
@@ -336,13 +322,11 @@ else:
     st.write("")
     st.divider()
 
-    # 2. Khối Tin Tức (Lướt Ngang - Carousel)
     st.subheader(UI_LABELS[current_lang]["news_header"])
     display_posts = [p for p in all_posts if p.get('status') == 'published']
     
     render_horizontal_news_carousel(display_posts, current_lang, UI_LABELS[current_lang])
 
-    # 3. Khối Liên Hệ
     contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật")
     st.markdown(f"""
     <div class="contact-footer">

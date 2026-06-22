@@ -272,25 +272,25 @@ async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db
         await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "approved"}})
         return {"status": "success"}
 # --- 10. QUẢN LÝ NỘI DUNG TRANG CHỦ (CMS ĐA NGÔN NGỮ CHUẨN KIẾN TRÚC) ---
+import uuid # THÊM THƯ VIỆN NÀY ĐỂ TẠO TÊN NGẪU NHIÊN
+
 @router.post("/upload_image")
 async def upload_image_from_mobile(file: UploadFile = File(...)):
-    """API hứng file ảnh từ Mobile App và lưu vào thư mục static/uploads"""
     try:
         save_dir = "static/uploads"
-        
         if not os.path.exists(save_dir):
             os.makedirs(save_dir, exist_ok=True)
-        
-        safe_filename = file.filename.replace(" ", "_")
+        _, file_ext = os.path.splitext(file.filename)
+        safe_filename = f"img_{uuid.uuid4().hex[:10]}{file_ext}"
         file_path = f"{save_dir}/{safe_filename}"
-        
+        content = await file.read()
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
+            buffer.write(content)
         return {"status": "success", "image_url": file_path}
     except Exception as e:
-        print(f" LỖI UPLOAD ẢNH BACKEND: {str(e)}")
+        print(f"🔥 LỖI UPLOAD ẢNH BACKEND: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Lỗi lưu ảnh: {str(e)}")
+
 @router.get("/posts")
 async def get_all_posts(status: str = None, db = Depends(get_db)):
     query = {}
