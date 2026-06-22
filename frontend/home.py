@@ -79,7 +79,7 @@ def display_about_card(title, content, img_obj_or_url, layout, img_width):
             st.markdown(f"<h3 style='margin-top:15px;'>{title}</h3>", unsafe_allow_html=True)
             st.markdown(content, unsafe_allow_html=True)
 
-# ✅ ĐÃ FIX LỖI ÉP SÁT LỀ TRÁI CHỐNG STREAMLIT NHẬN NHẦM THÀNH CODE HTML
+# ✅ HÀM CAROUSEL: Đã thêm nút "Đọc chi tiết" với tham số URL (post_id)
 def render_horizontal_news_carousel(posts, lang, labels):
     if not posts:
         st.info(labels["msg_empty_news"])
@@ -88,25 +88,66 @@ def render_horizontal_news_carousel(posts, lang, labels):
     carousel_html = '<div class="news-carousel-wrapper">\n'
 
     for p in posts:
+        post_id = str(p.get('id', p.get('_id', '')))
         img_url = get_valid_image_url(p.get('image_url'))
         title = get_localized_value(p.get('title'), lang=lang, default_val="No Title")
         raw_content = get_localized_value(p.get('content'), lang=lang, default_val="")
         clean_content = strip_html_tags(raw_content)
         date = p.get('date', '')
 
-        # HTML được ép sát lề trái hoàn toàn
+        btn_text = "Đọc chi tiết ➔" if lang == "vi" else "Read more ➔"
+
+        # href="?post_id=..." giúp web nạp lại trang và ghim ID bài viết lên thanh URL
         card_html = f'''<div class="news-card-hz">
 <img class="news-img-hz" src="{img_url}" onerror="this.src='https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop'">
 <div class="news-body-hz">
 <h4 class="news-title-hz">{title}</h4>
 <div class="news-date-hz">🕒 {date}</div>
 <p class="news-excerpt-hz">{clean_content}</p>
+<a href="?post_id={post_id}" target="_self" class="read-more-btn">{btn_text}</a>
 </div>
 </div>'''
         carousel_html += card_html
 
     carousel_html += "</div>"
     st.markdown(carousel_html, unsafe_allow_html=True)
+
+# ✅ HÀM MỚI: Hiển thị giao diện chi tiết của bài viết
+def show_news_detail(post_id, posts, lang):
+    post = next((p for p in posts if str(p.get('id', p.get('_id'))) == post_id), None)
+    
+    # Nút quay lại (Xóa tham số post_id khỏi URL để về trang chủ)
+    btn_back_text = "🔙 Quay lại trang chủ" if lang == "vi" else "🔙 Back to Home"
+    if st.button(btn_back_text):
+        st.query_params.clear()
+        st.rerun()
+        
+    st.divider()
+
+    if not post:
+        st.error("Không tìm thấy bài viết hoặc bài viết đã bị xóa!" if lang == "vi" else "Article not found or deleted!")
+        return
+
+    title = get_localized_value(post.get('title'), lang=lang)
+    content = get_localized_value(post.get('content'), lang=lang)
+    img_url = get_valid_image_url(post.get('image_url'))
+    date = post.get('date', '')
+
+    # Render giao diện chi tiết cực đẹp
+    st.markdown(f"<h1 style='color: #1e3a8a; padding-bottom: 5px; font-size: 2.2rem;'>{title}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color: #64748b; font-weight: bold; font-size: 1rem;'>🕒 Ngày đăng: {date}</p>", unsafe_allow_html=True)
+    
+    # Canh giữa ảnh lớn
+    c1, c2, c3 = st.columns([1, 8, 1])
+    with c2:
+        st.image(img_url, use_container_width=True)
+        
+    st.markdown(f"<div class='news-detail-content' style='font-size: 1.15rem; line-height: 1.8; color: #334155; margin-top: 20px;'>{content}</div>", unsafe_allow_html=True)
+    
+    st.divider()
+    if st.button(btn_back_text, key="btn_back_bottom"):
+        st.query_params.clear()
+        st.rerun()
 
 load_css("CSS/home_style.css")
 
@@ -166,7 +207,7 @@ contact_data = get_cms_data("contact") or {}
 all_posts = get_cms_data("posts") or []
 if isinstance(all_posts, dict): all_posts = []
 
-# ================= 3. HEADER GIAO DIỆN =================
+# ================= 3. HEADER GIAO DIỆN CHUNG =================
 st.markdown("<div class='header-container'>", unsafe_allow_html=True)
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
@@ -178,161 +219,175 @@ with col_title:
 st.markdown("</div>", unsafe_allow_html=True)
 st.divider()
 
-about_title_vi = get_localized_value(about_data.get('title'), lang="vi", default_val="Về iKids Edu")
-about_content_vi = get_localized_value(about_data.get('content'), lang="vi", default_val="")
-about_content_display = get_localized_value(about_data.get('content'), lang=current_lang, default_val="")
+# ✅ HỆ THỐNG ĐIỀU HƯỚNG BẰNG TÍN HIỆU URL (ROUTING)
+query_params = st.query_params
+selected_post_id = query_params.get("post_id")
 
-# ================= QUẢN LÝ GIAO DIỆN (ADMIN/OPERATOR) =================
-if is_operator:
-    tab_about, tab_news, tab_contact = st.tabs(["🏢 Giới thiệu", "📰 Tin tức & Sự kiện", "📞 Liên hệ"])
-    
-    with tab_about:
-        new_about_title = st.text_input(UI_LABELS[current_lang]["input_title"], value=about_title_vi)
-        c_lay, c_size = st.columns(2)
-        about_layout = c_lay.selectbox(UI_LABELS[current_lang]["input_layout"], 
-            ["Ảnh TRÁI - Chữ PHẢI", "Ảnh PHẢI - Chữ TRÁI", "Banner (Ảnh TRÊN)"],
-            index=0 if about_data.get('layout') == "left" else (1 if about_data.get('layout') == "right" else 2)
-        )
-        about_img_width = c_size.slider(UI_LABELS[current_lang]["input_width"], 200, 1000, int(about_data.get('img_width', 500)))
+# --- NẾU ĐANG CÓ YÊU CẦU ĐỌC CHI TIẾT BÀI VIẾT ---> HIỂN THỊ TRANG CHI TIẾT TIN TỨC ---
+if selected_post_id:
+    show_news_detail(selected_post_id, all_posts, current_lang)
+
+# --- NẾU KHÔNG CÓ YÊU CẦU ---> HIỂN THỊ TRANG CHỦ HOẶC TRANG QUẢN TRỊ ---
+else:
+    about_title_vi = get_localized_value(about_data.get('title'), lang="vi", default_val="Về iKids Edu")
+    about_content_vi = get_localized_value(about_data.get('content'), lang="vi", default_val="")
+    about_content_display = get_localized_value(about_data.get('content'), lang=current_lang, default_val="")
+
+    # ================= QUẢN LÝ GIAO DIỆN (ADMIN/OPERATOR) =================
+    if is_operator:
+        tab_about, tab_news, tab_contact = st.tabs(["🏢 Giới thiệu", "📰 Tin tức & Sự kiện", "📞 Liên hệ"])
         
-        st.write(UI_LABELS[current_lang]["input_content"])
-        new_about_content = st_quill(value=about_content_vi, html=True, key="q_about")
-        
-        uploaded_about_imgs = st.file_uploader("Tải ảnh mới từ máy tính:", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-        keep_old = st.checkbox("Giữ lại ảnh cũ", value=True)
-
-        st.markdown("---")
-        st.markdown(f"#### {UI_LABELS[current_lang]['preview_title']}")
-        preview_layout = "left" if about_layout == "Ảnh TRÁI - Chữ PHẢI" else ("right" if about_layout == "Ảnh PHẢI - Chữ TRÁI" else "full")
-        preview_img = uploaded_about_imgs[0] if uploaded_about_imgs else get_valid_image_url(about_data.get('images', [''])[0] if about_data.get('images') else "")
-        display_about_card(new_about_title, new_about_content, preview_img, preview_layout, about_img_width)
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        if st.button(UI_LABELS[current_lang]["btn_save_all_about"], type="primary"):
-            with st.spinner("Đang lưu..."):
-                new_imgs = []
-                if uploaded_about_imgs:
-                    for f in uploaded_about_imgs:
-                        path = save_uploaded_file(f)
-                        if path: new_imgs.append(path)
-                
-                old_imgs = about_data.get('images', []) if keep_old else []
-                final_imgs = new_imgs + old_imgs
-                
-                requests.put(f"{API_URL}/about", json={
-                    "title": new_about_title, "content": new_about_content,
-                    "images": final_imgs, "layout": preview_layout, "img_width": about_img_width
-                })
-                st.success("Đã cập nhật Giới thiệu!")
-                refresh_cms()
-
-    with tab_news:
-        if "editing_post_data" not in st.session_state:
-            st.session_state.editing_post_data = None
-
-        if st.button(UI_LABELS[current_lang]["btn_add"], type="primary"):
-            st.session_state.show_add = True
-            st.session_state.editing_post_data = None
-        
-        if st.session_state.get("show_add"):
-            with st.container(border=True):
-                st.write("#### 📝 Soạn bài mới")
-                nt = st.text_input("Tiêu đề tin tức (*)", key="add_nt")
-                
-                st.info("💡 Lưu ý: Tin tức sẽ được hiển thị dạng thẻ Lướt Ngang (Ảnh trên, Chữ dưới) cho chuẩn mobile.")
-                ns = st.slider("Kích thước ảnh:", 100, 800, 400, key="add_ns")
-                nc = st_quill(placeholder="Nội dung...", html=True, key="q_add_news")
-                ni = st.file_uploader("Tải ảnh đại diện", type=["png", "jpg", "jpeg"], key="add_ni")
-
-                if st.button(UI_LABELS[current_lang]["btn_submit_news"]):
-                    if nt and nc:
-                        img_path = save_uploaded_file(ni) if ni else ""
-                        requests.post(f"{API_URL}/posts", json={
-                            "title": nt, "content": nc, "image_url": img_path, 
-                            "layout": "full", "img_width": ns, "status": "published", "date": time.strftime("%d/%m/%Y")
-                        })
-                        st.session_state.show_add = False
-                        st.success("Đăng bài thành công!")
-                        refresh_cms()
-
-        if st.session_state.editing_post_data:
-            p_edit = st.session_state.editing_post_data
-            p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
-            p_edit_content_vi = get_localized_value(p_edit.get('content'), lang="vi")
+        with tab_about:
+            new_about_title = st.text_input(UI_LABELS[current_lang]["input_title"], value=about_title_vi)
+            c_lay, c_size = st.columns(2)
+            about_layout = c_lay.selectbox(UI_LABELS[current_lang]["input_layout"], 
+                ["Ảnh TRÁI - Chữ PHẢI", "Ảnh PHẢI - Chữ TRÁI", "Banner (Ảnh TRÊN)"],
+                index=0 if about_data.get('layout') == "left" else (1 if about_data.get('layout') == "right" else 2)
+            )
+            about_img_width = c_size.slider(UI_LABELS[current_lang]["input_width"], 200, 1000, int(about_data.get('img_width', 500)))
             
-            with st.container(border=True):
-                st.write(f"#### 🛠️ Sửa bài: {p_edit_title_vi}")
-                et = st.text_input("Sửa tiêu đề", value=p_edit_title_vi)
-                es = st.slider("Kích thước ảnh:", 100, 800, int(p_edit.get('img_width', 400)))
-                ec = st_quill(value=p_edit_content_vi, html=True, key="q_edit_news")
-                ei = st.file_uploader("Đổi ảnh đại diện:", type=["png", "jpg", "jpeg"])
+            st.write(UI_LABELS[current_lang]["input_content"])
+            new_about_content = st_quill(value=about_content_vi, html=True, key="q_about")
+            
+            uploaded_about_imgs = st.file_uploader("Tải ảnh mới từ máy tính:", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+            keep_old = st.checkbox("Giữ lại ảnh cũ", value=True)
 
-                if st.button(UI_LABELS[current_lang]["btn_save"]):
-                    final_img = p_edit.get('image_url')
-                    if ei: final_img = save_uploaded_file(ei)
-                    requests.put(f"{API_URL}/posts/{p_edit.get('id', p_edit.get('_id'))}", json={
-                        "title": et, "content": ec, "image_url": final_img, "layout": "full", "img_width": es
+            st.markdown("---")
+            st.markdown(f"#### {UI_LABELS[current_lang]['preview_title']}")
+            preview_layout = "left" if about_layout == "Ảnh TRÁI - Chữ PHẢI" else ("right" if about_layout == "Ảnh PHẢI - Chữ TRÁI" else "full")
+            preview_img = uploaded_about_imgs[0] if uploaded_about_imgs else get_valid_image_url(about_data.get('images', [''])[0] if about_data.get('images') else "")
+            display_about_card(new_about_title, new_about_content, preview_img, preview_layout, about_img_width)
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if st.button(UI_LABELS[current_lang]["btn_save_all_about"], type="primary"):
+                with st.spinner("Đang lưu..."):
+                    new_imgs = []
+                    if uploaded_about_imgs:
+                        for f in uploaded_about_imgs:
+                            path = save_uploaded_file(f)
+                            if path: new_imgs.append(path)
+                    
+                    old_imgs = about_data.get('images', []) if keep_old else []
+                    final_imgs = new_imgs + old_imgs
+                    
+                    requests.put(f"{API_URL}/about", json={
+                        "title": new_about_title, "content": new_about_content,
+                        "images": final_imgs, "layout": preview_layout, "img_width": about_img_width
                     })
-                    st.session_state.editing_post_data = None
-                    st.success("Lưu thành công!")
+                    st.success("Đã cập nhật Giới thiệu!")
                     refresh_cms()
 
-        st.divider()
-        st.write(f"**Danh sách bài viết đã đăng ({len(all_posts)})**")
-        for p in all_posts:
-            p_id = p.get('id', p.get('_id'))
-            with st.container(border=True):
-                img_p = get_valid_image_url(p.get('image_url'))
-                p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
+        with tab_news:
+            if "editing_post_data" not in st.session_state:
+                st.session_state.editing_post_data = None
+
+            if st.button(UI_LABELS[current_lang]["btn_add"], type="primary"):
+                st.session_state.show_add = True
+                st.session_state.editing_post_data = None
+            
+            if st.session_state.get("show_add"):
+                with st.container(border=True):
+                    st.write("#### 📝 Soạn bài mới")
+                    nt = st.text_input("Tiêu đề tin tức (*)", key="add_nt")
+                    
+                    st.info("💡 Lưu ý: Tin tức sẽ được hiển thị dạng thẻ Lướt Ngang (Ảnh trên, Chữ dưới) cho chuẩn mobile.")
+                    ns = st.slider("Kích thước ảnh:", 100, 800, 400, key="add_ns")
+                    nc = st_quill(placeholder="Nội dung...", html=True, key="q_add_news")
+                    ni = st.file_uploader("Tải ảnh đại diện", type=["png", "jpg", "jpeg"], key="add_ni")
+
+                    if st.button(UI_LABELS[current_lang]["btn_submit_news"]):
+                        if nt and nc:
+                            img_path = save_uploaded_file(ni) if ni else ""
+                            requests.post(f"{API_URL}/posts", json={
+                                "title": nt, "content": nc, "image_url": img_path, 
+                                "layout": "full", "img_width": ns, "status": "published", "date": time.strftime("%d/%m/%Y")
+                            })
+                            st.session_state.show_add = False
+                            st.success("Đăng bài thành công!")
+                            refresh_cms()
+
+            if st.session_state.editing_post_data:
+                p_edit = st.session_state.editing_post_data
+                p_edit_title_vi = get_localized_value(p_edit.get('title'), lang="vi")
+                p_edit_content_vi = get_localized_value(p_edit.get('content'), lang="vi")
                 
-                c1, c2, c3 = st.columns([2, 5, 2])
-                c1.image(img_p, use_container_width=True)
-                c2.markdown(f"**{p_title_display}**<br><small>{p.get('date', '')}</small>", unsafe_allow_html=True)
-                
-                with c3:
-                    if st.button("✏️ Sửa", key=f"ed_{p_id}", use_container_width=True):
-                        st.session_state.editing_post_data = p
-                        st.rerun()
-                    if st.button("🗑️ Xóa", key=f"dl_{p_id}", use_container_width=True):
-                        requests.delete(f"{API_URL}/posts/{p_id}")
+                with st.container(border=True):
+                    st.write(f"#### 🛠️ Sửa bài: {p_edit_title_vi}")
+                    et = st.text_input("Sửa tiêu đề", value=p_edit_title_vi)
+                    es = st.slider("Kích thước ảnh:", 100, 800, int(p_edit.get('img_width', 400)))
+                    ec = st_quill(value=p_edit_content_vi, html=True, key="q_edit_news")
+                    ei = st.file_uploader("Đổi ảnh đại diện:", type=["png", "jpg", "jpeg"])
+
+                    if st.button(UI_LABELS[current_lang]["btn_save"]):
+                        final_img = p_edit.get('image_url')
+                        if ei: final_img = save_uploaded_file(ei)
+                        requests.put(f"{API_URL}/posts/{p_edit.get('id', p_edit.get('_id'))}", json={
+                            "title": et, "content": ec, "image_url": final_img, "layout": "full", "img_width": es
+                        })
+                        st.session_state.editing_post_data = None
+                        st.success("Lưu thành công!")
                         refresh_cms()
 
-    with tab_contact:
-        contact_addr_vi = get_localized_value(contact_data.get('address'), lang="vi")
-        with st.container(border=True):
-            st.write("#### ☎️ Cập nhật thông tin liên lạc")
-            new_phone = st.text_input("Hotline", value=contact_data.get('phone', ''))
-            new_email = st.text_input("Email hỗ trợ", value=contact_data.get('email', ''))
-            new_addr = st.text_input("Địa chỉ trụ sở (Tiếng Việt)", value=contact_addr_vi)
-            
-            if st.button("💾 Lưu thông tin Liên hệ", type="primary"):
-                requests.put(f"{API_URL}/contact", json={"phone": new_phone, "email": new_email, "address": new_addr})
-                st.success("Đã cập nhật thông tin liên hệ!")
-                refresh_cms()
+            st.divider()
+            st.write(f"**Danh sách bài viết đã đăng ({len(all_posts)})**")
+            for p in all_posts:
+                p_id = p.get('id', p.get('_id'))
+                with st.container(border=True):
+                    img_p = get_valid_image_url(p.get('image_url'))
+                    p_title_display = get_localized_value(p.get('title'), lang=current_lang, default_val="No Title")
+                    
+                    c1, c2, c3 = st.columns([2, 5, 2])
+                    c1.image(img_p, use_container_width=True)
+                    c2.markdown(f"**{p_title_display}**<br><small>{p.get('date', '')}</small>", unsafe_allow_html=True)
+                    
+                    with c3:
+                        if st.button("✏️ Sửa", key=f"ed_{p_id}", use_container_width=True):
+                            st.session_state.editing_post_data = p
+                            st.rerun()
+                        if st.button("🗑️ Xóa", key=f"dl_{p_id}", use_container_width=True):
+                            requests.delete(f"{API_URL}/posts/{p_id}")
+                            refresh_cms()
 
-else:
-    st.subheader(UI_LABELS[current_lang]["about_header"])
-    layout = about_data.get('layout', 'left')
-    images = about_data.get('images', [])
-    img_main = get_valid_image_url(images[0] if images else "")
-    i_width = int(about_data.get('img_width', 500))
+        with tab_contact:
+            contact_addr_vi = get_localized_value(contact_data.get('address'), lang="vi")
+            with st.container(border=True):
+                st.write("#### ☎️ Cập nhật thông tin liên lạc")
+                new_phone = st.text_input("Hotline", value=contact_data.get('phone', ''))
+                new_email = st.text_input("Email hỗ trợ", value=contact_data.get('email', ''))
+                new_addr = st.text_input("Địa chỉ trụ sở (Tiếng Việt)", value=contact_addr_vi)
+                
+                if st.button("💾 Lưu thông tin Liên hệ", type="primary"):
+                    requests.put(f"{API_URL}/contact", json={"phone": new_phone, "email": new_email, "address": new_addr})
+                    st.success("Đã cập nhật thông tin liên hệ!")
+                    refresh_cms()
 
-    display_about_card(about_title_vi, about_content_display, img_main, layout, i_width)
+    # ================= GIAO DIỆN KHÁCH / PHỤ HUYNH =================
+    else:
+        # 1. Khối Giới Thiệu
+        st.subheader(UI_LABELS[current_lang]["about_header"])
+        layout = about_data.get('layout', 'left')
+        images = about_data.get('images', [])
+        img_main = get_valid_image_url(images[0] if images else "")
+        i_width = int(about_data.get('img_width', 500))
 
-    st.write("")
-    st.divider()
+        display_about_card(about_title_vi, about_content_display, img_main, layout, i_width)
 
-    st.subheader(UI_LABELS[current_lang]["news_header"])
-    display_posts = [p for p in all_posts if p.get('status') == 'published']
-    
-    render_horizontal_news_carousel(display_posts, current_lang, UI_LABELS[current_lang])
+        st.write("")
+        st.divider()
 
-    contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật")
-    st.markdown(f"""
-    <div class="contact-footer">
-        <h3>{UI_LABELS[current_lang]['contact_header']}</h3>
-        <p>📍 <b>{"Địa chỉ" if current_lang=="vi" else "Address"}:</b> {contact_addr_display}</p>
-        <p>✉️ <b>Email:</b> {contact_data.get('email', 'Đang cập nhật')}</p>
-        <p>☎️ <b>Hotline:</b> {contact_data.get('phone', 'Đang cập nhật')}</p>
-    </div>
-    """, unsafe_allow_html=True)
+        # 2. Khối Tin Tức (Lướt Ngang - Carousel)
+        st.subheader(UI_LABELS[current_lang]["news_header"])
+        display_posts = [p for p in all_posts if p.get('status') == 'published']
+        
+        render_horizontal_news_carousel(display_posts, current_lang, UI_LABELS[current_lang])
+
+        # 3. Khối Liên Hệ
+        contact_addr_display = get_localized_value(contact_data.get('address'), lang=current_lang, default_val="Đang cập nhật")
+        st.markdown(f"""
+        <div class="contact-footer">
+            <h3>{UI_LABELS[current_lang]['contact_header']}</h3>
+            <p>📍 <b>{"Địa chỉ" if current_lang=="vi" else "Address"}:</b> {contact_addr_display}</p>
+            <p>✉️ <b>Email:</b> {contact_data.get('email', 'Đang cập nhật')}</p>
+            <p>☎️ <b>Hotline:</b> {contact_data.get('phone', 'Đang cập nhật')}</p>
+        </div>
+        """, unsafe_allow_html=True)

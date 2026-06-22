@@ -208,3 +208,32 @@ div[data-testid="stImage"] img {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* --- 8. NÚT ĐỌC CHI TIẾT TRONG CAROUSEL --- */
+.read-more-btn {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: #f1f5f9;
+    color: #1e3a8a !important;
+    border-radius: 8px;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0;
+}
+
+.read-more-btn:hover {
+    background-color: #3b82f6;
+    color: white !important;
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.news-detail-content img {
+    max-width: 100%;
+    border-radius: 12px;
+    margin: 15px 0;
+}
