@@ -94,10 +94,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return field.toString();
   }
 
+  String _cleanHtmlToPlainText(String htmlString) {
+    String parsed = htmlString.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
+    parsed = parsed.replaceAll(RegExp(r'</p>', caseSensitive: false), '\n\n');
+    parsed = parsed.replaceAll(RegExp(r'<[^>]*>'), ''); // Xóa sạch các tag còn lại
+    return parsed.trim();
+  }
+
   String _getValidImageUrl(dynamic imgPath) {
     String path = imgPath?.toString() ?? "";
     
-    final fallbackUrl = "https://images.unsplash.com/photo-1546410531-dd4cb6ca7404?q=80&w=800&auto=format&fit=crop";
+    final fallbackUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/No_image_available.svg/1024px-No_image_available.svg.png";
 
     if (path.trim().isEmpty || path.contains("anh_laptop.jpg")) {
       return fallbackUrl;
@@ -221,8 +228,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildAboutCard() {
     String aboutTitle = _getLocalized(_aboutData['title'], "iKids Education");
-    String aboutContent = _getLocalized(_aboutData['content'], "");
-    aboutContent = aboutContent.replaceAll(RegExp(r'<[^>]*>'), '');
+    String rawContent = _getLocalized(_aboutData['content'], "");
+    String cleanContent = _cleanHtmlToPlainText(rawContent);
 
     List<dynamic> images = _aboutData['images'] ?? [];
     String imgUrl = _getValidImageUrl(images.isNotEmpty ? images[0] : null);
@@ -236,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(aboutTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 10),
-          Text(aboutContent.isEmpty ? "..." : aboutContent, style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5)),
+          Text(cleanContent.isEmpty ? "..." : cleanContent, style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5)),
         ],
       ),
     );
@@ -294,8 +301,8 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final p = _posts[index];
           String pTitle = _getLocalized(p['title'], "No Title");
-          String pContent = _getLocalized(p['content'], "");
-          pContent = pContent.replaceAll(RegExp(r'<[^>]*>'), ''); 
+          String rawContent = _getLocalized(p['content'], "");
+          String cleanContent = _cleanHtmlToPlainText(rawContent); 
           
           String pImg = _getValidImageUrl(p['image_url']);
 
@@ -346,10 +353,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text(pTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 6),
-                          Text(pContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(cleanContent, style: const TextStyle(color: Colors.black54, fontSize: 13, height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
                           const Spacer(), 
                           
-                          // Hàng dưới cùng chứa Ngày tháng & Nút Đọc chi tiết
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -422,7 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // =======================================================================
-//  MÀN HÌNH MỚI: CHI TIẾT TIN TỨC (Dùng chung file để tránh rườm rà)
+//  MÀN HÌNH CHI TIẾT TIN TỨC
 // =======================================================================
 class NewsDetailScreen extends StatelessWidget {
   final dynamic postData;
@@ -436,14 +442,19 @@ class NewsDetailScreen extends StatelessWidget {
     required this.lang,
   });
 
+  String _cleanHtmlToPlainText(String htmlString) {
+    String parsed = htmlString.replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n');
+    parsed = parsed.replaceAll(RegExp(r'</p>', caseSensitive: false), '\n\n');
+    parsed = parsed.replaceAll(RegExp(r'<[^>]*>'), '');
+    return parsed.trim();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Xử lý ngôn ngữ
     String pTitle = postData['title'] is Map ? (postData['title'][lang] ?? postData['title']['vi'] ?? "") : postData['title'].toString();
     String rawContent = postData['content'] is Map ? (postData['content'][lang] ?? postData['content']['vi'] ?? "") : postData['content'].toString();
     
-    // Loại bỏ thẻ HTML để hiển thị sạch sẽ
-    String cleanContent = rawContent.replaceAll(RegExp(r'<[^>]*>'), '');
+    String cleanContent = _cleanHtmlToPlainText(rawContent);
     String dateStr = postData['date'] ?? '';
 
     return Scaffold(
@@ -459,7 +470,6 @@ class NewsDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Ảnh bìa cực lớn
             Image.network(
               imageUrl,
               width: double.infinity,
@@ -471,7 +481,6 @@ class NewsDetailScreen extends StatelessWidget {
               ),
             ),
             
-            // 2. Nội dung bài báo
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
