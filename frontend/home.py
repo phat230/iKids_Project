@@ -18,7 +18,7 @@ def load_css(file_path):
         with open(absolute_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-# ✅ ĐÃ SỬA: Web không tự giấu ảnh nữa, mà đóng gói ném thẳng sang Backend (giống App Mobile)
+# Web không tự giấu ảnh nữa, mà đóng gói ném thẳng sang Backend (giống App Mobile)
 def save_uploaded_file(uploaded_file):
     if uploaded_file is not None:
         try:
@@ -48,7 +48,7 @@ def get_localized_value(data_field, lang="vi", default_val=""):
                 return data_field
     return default_val
 
-# ✅ ĐÃ SỬA: Ép Web lấy link ảnh trực tiếp từ Backend, cấm tự tìm trong ổ cứng cục bộ
+# Ép Web lấy link ảnh trực tiếp từ Backend
 def get_valid_image_url(img_path):
     path = str(img_path).strip() if img_path else ""
     if not path or "anh_laptop.jpg" in path:
@@ -155,11 +155,15 @@ if is_operator:
 
         if st.button(UI_LABELS[current_lang]["btn_save_all_about"], type="primary"):
             with st.spinner("Đang lưu..."):
-                final_imgs = about_data.get('images', []) if keep_old else []
+                # ✅ FIX: Ép ảnh mới luôn đứng số 1 (images[0])
+                new_imgs = []
                 if uploaded_about_imgs:
                     for f in uploaded_about_imgs:
                         path = save_uploaded_file(f)
-                        if path: final_imgs.append(path)
+                        if path: new_imgs.append(path)
+                
+                old_imgs = about_data.get('images', []) if keep_old else []
+                final_imgs = new_imgs + old_imgs  # Ảnh mới lên đầu, ảnh cũ nối đuôi
                 
                 l_val = "left" if about_layout == "Ảnh TRÁI - Chữ PHẢI" else ("right" if about_layout == "Ảnh PHẢI - Chữ TRÁI" else "full")
                 requests.put(f"{API_URL}/about", json={
