@@ -210,8 +210,8 @@ div[data-testid="stImage"] img {
 }
 /* --- 8. NÚT ĐỌC CHI TIẾT TRONG CAROUSEL --- */
 .read-more-btn {
-    display: inline-block;
-    margin-top: 15px;
+    display: block; 
+    margin-top: auto;
     padding: 10px 15px;
     background-color: #f1f5f9;
     color: #1e3a8a !important;
