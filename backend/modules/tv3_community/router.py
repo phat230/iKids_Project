@@ -22,6 +22,11 @@ from .services import (
 from bson import ObjectId
 from datetime import datetime
 from deep_translator import GoogleTranslator
+import uuid
+import asyncio
+import cloudinary.uploader
+from core.cloudinary_config import check_cloudinary_config
+
 router = APIRouter()
 translator = GoogleTranslator(source='vi', target='en')
 # --- 1. CỬA HÀNG (DÀNH CHO NGƯỜI DÙNG) ---
@@ -272,52 +277,143 @@ async def parent_approve_purchase(request_id: str, payload: dict = Body(...), db
         await db.purchase_requests.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "approved"}})
         return {"status": "success"}
 # --- 10. QUẢN LÝ NỘI DUNG TRANG CHỦ (CMS ĐA NGÔN NGỮ CHUẨN KIẾN TRÚC) ---
-import uuid # THÊM THƯ VIỆN NÀY ĐỂ TẠO TÊN NGẪU NHIÊN
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif"
+}
+
+
+async def delete_cloudinary_image_safely(public_id: str):
+    """
+    Xóa ảnh trên Cloudinary nếu có public_id.
+    Không raise lỗi để tránh làm hỏng thao tác xóa bài viết/sản phẩm.
+    """
+    if not public_id:
+        return
+
+    try:
+        await asyncio.to_thread(
+            cloudinary.uploader.destroy,
+            public_id,
+            resource_type="image"
+        )
+    except Exception as e:
+        print(f"⚠️ Không thể xóa ảnh Cloudinary {public_id}: {str(e)}")
+
+
+def get_payload_public_id(payload: dict) -> str:
+    """
+    Hỗ trợ cả 2 tên:
+    - image_public_id
+    - public_id
+
+    Vì API upload_image trả về public_id, frontend có thể gửi lên bằng 1 trong 2 tên.
+    """
+    return payload.get("image_public_id") or payload.get("public_id") or ""
+
 
 @router.post("/upload_image")
 async def upload_image_from_mobile(file: UploadFile = File(...)):
+    """
+    Upload ảnh lên Cloudinary.
+    Không còn lưu vào static/uploads nữa.
+    Dùng chung cho:
+    - ảnh bài viết CMS
+    - ảnh trang giới thiệu
+    - ảnh sản phẩm cửa hàng
+    """
+
     try:
-        save_dir = "static/uploads"
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir, exist_ok=True)
-        _, file_ext = os.path.splitext(file.filename)
-        safe_filename = f"img_{uuid.uuid4().hex[:10]}{file_ext}"
-        file_path = f"{save_dir}/{safe_filename}"
-        content = await file.read()
-        with open(file_path, "wb") as buffer:
-            buffer.write(content)
-        return {"status": "success", "image_url": file_path}
+        check_cloudinary_config()
+
+        if file.content_type not in ALLOWED_IMAGE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail="Chỉ cho phép upload ảnh JPG, PNG, WEBP hoặc GIF."
+            )
+
+        public_id = f"img_{uuid.uuid4().hex[:12]}"
+
+        upload_result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            file.file,
+            folder="ikids/uploads",
+            public_id=public_id,
+            resource_type="image",
+            overwrite=False
+        )
+
+        image_url = upload_result.get("secure_url")
+        image_public_id = upload_result.get("public_id")
+
+        if not image_url:
+            raise HTTPException(
+                status_code=500,
+                detail="Cloudinary không trả về URL ảnh."
+            )
+
+        return {
+            "status": "success",
+            "image_url": image_url,
+            "image_public_id": image_public_id,
+            "public_id": image_public_id
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"🔥 LỖI UPLOAD ẢNH BACKEND: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Lỗi lưu ảnh: {str(e)}")
+        print(f"🔥 LỖI UPLOAD ẢNH CLOUDINARY: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi upload ảnh Cloudinary: {str(e)}"
+        )
+
 
 @router.get("/posts")
 async def get_all_posts(status: str = None, db = Depends(get_db)):
     query = {}
-    if status: query["status"] = status
+
+    if status:
+        query["status"] = status
+
     cursor = db.posts.find(query).sort("date", -1)
     posts = []
+
     async for doc in cursor:
         doc["id"] = str(doc["_id"])
         del doc["_id"]
         posts.append(doc)
+
     return posts
+
 
 @router.post("/posts")
 async def create_new_post(payload: dict = Body(...), db = Depends(get_db)):
-    """API Tạo bài viết mới - Tự động dịch sang Tiếng Anh"""
+    """
+    Tạo bài viết mới.
+    Ảnh đã được upload qua /upload_image trước,
+    API này chỉ lưu image_url và image_public_id vào MongoDB.
+    """
+
     try:
         title_vi = payload.get("title", "").strip()
         content_vi = payload.get("content", "").strip()
-        
+
         if not title_vi or not content_vi:
-            raise HTTPException(status_code=400, detail="Tiêu đề và nội dung không được trống")
-            
-        core_translator = GoogleTranslator(source='vi', target='en')
+            raise HTTPException(
+                status_code=400,
+                detail="Tiêu đề và nội dung không được trống."
+            )
+
+        core_translator = GoogleTranslator(source="vi", target="en")
+
         try:
             translated_title = core_translator.translate(title_vi)
             translated_content = core_translator.translate(content_vi)
-        except Exception as e:
+        except Exception:
             translated_title = title_vi
             translated_content = content_vi
 
@@ -331,24 +427,58 @@ async def create_new_post(payload: dict = Body(...), db = Depends(get_db)):
                 "en": translated_content if translated_content else content_vi
             },
             "image_url": payload.get("image_url", ""),
+            "image_public_id": get_payload_public_id(payload),
             "layout": payload.get("layout", "left"),
             "img_width": payload.get("img_width", 400),
             "status": payload.get("status", "published"),
-            "date": payload.get("date", datetime.now().strftime("%d/%m/%Y"))
+            "date": payload.get("date", datetime.now().strftime("%d/%m/%Y")),
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
         }
-        
+
         result = await db.posts.insert_one(multilang_post)
-        return {"status": "success", "id": str(result.inserted_id)}
+
+        return {
+            "status": "success",
+            "id": str(result.inserted_id)
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi tạo bài viết: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi tạo bài viết: {str(e)}"
+        )
+
 
 @router.put("/posts/{post_id}")
 async def update_post(post_id: str, payload: dict = Body(...), db = Depends(get_db)):
+    """
+    Sửa bài viết.
+    Nếu đổi ảnh mới, hệ thống có thể xóa ảnh cũ trên Cloudinary nếu có image_public_id.
+    """
+
     try:
+        old_post = await db.posts.find_one({"_id": ObjectId(post_id)})
+
+        if not old_post:
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy bài viết cần sửa."
+            )
+
         title_vi = payload.get("title", "").strip()
         content_vi = payload.get("content", "").strip()
-        
-        core_translator = GoogleTranslator(source='vi', target='en')
+
+        if not title_vi or not content_vi:
+            raise HTTPException(
+                status_code=400,
+                detail="Tiêu đề và nội dung không được trống."
+            )
+
+        core_translator = GoogleTranslator(source="vi", target="en")
+
         try:
             translated_title = core_translator.translate(title_vi)
             translated_content = core_translator.translate(content_vi)
@@ -356,40 +486,109 @@ async def update_post(post_id: str, payload: dict = Body(...), db = Depends(get_
             translated_title = title_vi
             translated_content = content_vi
 
+        old_public_id = old_post.get("image_public_id", "")
+        new_public_id = get_payload_public_id(payload)
+        new_image_url = payload.get("image_url", old_post.get("image_url", ""))
+
+        # Nếu frontend gửi image_url rỗng nghĩa là muốn bỏ ảnh
+        if "image_url" in payload and not payload.get("image_url"):
+            if old_public_id:
+                await delete_cloudinary_image_safely(old_public_id)
+            new_public_id = ""
+
+        # Nếu đổi sang ảnh Cloudinary mới thì xóa ảnh cũ
+        elif new_public_id and old_public_id and new_public_id != old_public_id:
+            await delete_cloudinary_image_safely(old_public_id)
+
+        # Nếu không gửi public_id mới thì giữ public_id cũ
+        if not new_public_id and new_image_url:
+            new_public_id = old_public_id
+
         update_doc = {
-            "title": {"vi": title_vi, "en": translated_title},
-            "content": {"vi": content_vi, "en": translated_content},
-            "image_url": payload.get("image_url"),
-            "layout": payload.get("layout"),
-            "img_width": payload.get("img_width"),
-            "status": payload.get("status", "published")
+            "title": {
+                "vi": title_vi,
+                "en": translated_title if translated_title else title_vi
+            },
+            "content": {
+                "vi": content_vi,
+                "en": translated_content if translated_content else content_vi
+            },
+            "image_url": new_image_url,
+            "image_public_id": new_public_id,
+            "layout": payload.get("layout", "left"),
+            "img_width": payload.get("img_width", 400),
+            "status": payload.get("status", "published"),
+            "updated_at": datetime.now()
         }
-        
-        await db.posts.update_one({"_id": ObjectId(post_id)}, {"$set": update_doc})
+
+        await db.posts.update_one(
+            {"_id": ObjectId(post_id)},
+            {"$set": update_doc}
+        )
+
         return {"status": "success"}
+
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi sửa bài viết: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi sửa bài viết: {str(e)}"
+        )
+
 
 @router.delete("/posts/{post_id}")
 async def delete_post(post_id: str, db = Depends(get_db)):
-    await db.posts.delete_one({"_id": ObjectId(post_id)})
-    return {"status": "success"}
+    try:
+        post = await db.posts.find_one({"_id": ObjectId(post_id)})
+
+        if not post:
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy bài viết cần xóa."
+            )
+
+        await delete_cloudinary_image_safely(post.get("image_public_id", ""))
+
+        await db.posts.delete_one({"_id": ObjectId(post_id)})
+
+        return {"status": "success"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi xóa bài viết: {str(e)}"
+        )
+
 
 @router.get("/about")
 async def get_about(db = Depends(get_db)):
     data = await db.config.find_one({"type": "about"})
-    if not data: return {}
+
+    if not data:
+        return {}
+
     data["id"] = str(data["_id"])
     del data["_id"]
+
     return data
+
 
 @router.put("/about")
 async def update_about(payload: dict = Body(...), db = Depends(get_db)):
-    """✅ ĐÃ SỬA LỖI: Lưu đầy đủ cả mảng ảnh (images) và bố cục (layout) vào MongoDB"""
+    """
+    Lưu nội dung giới thiệu.
+    images nên là danh sách URL Cloudinary.
+    image_public_ids nên là danh sách public_id tương ứng.
+    """
+
     try:
         content_vi = payload.get("content", "").strip()
-        
-        core_translator = GoogleTranslator(source='vi', target='en')
+
+        core_translator = GoogleTranslator(source="vi", target="en")
+
         try:
             translated_content = core_translator.translate(content_vi) if content_vi else ""
         except Exception:
@@ -402,32 +601,49 @@ async def update_about(payload: dict = Body(...), db = Depends(get_db)):
                 "vi": content_vi,
                 "en": translated_content
             },
-            "images": payload.get("images", []),      # Lưu danh sách hình ảnh
-            "layout": payload.get("layout", "left"),  # Lưu dạng bố cục hiển thị
-            "img_width": payload.get("img_width", 500),# Lưu độ rộng ảnh
+            "images": payload.get("images", []),
+            "image_public_ids": payload.get("image_public_ids", []),
+            "layout": payload.get("layout", "left"),
+            "img_width": payload.get("img_width", 500),
             "updated_at": datetime.now()
         }
-        await db.config.update_one({"type": "about"}, {"$set": multilang_about}, upsert=True)
+
+        await db.config.update_one(
+            {"type": "about"},
+            {"$set": multilang_about},
+            upsert=True
+        )
+
         return {"status": "success"}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi cập nhật giới thiệu: {str(e)}"
+        )
+
 
 @router.get("/contact")
 async def get_contact(db = Depends(get_db)):
     data = await db.config.find_one({"type": "contact"})
-    if not data: return {}
+
+    if not data:
+        return {}
+
     data["id"] = str(data["_id"])
     del data["_id"]
+
     return data
+
 
 @router.put("/contact")
 async def update_contact(payload: dict = Body(...), db = Depends(get_db)):
-    """✅ ĐÃ SỬA LỖI: Dọn dẹp đoạn code bị ghi trùng lặp ở cuối file của bạn"""
     try:
         address_vi = payload.get("address", "").strip()
         description_vi = payload.get("description", "").strip()
-        
-        core_translator = GoogleTranslator(source='vi', target='en')
+
+        core_translator = GoogleTranslator(source="vi", target="en")
+
         try:
             translated_address = core_translator.translate(address_vi) if address_vi else ""
             translated_description = core_translator.translate(description_vi) if description_vi else ""
@@ -437,30 +653,154 @@ async def update_contact(payload: dict = Body(...), db = Depends(get_db)):
 
         multilang_contact = {
             "type": "contact",
-            "address": {"vi": address_vi, "en": translated_address},
-            "description": {"vi": description_vi, "en": translated_description},
+            "address": {
+                "vi": address_vi,
+                "en": translated_address
+            },
+            "description": {
+                "vi": description_vi,
+                "en": translated_description
+            },
             "phone": payload.get("phone", ""),
-            "email": payload.get("email", "")
+            "email": payload.get("email", ""),
+            "updated_at": datetime.now()
         }
-        
-        await db.config.update_one({"type": "contact"}, {"$set": multilang_contact}, upsert=True)
+
+        await db.config.update_one(
+            {"type": "contact"},
+            {"$set": multilang_contact},
+            upsert=True
+        )
+
         return {"status": "success"}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Lỗi cập nhật liên hệ: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi cập nhật liên hệ: {str(e)}"
+        )
+
 
 # --- 11. QUẢN LÝ CỬA HÀNG (OPERATOR) ---
 
 @router.post("/products")
 async def create_product(payload: dict = Body(...), db = Depends(get_db)):
-    result = await db.products.insert_one(payload)
-    return {"status": "success", "id": str(result.inserted_id)}
+    """
+    Tạo sản phẩm cửa hàng.
+    Nếu sản phẩm có ảnh, frontend gửi:
+    {
+        "image_url": "...",
+        "image_public_id": "..."
+    }
+    """
+
+    try:
+        image_public_id = get_payload_public_id(payload)
+
+        product_doc = dict(payload)
+        product_doc.pop("public_id", None)
+
+        if image_public_id:
+            product_doc["image_public_id"] = image_public_id
+
+        product_doc["created_at"] = datetime.now()
+        product_doc["updated_at"] = datetime.now()
+
+        result = await db.products.insert_one(product_doc)
+
+        return {
+            "status": "success",
+            "id": str(result.inserted_id)
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi tạo sản phẩm: {str(e)}"
+        )
+
 
 @router.put("/products/{prod_id}")
 async def update_product(prod_id: str, payload: dict = Body(...), db = Depends(get_db)):
-    await db.products.update_one({"_id": ObjectId(prod_id)}, {"$set": payload})
-    return {"status": "success"}
+    """
+    Sửa sản phẩm.
+    Nếu đổi ảnh mới, ảnh cũ trên Cloudinary sẽ được xóa nếu có image_public_id.
+    """
+
+    try:
+        old_product = await db.products.find_one({"_id": ObjectId(prod_id)})
+
+        if not old_product:
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy sản phẩm cần sửa."
+            )
+
+        update_doc = dict(payload)
+
+        old_public_id = old_product.get("image_public_id", "")
+        new_public_id = get_payload_public_id(update_doc)
+
+        update_doc.pop("public_id", None)
+
+        # Nếu frontend gửi image_url rỗng nghĩa là muốn xóa ảnh sản phẩm
+        if "image_url" in update_doc and not update_doc.get("image_url"):
+            if old_public_id:
+                await delete_cloudinary_image_safely(old_public_id)
+            update_doc["image_public_id"] = ""
+
+        # Nếu đổi ảnh mới thì xóa ảnh cũ
+        elif new_public_id and old_public_id and new_public_id != old_public_id:
+            await delete_cloudinary_image_safely(old_public_id)
+            update_doc["image_public_id"] = new_public_id
+
+        elif new_public_id:
+            update_doc["image_public_id"] = new_public_id
+
+        update_doc["updated_at"] = datetime.now()
+
+        await db.products.update_one(
+            {"_id": ObjectId(prod_id)},
+            {"$set": update_doc}
+        )
+
+        return {"status": "success"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi sửa sản phẩm: {str(e)}"
+        )
+
 
 @router.delete("/products/{prod_id}")
 async def delete_product(prod_id: str, db = Depends(get_db)):
-    await db.products.delete_one({"_id": ObjectId(prod_id)})
-    return {"status": "success"}
+    """
+    Xóa sản phẩm.
+    Nếu sản phẩm có image_public_id thì xóa luôn ảnh trên Cloudinary.
+    """
+
+    try:
+        product = await db.products.find_one({"_id": ObjectId(prod_id)})
+
+        if not product:
+            raise HTTPException(
+                status_code=404,
+                detail="Không tìm thấy sản phẩm cần xóa."
+            )
+
+        await delete_cloudinary_image_safely(product.get("image_public_id", ""))
+
+        await db.products.delete_one({"_id": ObjectId(prod_id)})
+
+        return {"status": "success"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi xóa sản phẩm: {str(e)}"
+        )

@@ -15,3 +15,5 @@ requests
 deep-translator
 google-generativeai
 openpyxl
+cloudinary
+python-multipart

@@ -2,52 +2,100 @@ import streamlit as st
 import requests
 import time
 import os
-from api_clients.tv3_client import get_store_products, purchase_product, get_gamification_profile
+from api_clients.tv3_client import (
+    get_store_products,
+    purchase_product,
+    get_gamification_profile,
+)
 from utils.role_guard import require_role
-from deep_translator import GoogleTranslator 
+from deep_translator import GoogleTranslator
 
 require_role(["parent", "admin"])
 
-# ĐÃ SỬA: Lấy BACKEND_URL chung từ session_state thay vì ghi chết localhost
+# Lấy BACKEND_URL chung từ session_state
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 API_TV3 = f"{BACKEND_URL}/api/tv3"
+
 
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
+
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
+
 load_css("parent/parent_global.css")
 
+
+def to_float(value, default=0.0):
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except Exception:
+        return default
+
+
 def get_localized_value(data_field, lang="vi", default_val=""):
-    """
-    Hàm bóc tách dữ liệu nâng cao cho sản phẩm:
-    - Nếu dữ liệu dạng dict đa ngôn ngữ: Lấy đúng ngôn ngữ được chọn.
-    - Nếu dữ liệu dạng chuỗi thô (nhập phẳng): Tự động dịch bù sang Tiếng Anh tại chỗ.
-    """
     if not data_field:
         return default_val
+
     if isinstance(data_field, dict):
-        return data_field.get(lang, data_field.get("vi", default_val))
+        return data_field.get(lang, data_field.get("vi", data_field.get("en", default_val)))
+
     if isinstance(data_field, str):
         if lang == "vi":
             return data_field
-        else:
-            try:
-                return GoogleTranslator(source='auto', target='en').translate(data_field)
-            except Exception:
-                return data_field
+        try:
+            return GoogleTranslator(source="auto", target="en").translate(data_field)
+        except Exception:
+            return data_field
+
     return default_val
 
-# ĐÃ SỬA: Bỏ hàm def render_store() để tránh lỗi trắng trang khi dùng st.navigation
-# ==========================================
-# GIAO DIỆN CHÍNH (ĐƯA RA NGOÀI CÙNG)
-# ==========================================
 
-# Lấy mã ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+def get_product_image_url(img_path):
+    """
+    Chuẩn hóa ảnh sản phẩm:
+    - Cloudinary / URL online: dùng trực tiếp
+    - static/... cũ: ghép với BACKEND_URL
+    - rỗng / placeholder / lỗi: dùng ảnh fallback an toàn
+    """
+
+    fallback_img = (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/"
+        "No_image_available.svg/1024px-No_image_available.svg.png"
+    )
+
+    if not img_path:
+        return fallback_img
+
+    img_path = str(img_path).strip()
+
+    if (
+        not img_path
+        or "placeholder" in img_path.lower()
+        or "via.placeholder" in img_path.lower()
+        or "anh_laptop.jpg" in img_path.lower()
+    ):
+        return fallback_img
+
+    if img_path.startswith("http://") or img_path.startswith("https://"):
+        return img_path
+
+    if img_path.startswith("/"):
+        img_path = img_path[1:]
+
+    if img_path.startswith("static/"):
+        return f"{BACKEND_URL}/{img_path}"
+
+    return f"{BACKEND_URL}/{img_path}"
+
+
+# Lấy mã ngôn ngữ hiện hành từ session_state toàn cục
 lang = st.session_state.get("lang", "vi")
 
 # --- BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO TRANG CỬA HÀNG PHỤ HUYNH ---
@@ -62,7 +110,8 @@ CUA_HANG_LABELS = {
         "lbl_be": "Bé",
         "btn_confirm": "Xác nhận tặng",
         "msg_success": "Đã tặng quà thành công cho",
-        "msg_err_balance": "❌ Không đủ số dư trong ví!"
+        "msg_err_balance": "❌ Không đủ số dư trong ví!",
+        "default_product": "Sản phẩm",
     },
     "en": {
         "title": "🛍️ iKids Gift & Reward Store",
@@ -74,8 +123,9 @@ CUA_HANG_LABELS = {
         "lbl_be": "Kid",
         "btn_confirm": "Confirm Gift",
         "msg_success": "Successfully gifted reward item to",
-        "msg_err_balance": "❌ Insufficient wallet balance!"
-    }
+        "msg_err_balance": "❌ Insufficient wallet balance!",
+        "default_product": "Product",
+    },
 }
 
 st.title(CUA_HANG_LABELS[lang]["title"])
@@ -84,21 +134,38 @@ user_id = st.session_state.get("user_id")
 token = st.session_state.get("access_token") or st.session_state.get("token")
 
 profile = get_gamification_profile(user_id)
-balance = profile.get('balance', 0.0) 
-st.sidebar.markdown(f"### 💳 {CUA_HANG_LABELS[lang]['sidebar_balance']}: {balance:,.0f} VNĐ")
+balance = to_float(profile.get("balance", 0.0))
+
+st.sidebar.markdown(
+    f"### 💳 {CUA_HANG_LABELS[lang]['sidebar_balance']}: {balance:,.0f} VNĐ"
+)
 
 # Lấy danh sách con
-headers = {"Authorization": f"Bearer {token}", "parent-id": str(user_id)}
+headers = {
+    "Authorization": f"Bearer {token}",
+    "parent-id": str(user_id),
+}
+
 try:
-    res = requests.get(f"{API_TV3}/parent/my-children", headers=headers)
+    res = requests.get(
+        f"{API_TV3}/parent/my-children",
+        headers=headers,
+        timeout=15,
+    )
+
     children = res.json() if res.status_code == 200 else []
-    
-    # Thử lấy full_name, nếu không có thì lấy name, cuối cùng là dùng 4 số cuối ID để phân biệt
+
     child_options = {
-        c["id"]: (c.get("full_name") or c.get("name") or f"{CUA_HANG_LABELS[lang]['lbl_be']} ({str(c['id'])[-4:]})") 
+        c["id"]: (
+            c.get("full_name")
+            or c.get("name")
+            or f"{CUA_HANG_LABELS[lang]['lbl_be']} ({str(c['id'])[-4:]})"
+        )
         for c in children
+        if c.get("id")
     }
-except Exception: 
+
+except Exception:
     child_options = {}
 
 if not child_options:
@@ -106,58 +173,81 @@ if not child_options:
     st.stop()
 
 products = get_store_products()
+
 if not products:
     st.info(CUA_HANG_LABELS[lang]["info_updating"])
 else:
-    # --- HIỂN THỊ LƯỚI 4 CỘT ---
     num_cols = 4
+
     for i in range(0, len(products), num_cols):
         row_products = products[i:i + num_cols]
         cols = st.columns(num_cols)
+
         for idx, p in enumerate(row_products):
-            p_id = p.get('id', p.get('_id'))
+            p_id = p.get("id", p.get("_id"))
+            price = to_float(p.get("price", 0))
+
             with cols[idx]:
                 with st.container(border=True):
-                    img_path = p.get('image_url')
-                    
-                    # ĐÃ SỬA: Loại bỏ ảnh via.placeholder.com và thay bằng ảnh logo dự phòng có sẵn
-                    fallback_img = "static/anh_laptop.jpg"
-                    if img_path and img_path.startswith("static/"):
-                        full_img_url = f"{BACKEND_URL}/{img_path}"
-                    elif img_path:
-                        full_img_url = img_path if "via.placeholder" not in img_path else fallback_img
-                    else:
-                        full_img_url = fallback_img
-                    
-                    st.image(full_img_url, use_container_width=True)
-                    
-                    # Trích xuất tên sản phẩm thông minh dựa trên dict đa ngôn ngữ hoặc chuỗi phẳng
-                    product_name_display = get_localized_value(p.get('name'), lang=lang)
-                    st.markdown(f"**{product_name_display}**")
-                    st.markdown(f"{CUA_HANG_LABELS[lang]['lbl_price']}: :blue[{p.get('price', 0):,} VNĐ]")
-                    
-                    selected_child_id = st.selectbox(
-                        CUA_HANG_LABELS[lang]["lbl_gift_to"], 
-                        options=list(child_options.keys()), 
-                        format_func=lambda x: child_options[x], 
-                        key=f"sel_{p_id}"
+                    img_path = p.get("image_url", "")
+                    full_img_url = get_product_image_url(img_path)
+
+                    try:
+                        st.image(full_img_url, use_container_width=True)
+                    except Exception:
+                        st.image(
+                            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/"
+                            "No_image_available.svg/1024px-No_image_available.svg.png",
+                            use_container_width=True,
+                        )
+
+                    product_name_display = get_localized_value(
+                        p.get("name"),
+                        lang=lang,
+                        default_val=CUA_HANG_LABELS[lang]["default_product"],
                     )
-                    
-                    if st.button(CUA_HANG_LABELS[lang]["btn_confirm"], key=f"pbuy_{p_id}", use_container_width=True, type="primary"):
-                        if balance >= p.get('price', 0):
-                            # Truyền thêm target_student_id để backend biết tặng cho ai
-                            success, msg = purchase_product(user_id, p_id, target_student_id=selected_child_id) 
+
+                    st.markdown(f"**{product_name_display}**")
+                    st.markdown(
+                        f"{CUA_HANG_LABELS[lang]['lbl_price']}: "
+                        f":blue[{price:,.0f} VNĐ]"
+                    )
+
+                    selected_child_id = st.selectbox(
+                        CUA_HANG_LABELS[lang]["lbl_gift_to"],
+                        options=list(child_options.keys()),
+                        format_func=lambda x: child_options[x],
+                        key=f"sel_{p_id}",
+                    )
+
+                    if st.button(
+                        CUA_HANG_LABELS[lang]["btn_confirm"],
+                        key=f"pbuy_{p_id}",
+                        use_container_width=True,
+                        type="primary",
+                    ):
+                        if balance >= price:
+                            success, msg = purchase_product(
+                                user_id,
+                                p_id,
+                                target_student_id=selected_child_id,
+                            )
+
                             if success:
-                                st.success(f"{CUA_HANG_LABELS[lang]['msg_success']} **{child_options[selected_child_id]}**!")
+                                st.success(
+                                    f"{CUA_HANG_LABELS[lang]['msg_success']} "
+                                    f"**{child_options[selected_child_id]}**!"
+                                )
                                 st.balloons()
                                 time.sleep(1)
                                 st.cache_data.clear()
                                 st.rerun()
-                            else: 
-                                # Chuyển ngữ lỗi nếu backend bắn về chuỗi tiếng Việt thô khi xem ở chế độ Eng
-                                if lang == "en" and "Ví của bé không đủ" in msg:
-                                    st.error("❌ The child's wallet balance is insufficient.")
+                            else:
+                                if lang == "en" and "Ví của bé không đủ" in str(msg):
+                                    st.error(
+                                        "❌ The child's wallet balance is insufficient."
+                                    )
                                 else:
                                     st.error(msg)
-                        else: 
+                        else:
                             st.error(CUA_HANG_LABELS[lang]["msg_err_balance"])

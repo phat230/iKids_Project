@@ -1,47 +1,106 @@
 import streamlit as st
 import os
 import time
-from api_clients.tv3_client import get_store_products, purchase_product, get_gamification_profile, request_purchase
+from api_clients.tv3_client import (
+    get_store_products,
+    purchase_product,
+    get_gamification_profile,
+    request_purchase,
+)
 from utils.role_guard import require_role
 from deep_translator import GoogleTranslator
 
 # ================= CRITICAL: CẤU HÌNH TRANG LUÔN ĐỂ ĐẦU FILE =================
 st.set_page_config(page_title="Cửa Hàng iKids", page_icon="🛍️", layout="wide")
 
-# Kiểm tra phân quyền truy cập (Bắt buộc đặt sau lệnh set_page_config)
+# Kiểm tra phân quyền truy cập
 require_role(["student"])
 
 # Lấy BACKEND_URL chung từ session_state toàn cục
 BACKEND_URL = st.session_state.get("api_url", "http://localhost:8000")
 
+
 def load_css(file_name):
     current_dir = os.path.dirname(os.path.abspath(__file__))
     css_root = os.path.abspath(os.path.join(current_dir, "../../CSS"))
     full_path = os.path.join(css_root, file_name)
+
     if os.path.exists(full_path):
         with open(full_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
     else:
         st.warning(f"⚠️ Không tìm thấy file CSS tại: {full_path}")
 
+
 load_css("student/student_global.css")
+
+
+def to_float(value, default=0.0):
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except Exception:
+        return default
+
 
 def get_localized_value(data_field, lang="vi", default_val=""):
     if not data_field:
         return default_val
+
     if isinstance(data_field, dict):
-        return data_field.get(lang, data_field.get("vi", default_val))
+        return data_field.get(lang, data_field.get("vi", data_field.get("en", default_val)))
+
     if isinstance(data_field, str):
         if lang == "vi":
             return data_field
-        else:
-            try:
-                return GoogleTranslator(source='auto', target='en').translate(data_field)
-            except Exception:
-                return data_field
+        try:
+            return GoogleTranslator(source="auto", target="en").translate(data_field)
+        except Exception:
+            return data_field
+
     return default_val
 
-# Lấy mã ngôn ngữ hiện hành từ session_state toàn cục (Mặc định là "vi")
+
+def get_product_image_url(img_path):
+    """
+    Chuẩn hóa ảnh sản phẩm:
+    - Cloudinary / URL online: dùng trực tiếp
+    - static/... cũ: ghép với BACKEND_URL
+    - rỗng / placeholder / lỗi: dùng ảnh fallback an toàn
+    """
+
+    fallback_img = (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/"
+        "No_image_available.svg/1024px-No_image_available.svg.png"
+    )
+
+    if not img_path:
+        return fallback_img
+
+    img_path = str(img_path).strip()
+
+    if (
+        not img_path
+        or "placeholder" in img_path.lower()
+        or "via.placeholder" in img_path.lower()
+        or "anh_laptop.jpg" in img_path.lower()
+    ):
+        return fallback_img
+
+    if img_path.startswith("http://") or img_path.startswith("https://"):
+        return img_path
+
+    if img_path.startswith("/"):
+        img_path = img_path[1:]
+
+    if img_path.startswith("static/"):
+        return f"{BACKEND_URL}/{img_path}"
+
+    return f"{BACKEND_URL}/{img_path}"
+
+
+# Lấy mã ngôn ngữ hiện hành từ session_state toàn cục
 lang = st.session_state.get("lang", "vi")
 
 # --- BỘ TỪ ĐIỂN SONG NGỮ CHI TIẾT CHO CỬA HÀNG HỌC SINH ---
@@ -55,7 +114,8 @@ STUDENT_STORE_LABELS = {
         "btn_ask": "🙏 Xin Ba Mẹ",
         "msg_success": "🎉 Đổi quà thành công! Hãy gặp thầy cô để nhận quà nhé.",
         "msg_requested": "📩 Đã gửi yêu cầu mua quà tới Ba Mẹ thành công!",
-        "err_failed": "Giao dịch thất bại:"
+        "err_failed": "Giao dịch thất bại:",
+        "default_product": "Sản phẩm",
     },
     "en": {
         "title": "🛍️ iKids Rewards Store",
@@ -66,8 +126,9 @@ STUDENT_STORE_LABELS = {
         "btn_ask": "🙏 Ask Parent",
         "msg_success": "🎉 Successfully redeemed! Please meet your teacher to receive your gift.",
         "msg_requested": "📩 Successfully sent the purchase request to your Parents!",
-        "err_failed": "Transaction failed:"
-    }
+        "err_failed": "Transaction failed:",
+        "default_product": "Product",
+    },
 }
 
 st.title(STUDENT_STORE_LABELS[lang]["title"])
@@ -75,10 +136,10 @@ st.write(STUDENT_STORE_LABELS[lang]["subtitle"])
 
 user_id = st.session_state.get("user_id")
 profile = get_gamification_profile(user_id)
-balance = profile.get('balance', 0.0) 
+balance = to_float(profile.get("balance", 0.0))
 
 st.sidebar.markdown(f"### 🪙 {STUDENT_STORE_LABELS[lang]['sidebar_wallet']}")
-st.sidebar.subheader(f":green[{balance:,.0f} VNĐ]") 
+st.sidebar.subheader(f":green[{balance:,.0f} VNĐ]")
 st.divider()
 
 products = get_store_products()
@@ -86,40 +147,76 @@ products = get_store_products()
 if not products:
     st.info(STUDENT_STORE_LABELS[lang]["info_empty"])
 else:
-    # --- HIỂN THỊ LƯỚI 4 CỘT ---
     num_cols = 4
+
     for i in range(0, len(products), num_cols):
         row_products = products[i:i + num_cols]
         cols = st.columns(num_cols)
+
         for idx, p in enumerate(row_products):
-            p_id = p.get('id', p.get('_id'))
+            p_id = p.get("id", p.get("_id"))
+            price = to_float(p.get("price", 0))
+
             with cols[idx]:
                 with st.container(border=True):
-                    img_path = p.get('image_url')
-                    # Loại bỏ via.placeholder và fallback về ảnh an toàn
-                    fallback_img = "static/anh_laptop.jpg"
-                    full_img_url = f"{BACKEND_URL}/{img_path}" if img_path and img_path.startswith("static/") else (img_path if "placeholder" not in str(img_path) else fallback_img)
-                    
-                    st.image(full_img_url, use_container_width=True)
-                    
-                    product_name_display = get_localized_value(p.get('name'), lang=lang)
+                    img_path = p.get("image_url", "")
+                    full_img_url = get_product_image_url(img_path)
+
+                    try:
+                        st.image(full_img_url, use_container_width=True)
+                    except Exception:
+                        st.image(
+                            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/"
+                            "No_image_available.svg/1024px-No_image_available.svg.png",
+                            use_container_width=True,
+                        )
+
+                    product_name_display = get_localized_value(
+                        p.get("name"),
+                        lang=lang,
+                        default_val=STUDENT_STORE_LABELS[lang]["default_product"],
+                    )
+
                     st.markdown(f"**{product_name_display}**")
-                    st.markdown(f":orange[**{p.get('price', 0):,} VNĐ**]")
-                    
-                    if balance >= p.get('price', 0):
-                        if st.button(STUDENT_STORE_LABELS[lang]["btn_buy"], key=f"buy_{p_id}", use_container_width=True, type="primary"):
+                    st.markdown(f":orange[**{price:,.0f} VNĐ**]")
+
+                    if balance >= price:
+                        if st.button(
+                            STUDENT_STORE_LABELS[lang]["btn_buy"],
+                            key=f"buy_{p_id}",
+                            use_container_width=True,
+                            type="primary",
+                        ):
                             success, msg = purchase_product(user_id, p_id)
+
                             if success:
                                 st.success(STUDENT_STORE_LABELS[lang]["msg_success"])
                                 st.balloons()
                                 time.sleep(1.5)
                                 st.rerun()
                             else:
-                                st.error(f"❌ {STUDENT_STORE_LABELS[lang]['err_failed']} {msg}")
+                                st.error(
+                                    f"❌ {STUDENT_STORE_LABELS[lang]['err_failed']} {msg}"
+                                )
                     else:
-                        if st.button(STUDENT_STORE_LABELS[lang]["btn_ask"], key=f"req_{p_id}", use_container_width=True):
-                            raw_name_vi = get_localized_value(p.get('name'), lang="vi")
-                            success, msg = request_purchase(user_id, p_id, raw_name_vi, p.get('price', 0))
+                        if st.button(
+                            STUDENT_STORE_LABELS[lang]["btn_ask"],
+                            key=f"req_{p_id}",
+                            use_container_width=True,
+                        ):
+                            raw_name_vi = get_localized_value(
+                                p.get("name"),
+                                lang="vi",
+                                default_val=STUDENT_STORE_LABELS["vi"]["default_product"],
+                            )
+
+                            success, msg = request_purchase(
+                                user_id,
+                                p_id,
+                                raw_name_vi,
+                                price,
+                            )
+
                             if success:
                                 st.info(STUDENT_STORE_LABELS[lang]["msg_requested"])
                             else:

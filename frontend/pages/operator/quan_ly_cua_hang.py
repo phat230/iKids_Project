@@ -13,31 +13,52 @@ API_URL = f"{BACKEND_URL}/api/tv3"
 st.set_page_config(page_title="Quản lý Kho hàng iKids", layout="wide")
 
 # --- HÀM XỬ LÝ ẢNH ---
-def save_processed_image(uploaded_file, target_size=(500, 500)):
-    if uploaded_file is not None:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        backend_static_dir = os.path.abspath(os.path.join(current_dir, "../../../backend/static/products"))
-        
-        if not os.path.exists(backend_static_dir): 
-            os.makedirs(backend_static_dir)
-            
-        file_path = os.path.join(backend_static_dir, uploaded_file.name)
-        img = Image.open(uploaded_file)
-        
-        # Center Crop to Square
-        width, height = img.size
-        min_dim = min(width, height)
-        left = (width - min_dim) / 2
-        top = (height - min_dim) / 2
-        right = (width + min_dim) / 2
-        bottom = (height + min_dim) / 2
-        img = img.crop((left, top, right, bottom))
-        
-        # Resize
-        img = img.resize(target_size, Image.Resampling.LANCZOS)
-        img.save(file_path)
-        return f"static/products/{uploaded_file.name}"
-    return None
+def upload_image_to_backend(uploaded_file):
+    """
+    Upload ảnh lên backend.
+    Backend sẽ đưa ảnh lên Cloudinary và trả về:
+    - image_url
+    - public_id hoặc image_public_id
+    """
+
+    if uploaded_file is None:
+        return {
+            "image_url": "",
+            "image_public_id": ""
+        }
+
+    try:
+        files = {
+            "file": (
+                uploaded_file.name,
+                uploaded_file.getvalue(),
+                uploaded_file.type
+            )
+        }
+
+        res = requests.post(
+            f"{API_URL}/upload_image",
+            files=files,
+            timeout=60
+        )
+
+        if res.status_code == 200:
+            data = res.json()
+
+            return {
+                "image_url": data.get("image_url", ""),
+                "image_public_id": data.get("image_public_id") or data.get("public_id", "")
+            }
+
+        st.error(f"Lỗi upload ảnh: {res.text}")
+
+    except Exception as e:
+        st.error(f"Lỗi kết nối khi upload ảnh: {e}")
+
+    return {
+        "image_url": "",
+        "image_public_id": ""
+    }
 
 def get_localized_value(data_field, lang="vi", default_val=""):
     """
@@ -206,23 +227,41 @@ with st.container(border=True):
 
         if submitted:
             if p_name.strip() and p_price > 0:
-                img_path = save_processed_image(p_img) if p_img else default_p.get("image_url")
-                
-                # Payload gửi lên Backend giữ cấu trúc phẳng (Tiếng Việt) để xử lý Router API tự động bóc dịch
+                if p_img:
+                    upload_data = upload_image_to_backend(p_img)
+                    img_path = upload_data["image_url"]
+                    image_public_id = upload_data["image_public_id"]
+
+                    if not img_path:
+                        st.error("Upload ảnh thất bại, vui lòng thử lại.")
+                        st.stop()
+                else:
+                    img_path = default_p.get("image_url", "")
+                    image_public_id = default_p.get("image_public_id", "")
+
                 payload = {
                     "name": p_name.strip(),
                     "price": p_price,
                     "description": p_desc.strip(),
                     "image_url": img_path,
+                    "image_public_id": image_public_id,
                     "updated_at": time.strftime("%d/%m/%Y")
                 }
-                
+
                 if is_editing:
-                    res = requests.put(f"{API_URL}/products/{default_p['id']}", json=payload)
+                    res = requests.put(
+                        f"{API_URL}/products/{default_p['id']}",
+                        json=payload,
+                        timeout=30
+                    )
                     msg = STORE_LABELS[lang]["msg_success_put"]
                 else:
                     payload["created_at"] = time.strftime("%d/%m/%Y")
-                    res = requests.post(f"{API_URL}/products", json=payload)
+                    res = requests.post(
+                        f"{API_URL}/products",
+                        json=payload,
+                        timeout=30
+                    )
                     msg = STORE_LABELS[lang]["msg_success_post"]
 
                 if res.status_code == 200:
@@ -232,11 +271,12 @@ with st.container(border=True):
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error(res.json().get("detail", "Error occurred"))
+                    try:
+                        st.error(res.json().get("detail", "Error occurred"))
+                    except Exception:
+                        st.error(res.text)
             else:
                 st.error(STORE_LABELS[lang]["msg_err_empty"])
-
-st.write("##")
 
 # --- DANH SÁCH SẢN PHẨM HIỆN CÓ ---
 col_head1, col_head2 = st.columns([2, 1])
