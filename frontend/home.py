@@ -30,7 +30,7 @@ UI_LABELS = {
     "vi": {
         "header_title": "iKids Education Portal",
         "header_subtitle": "Hệ thống học tập thông minh dành cho trung tâm, giáo viên, phụ huynh và học sinh.",
-        "public_hint": "Trang chủ này ai cũng có thể xem. Admin/nhân viên vận hành có thể chỉnh sửa nội dung khi đã đăng nhập.",
+        "public_hint": "Trang chủ này ai cũng có thể xem. Bạn hãy đăng nhập/đăng ký bên cạnh để trải nghiệm nhé!",
         "cms_title": "Quản trị nội dung trang chủ",
         "tab_preview": "Xem trang chủ",
         "tab_about": "Giới thiệu",
