@@ -66,10 +66,40 @@ forgot_page = st.Page(
     title="Quên Mật Khẩu" if lang == "vi" else "Forgot Password"
 )
 
+notification_page = st.Page(
+    "pages/shared/thong_bao.py",
+    title="Hộp Thư & Thông Báo" if lang == "vi" else "Inbox & Notifications"
+)
+
+profile_page = st.Page(
+    "pages/student/trang_ca_nhan.py",
+    title="Trang Cá Nhân" if lang == "vi" else "My Profile"
+)
+
+account_setting_page = st.Page(
+    "pages/student/trang_ca_nhan.py",
+    title="Cài Đặt Tài Khoản" if lang == "vi" else "Account Settings"
+)
+
 giao_dich_tien_page = st.Page(
     "pages/operator/giao_dich_tien.py",
     title="Giao Dịch Tiền" if lang == "vi" else "Finance Transactions",
     icon="💰"
+)
+
+teacher_post_memory_page = st.Page(
+    "pages/teacher/dang_ky_niem.py",
+    title="Đăng Ảnh Kỷ Niệm" if lang == "vi" else "Post Memories"
+)
+
+student_memory_page = st.Page(
+    "pages/student/ky_niem.py",
+    title="Góc Kỷ Niệm" if lang == "vi" else "Memories Corner"
+)
+
+parent_memory_page = st.Page(
+    "pages/parent/ky_niem.py",
+    title="Góc Kỷ Niệm" if lang == "vi" else "Memories Corner"
 )
 
 section_system = "Hệ thống" if lang == "vi" else "System"
@@ -96,14 +126,7 @@ if "token" not in st.session_state or st.session_state.token is None:
 
 else:
     role = st.session_state.get("role", "").lower()
-    user = st.session_state.get("user_info", {})
-
-    noti_title = "Hộp Thư & Thông Báo" if lang == "vi" else "Inbox & Notifications"
-
-    notification_page = st.Page(
-        "pages/shared/thong_bao.py",
-        title=noti_title
-    )
+    user = st.session_state.get("user_info", {}) or {}
 
     menu_pages = [home_page, notification_page]
 
@@ -127,6 +150,7 @@ else:
                 "pages/operator/quan_ly_cua_hang.py",
                 title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"
             ),
+            teacher_post_memory_page,
             st.Page(
                 "pages/student/trang_ca_nhan.py",
                 title="Cài Đặt Hệ Thống" if lang == "vi" else "System Settings"
@@ -149,10 +173,8 @@ else:
                 "pages/operator/quan_ly_cua_hang.py",
                 title="Quản Lý Cửa Hàng iKids" if lang == "vi" else "iKids Store Management"
             ),
-            st.Page(
-                "pages/student/trang_ca_nhan.py",
-                title="Trang Cá Nhân" if lang == "vi" else "My Profile"
-            )
+            teacher_post_memory_page,
+            profile_page
         ])
 
     # ================= TEACHER =================
@@ -174,6 +196,7 @@ else:
                 "pages/teacher/kho_hoc_lieu.py",
                 title="Kho Học Liệu" if lang == "vi" else "Learning Resources"
             ),
+            teacher_post_memory_page,
             st.Page(
                 "pages/teacher/giao_bai.py",
                 title="Giao Bài Tập" if lang == "vi" else "Assign Homework"
@@ -182,10 +205,7 @@ else:
                 "pages/teacher/quan_ly_diem.py",
                 title="Quản Lý & Ghi Điểm" if lang == "vi" else "Grade Management"
             ),
-            st.Page(
-                "pages/student/trang_ca_nhan.py",
-                title="Trang Cá Nhân" if lang == "vi" else "My Profile"
-            )
+            profile_page
         ])
 
     # ================= STUDENT =================
@@ -211,14 +231,12 @@ else:
                 "pages/student/video.py",
                 title="Rạp Chiếu Video AI" if lang == "vi" else "AI Video Cinema"
             ),
+            student_memory_page,
             st.Page(
                 "pages/student/ket_qua.py",
                 title="Bảng Điểm Cá Nhân" if lang == "vi" else "My Report Card"
             ),
-            st.Page(
-                "pages/student/trang_ca_nhan.py",
-                title="Trang Cá Nhân" if lang == "vi" else "My Profile"
-            )
+            profile_page
         ])
 
     # ================= PARENT =================
@@ -240,6 +258,7 @@ else:
                 "pages/parent/ket_qua.py",
                 title="Báo Cáo Học Tập" if lang == "vi" else "Learning Report"
             ),
+            parent_memory_page,
             st.Page(
                 "pages/parent/nap_tien.py",
                 title="Nạp Tiền & Ví" if lang == "vi" else "Wallet & Deposit"
@@ -252,29 +271,30 @@ else:
                 "pages/parent/lien_he.py",
                 title="Liên Hệ & Xin Nghỉ" if lang == "vi" else "Contact & Leave Request"
             ),
-            st.Page(
-                "pages/student/trang_ca_nhan.py",
-                title="Cài Đặt Tài Khoản" if lang == "vi" else "Account Settings"
-            )
+            account_setting_page
         ])
 
     # ================= FALLBACK ROLE KHÔNG HỢP LỆ =================
     else:
         menu_pages.extend([
-            st.Page(
-                "pages/student/trang_ca_nhan.py",
-                title="Trang Cá Nhân" if lang == "vi" else "My Profile"
-            )
+            profile_page
         ])
 
     pg = st.navigation(menu_pages)
 
     with st.sidebar:
         welcome_txt = "Chào" if lang == "vi" else "Welcome"
-        st.write(f"### {welcome_txt}, {user.get('full_name', user.get('name', 'Member'))}! ")
+        display_name = (
+            user.get("full_name")
+            or user.get("name")
+            or st.session_state.get("full_name")
+            or st.session_state.get("username")
+            or "Member"
+        )
+
+        st.write(f"### {welcome_txt}, {display_name}! ")
 
         BACKEND_URL = st.session_state["api_url"]
-
         avatar_url = user.get("avatar_url")
 
         if avatar_url:
