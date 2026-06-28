@@ -1296,3 +1296,156 @@ async def delete_product(prod_id: str, db=Depends(get_db)):
             status_code=500,
             detail=f"Lỗi xóa sản phẩm: {str(e)}"
         )
+# =========================================================
+# MEMORIES - GÓC KỶ NIỆM LỚP HỌC
+# =========================================================
+
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+from bson import ObjectId
+
+try:
+    from core.database import get_database
+except Exception:
+    get_database = None
+
+
+class MemoryCreateRequest(BaseModel):
+    title: Optional[str] = "Kỷ niệm lớp học"
+    description: str
+
+    media_url: str
+    image_url: Optional[str] = None
+    image_public_id: Optional[str] = ""
+
+    teacher_id: str
+    teacher_name: Optional[str] = "Giáo viên iKids"
+
+    class_id: Optional[str] = ""
+    class_name: Optional[str] = ""
+    class_subject: Optional[str] = ""
+
+    type: Optional[str] = "image"
+    status: Optional[str] = "published"
+    likes: Optional[int] = 0
+    created_at: Optional[str] = None
+
+
+async def get_tv3_db():
+    """
+    Dùng chung cho router tv3.
+    Nếu project của bạn đã có biến db riêng trong file này thì có thể thay hàm này
+    bằng biến db đang dùng.
+    """
+    if get_database is None:
+        raise HTTPException(status_code=500, detail="Không tìm thấy get_database trong core.database")
+
+    db = get_database()
+
+    if hasattr(db, "__await__"):
+        db = await db
+
+    return db
+
+
+def serialize_memory(doc: dict) -> dict:
+    if not doc:
+        return {}
+
+    doc["id"] = str(doc.get("_id"))
+    doc["_id"] = str(doc.get("_id"))
+
+    return doc
+
+
+def to_object_id_safe(value: str):
+    try:
+        return ObjectId(str(value))
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID không hợp lệ")
+
+
+@router.get("/memories")
+async def get_memories(class_id: Optional[str] = None):
+    db = await get_tv3_db()
+
+    query = {
+        "status": {"$ne": "deleted"}
+    }
+
+    if class_id:
+        query["class_id"] = str(class_id)
+
+    memories = await db.memories.find(query).sort("created_at", -1).to_list(length=300)
+
+    return [serialize_memory(m) for m in memories]
+
+
+@router.post("/memories")
+async def create_memory(payload: MemoryCreateRequest):
+    db = await get_tv3_db()
+
+    data = payload.dict()
+
+    if not data.get("created_at"):
+        data["created_at"] = datetime.utcnow().isoformat()
+
+    if not data.get("image_url"):
+        data["image_url"] = data.get("media_url", "")
+
+    data["media_url"] = data.get("media_url") or data.get("image_url") or ""
+    data["likes"] = int(data.get("likes") or 0)
+    data["status"] = data.get("status") or "published"
+    data["type"] = data.get("type") or "image"
+
+    result = await db.memories.insert_one(data)
+
+    created = await db.memories.find_one({"_id": result.inserted_id})
+
+    return {
+        "status": "success",
+        "message": "Đăng kỷ niệm thành công",
+        "data": serialize_memory(created),
+    }
+
+
+@router.delete("/memories/{memory_id}")
+async def delete_memory(memory_id: str):
+    db = await get_tv3_db()
+
+    oid = to_object_id_safe(memory_id)
+
+    result = await db.memories.delete_one({"_id": oid})
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm")
+
+    return {
+        "status": "success",
+        "message": "Đã xóa kỷ niệm",
+    }
+
+
+@router.post("/memories/{memory_id}/like")
+@router.put("/memories/{memory_id}/like")
+async def like_memory(memory_id: str):
+    db = await get_tv3_db()
+
+    oid = to_object_id_safe(memory_id)
+
+    result = await db.memories.update_one(
+        {"_id": oid},
+        {"$inc": {"likes": 1}},
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm")
+
+    updated = await db.memories.find_one({"_id": oid})
+
+    return {
+        "status": "success",
+        "likes": updated.get("likes", 0),
+        "data": serialize_memory(updated),
+    }
