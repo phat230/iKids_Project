@@ -6,7 +6,6 @@ import html
 
 from api_clients.tv3_client import (
     get_store_products,
-    purchase_product,
     get_gamification_profile,
 )
 
@@ -42,39 +41,36 @@ st.markdown(
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 18px;
+        margin-bottom: 22px;
     }
 
     .parent-store-title h1 {
         margin: 0;
         color: #0284c7 !important;
-        font-size: 2.45rem;
+        font-size: 2.35rem;
         line-height: 1.2;
         font-weight: 800;
     }
 
-    .store-card-top {
-        width: 100%;
-    }
-
     .store-img-wrap {
         width: 100%;
-        height: 215px;
+        height: 230px;
         overflow: hidden;
         border-radius: 14px;
-        background: #f1f5f9;
+        background: #f8fafc;
         border: 1px solid #e5e7eb;
         box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 8px;
     }
 
     .store-img-wrap img {
         width: 100%;
         height: 100%;
-        object-fit: cover;
-        border-radius: 14px !important;
+        object-fit: contain !important;
+        border-radius: 12px !important;
         box-shadow: none !important;
         display: block;
     }
@@ -82,7 +78,7 @@ st.markdown(
     .store-product-title {
         min-height: 44px;
         margin-top: 14px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         font-size: 1rem;
         font-weight: 800;
         line-height: 1.35;
@@ -211,6 +207,54 @@ def get_product_id(product, index=0):
     return str(product.get("id") or product.get("_id") or f"product_{index}")
 
 
+def get_headers():
+    return {
+        "Authorization": f"Bearer {token}",
+        "parent-id": str(user_id),
+        "Content-Type": "application/json",
+    }
+
+
+def purchase_product_for_child(parent_user_id, product_id, target_student_id):
+    """
+    Phụ huynh tặng/mua sản phẩm cho con.
+    Không dùng api_clients.purchase_product vì hàm cũ chưa hỗ trợ target_student_id.
+    """
+    try:
+        payload = {
+            "user_id": str(parent_user_id),
+            "product_id": str(product_id),
+            "target_student_id": str(target_student_id),
+            "quantity": 1,
+        }
+
+        res = requests.post(
+            f"{API_TV3}/products/purchase",
+            json=payload,
+            headers=get_headers(),
+            timeout=30,
+        )
+
+        if res.status_code == 200:
+            try:
+                data = res.json()
+                msg = data.get("message") or data.get("detail") or "success"
+            except Exception:
+                msg = "success"
+
+            return True, msg
+
+        try:
+            detail = res.json().get("detail", res.text)
+        except Exception:
+            detail = res.text
+
+        return False, detail
+
+    except Exception as e:
+        return False, str(e)
+
+
 # ================= NGÔN NGỮ =================
 lang = st.session_state.get("lang", "vi")
 
@@ -287,15 +331,10 @@ st.sidebar.markdown(
 
 
 # ================= LẤY DANH SÁCH CON =================
-headers = {
-    "Authorization": f"Bearer {token}",
-    "parent-id": str(user_id),
-}
-
 try:
     res = requests.get(
         f"{API_TV3}/parent/my-children",
-        headers=headers,
+        headers=get_headers(),
         timeout=15,
     )
 
@@ -324,8 +363,8 @@ if not products:
 
 
 # ================= RENDER PRODUCT GRID =================
-# 3 cột sẽ đẹp hơn cho phụ huynh, tránh card quá nhỏ hoặc ảnh bị ép.
-num_cols = 3
+# Để 2 cột cho card phụ huynh rộng, ảnh không bị ép.
+num_cols = 2
 
 for row_start in range(0, len(products), num_cols):
     row_products = products[row_start:row_start + num_cols]
@@ -349,14 +388,12 @@ for row_start in range(0, len(products), num_cols):
             with st.container(border=True):
                 st.markdown(
                     f"""
-                    <div class="store-card-top">
-                        <div class="store-img-wrap">
-                            <img src="{safe_image_url}" alt="{safe_name}">
-                        </div>
-                        <div class="store-product-title">{safe_name}</div>
-                        <div class="store-price">
-                            {labels["lbl_price"]}: <strong>{format_money(price)}</strong>
-                        </div>
+                    <div class="store-img-wrap">
+                        <img src="{safe_image_url}" alt="{safe_name}">
+                    </div>
+                    <div class="store-product-title">{safe_name}</div>
+                    <div class="store-price">
+                        {labels["lbl_price"]}: <strong>{format_money(price)}</strong>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -381,10 +418,10 @@ for row_start in range(0, len(products), num_cols):
                     type="primary",
                     disabled=not can_buy,
                 ):
-                    success, msg = purchase_product(
+                    success, msg = purchase_product_for_child(
                         user_id,
                         product_id,
-                        target_student_id=selected_child_id,
+                        selected_child_id,
                     )
 
                     if success:
@@ -397,7 +434,4 @@ for row_start in range(0, len(products), num_cols):
                         st.cache_data.clear()
                         st.rerun()
                     else:
-                        if lang == "en" and "Ví của bé không đủ" in str(msg):
-                            st.error("❌ The child's wallet balance is insufficient.")
-                        else:
-                            st.error(msg)
+                        st.error(msg)
