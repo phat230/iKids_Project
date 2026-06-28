@@ -296,12 +296,16 @@ def pay_invoice(invoice_id):
     return res
 
 
-def render_invoice_card(invoice, balance):
+def render_invoice_card(invoice, balance, key_prefix="invoice"):
     labels = TUITION_LABELS[lang]
 
     invoice_id = invoice.get("id") or invoice.get("_id")
     amount = to_float(invoice.get("amount", 0))
     status = invoice.get("status", "pending")
+
+    # Nếu invoice_id bị rỗng thì tạo fallback tránh trùng key
+    safe_invoice_id = str(invoice_id or f"{invoice.get('student_id', '')}_{invoice.get('period_label', '')}_{invoice.get('due_date', '')}")
+    button_key = f"{key_prefix}_pay_{safe_invoice_id}"
 
     with st.container(border=True):
         top1, top2, top3 = st.columns([3, 1, 1])
@@ -328,7 +332,7 @@ def render_invoice_card(invoice, balance):
 
             if st.button(
                 labels["btn_pay"],
-                key=f"pay_{invoice_id}",
+                key=button_key,
                 type="primary",
                 use_container_width=True,
                 disabled=btn_disabled,
@@ -350,9 +354,11 @@ def render_invoice_card(invoice, balance):
 
                     st.error(f"{labels['msg_pay_failed']} {detail}")
 
-
-def render_invoice_list(invoices, balance, child_filter=None):
+def render_invoice_list(invoices, balance, child_filter=None, key_prefix="invoice_list"):
     labels = TUITION_LABELS[lang]
+    render_invoice_list(pending_invoices, balance, selected_child, key_prefix="pending_tab")
+    render_invoice_list(overdue_invoices, balance, selected_child, key_prefix="overdue_tab")
+    render_invoice_list(all_invoices, balance, selected_child, key_prefix="all_invoice_tab")
 
     filtered = invoices
 
@@ -366,9 +372,14 @@ def render_invoice_list(invoices, balance, child_filter=None):
         st.info(labels["info_no_invoice"])
         return
 
-    for invoice in filtered:
-        render_invoice_card(invoice, balance)
+    for idx, invoice in enumerate(filtered):
+        invoice_id = invoice.get("id") or invoice.get("_id") or idx
 
+        render_invoice_card(
+            invoice,
+            balance,
+            key_prefix=f"{key_prefix}_{idx}_{invoice_id}"
+        )
 
 def render_paid_table(invoices):
     labels = TUITION_LABELS[lang]
@@ -478,7 +489,12 @@ with tab_unpaid:
         ),
     )
 
-    render_invoice_list(unpaid, balance, selected_child)
+    render_invoice_list(
+    unpaid,
+    balance,
+    selected_child,
+    key_prefix="unpaid_tab"
+)
 
 with tab_paid:
     filtered_paid = paid_invoices
@@ -523,4 +539,9 @@ with tab_all:
             if inv.get("status") == status_filter
         ]
 
-    render_invoice_list(filtered_all, balance, None)
+    render_invoice_list(
+    filtered_all,
+    balance,
+    None,
+    key_prefix="all_tab"
+)
