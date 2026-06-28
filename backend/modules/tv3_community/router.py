@@ -3,12 +3,13 @@
 import uuid
 import asyncio
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional
 
 import cloudinary.uploader
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body, Request
 from deep_translator import GoogleTranslator
+from pydantic import BaseModel
 
 from core.database import get_db
 from core.security import get_current_user
@@ -20,8 +21,6 @@ from .services import (
     get_store_products_service,
     deposit_money_service,
     purchase_product_service,
-    get_class_memories,
-    like_memory_service,
     submit_contact_request,
     get_contact_history,
     update_account_profile_service,
@@ -100,16 +99,15 @@ async def create_notification(
     notification_type: str = "system",
     extra_data: Optional[dict] = None,
 ):
-    """
-    Tạo thông báo đơn giản.
-    Nếu dự án của bạn đã có module notification riêng,
-    bản ghi này vẫn tương thích với collection notifications cơ bản.
-    """
     try:
         result = await db.notifications.insert_one({
+            "sender_id": "system",
+            "sender_role": "system",
+            "sender_name": "iKids System",
             "receiver_id": str(receiver_id),
             "receiver_role": receiver_role,
             "title": title,
+            "content": message,
             "message": message,
             "type": notification_type,
             "extra_data": extra_data or {},
@@ -133,17 +131,97 @@ async def ensure_parent_owns_child(db, parent_id: str, child_id: str) -> bool:
     return str(child_id) in [str(sid) for sid in student_ids_ref]
 
 
+def get_payload_public_id(payload: dict) -> str:
+    return payload.get("image_public_id") or payload.get("public_id") or ""
+
+
+async def delete_cloudinary_image_safely(public_id: str):
+    if not public_id:
+        return
+
+    try:
+        await asyncio.to_thread(
+            cloudinary.uploader.destroy,
+            public_id,
+            resource_type="image"
+        )
+    except Exception as e:
+        print(f"⚠️ Không thể xóa ảnh Cloudinary {public_id}: {str(e)}")
+
+
+def normalize_memory_payload(data: dict) -> dict:
+    media_url = data.get("media_url") or data.get("image_url") or ""
+
+    data["media_url"] = media_url
+    data["image_url"] = data.get("image_url") or media_url
+    data["image_public_id"] = data.get("image_public_id") or data.get("public_id") or ""
+
+    data["title"] = data.get("title") or "Kỷ niệm lớp học"
+    data["description"] = data.get("description") or ""
+    data["teacher_name"] = data.get("teacher_name") or "Giáo viên iKids"
+
+    data["class_id"] = str(data.get("class_id") or "")
+    data["class_name"] = data.get("class_name") or ""
+    data["class_subject"] = data.get("class_subject") or ""
+
+    data["type"] = data.get("type") or "image"
+    data["status"] = data.get("status") or "published"
+    data["likes"] = int(data.get("likes") or 0)
+
+    created_at = data.get("created_at")
+    if created_at:
+        try:
+            data["created_at"] = datetime.fromisoformat(str(created_at).replace("Z", ""))
+        except Exception:
+            data["created_at"] = datetime.now()
+    else:
+        data["created_at"] = datetime.now()
+
+    data["updated_at"] = datetime.now()
+
+    return data
+
+
+# =========================================================
+# REQUEST MODELS
+# =========================================================
+
+class MemoryCreateRequest(BaseModel):
+    title: Optional[str] = "Kỷ niệm lớp học"
+    description: str
+
+    media_url: str
+    image_url: Optional[str] = None
+    image_public_id: Optional[str] = ""
+
+    teacher_id: str
+    teacher_name: Optional[str] = "Giáo viên iKids"
+
+    class_id: Optional[str] = ""
+    class_name: Optional[str] = ""
+    class_subject: Optional[str] = ""
+
+    type: Optional[str] = "image"
+    status: Optional[str] = "published"
+    likes: Optional[int] = 0
+    created_at: Optional[str] = None
+
+
+# =========================================================
+# 1. CỬA HÀNG DÀNH CHO NGƯỜI DÙNG
+# =========================================================
+
+@router.get("/products")
+async def api_get_products(db=Depends(get_db)):
+    return await get_store_products_service(db)
+
+
 async def purchase_product_for_child(
     db,
     payer_id: str,
     product_id: str,
     target_student_id: str,
 ):
-    """
-    Phụ huynh mua/tặng sản phẩm cho con.
-    Tiền bị trừ từ ví phụ huynh, không trừ ví con.
-    """
-
     payer = await db.users.find_one({"_id": to_object_id(payer_id, "User ID")})
     if not payer:
         raise HTTPException(status_code=404, detail="Không tìm thấy người thanh toán.")
@@ -212,36 +290,8 @@ async def purchase_product_for_child(
     }
 
 
-# =========================================================
-# 1. CỬA HÀNG DÀNH CHO NGƯỜI DÙNG
-# =========================================================
-
-@router.get("/products")
-async def api_get_products(db=Depends(get_db)):
-    """Lấy danh sách sản phẩm từ MongoDB"""
-    return await get_store_products_service(db)
-
-
 @router.post("/products/purchase")
 async def api_purchase_product(payload: dict = Body(...), db=Depends(get_db)):
-    """
-    Mua sản phẩm trực tiếp.
-
-    Hỗ trợ 2 luồng:
-    1. Học sinh tự mua:
-       {
-         "user_id": "...",
-         "product_id": "..."
-       }
-
-    2. Phụ huynh mua/tặng cho con:
-       {
-         "user_id": "parent_id",
-         "product_id": "...",
-         "target_student_id": "student_id"
-       }
-    """
-
     user_id = payload.get("user_id")
     product_id = payload.get("product_id")
     target_student_id = payload.get("target_student_id")
@@ -252,7 +302,6 @@ async def api_purchase_product(payload: dict = Body(...), db=Depends(get_db)):
             detail="Thiếu user_id hoặc product_id."
         )
 
-    # Phụ huynh tặng/mua cho con
     if target_student_id:
         return await purchase_product_for_child(
             db=db,
@@ -261,11 +310,13 @@ async def api_purchase_product(payload: dict = Body(...), db=Depends(get_db)):
             target_student_id=target_student_id
         )
 
-    # Học sinh/người dùng tự mua
     result = await purchase_product_service(db, user_id, product_id)
 
     if result.get("status") == "failed":
-        raise HTTPException(status_code=400, detail=result.get("message", "Mua hàng thất bại."))
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("message", "Mua hàng thất bại.")
+        )
 
     return result
 
@@ -380,8 +431,6 @@ async def payos_webhook(request: Request, db=Depends(get_db)):
 
         user_suffix = description.split("IKIDS NAP")[-1].strip()
 
-        # _id là ObjectId nên không thể regex trực tiếp.
-        # Tìm user có chuỗi ObjectId kết thúc bằng suffix.
         matched_user = None
         users = await db.users.find({}, {"_id": 1, "role": 1}).to_list(length=5000)
 
@@ -463,18 +512,200 @@ async def get_account_profile(user_id: str, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="ID không hợp lệ.")
 
 
+@router.post("/gamification/award-exp")
+async def api_award_exp(payload: dict = Body(...), db=Depends(get_db)):
+    student_id = payload.get("student_id")
+    action = payload.get("action")
+
+    amount = calculate_exp_reward(action)
+
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Hành động không hợp lệ.")
+
+    return await award_exp_service(db, student_id, amount, action)
+
+
 # =========================================================
-# 6. KỶ NIỆM
+# 6. KỶ NIỆM LỚP HỌC
 # =========================================================
 
 @router.get("/memories")
-async def api_get_memories(db=Depends(get_db)):
-    return await get_class_memories(db)
+async def api_get_memories(class_id: Optional[str] = None, db=Depends(get_db)):
+    query = {
+        "status": {"$ne": "deleted"}
+    }
+
+    if class_id:
+        query["class_id"] = str(class_id)
+
+    cursor = db.memories.find(query).sort("created_at", -1)
+
+    memories = []
+
+    async for doc in cursor:
+        memories.append(serialize_mongo_doc(doc))
+
+    return memories
+
+
+@router.post("/memories")
+async def api_create_memory(
+    payload: MemoryCreateRequest,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        current_role = current_user.get("role", "")
+        current_user_id = current_user.get("user_id", "")
+
+        if current_role not in ["teacher", "admin", "operator"]:
+            raise HTTPException(
+                status_code=403,
+                detail="Bạn không có quyền đăng kỷ niệm."
+            )
+
+        data = normalize_memory_payload(payload.dict())
+
+        if not data.get("description"):
+            raise HTTPException(
+                status_code=400,
+                detail="Mô tả kỷ niệm không được trống."
+            )
+
+        if not data.get("media_url"):
+            raise HTTPException(
+                status_code=400,
+                detail="Ảnh kỷ niệm không được trống."
+            )
+
+        # Ưu tiên user đang đăng nhập để tránh giả mạo teacher_id
+        data["teacher_id"] = str(current_user_id or data.get("teacher_id", ""))
+
+        if not data.get("teacher_name"):
+            data["teacher_name"] = current_user.get("full_name") or current_user.get("name") or "Giáo viên iKids"
+
+        result = await db.memories.insert_one(data)
+        created = await db.memories.find_one({"_id": result.inserted_id})
+
+        # Gửi thông báo nhẹ cho phụ huynh/học sinh nếu có class_id
+        if data.get("class_id"):
+            await create_notification(
+                db=db,
+                receiver_id="all",
+                receiver_role="parent",
+                title="Có kỷ niệm lớp học mới 📸",
+                message=f"Lớp {data.get('class_name', '')} vừa có ảnh kỷ niệm mới.",
+                notification_type="memory",
+                extra_data={
+                    "memory_id": str(result.inserted_id),
+                    "class_id": data.get("class_id"),
+                    "class_name": data.get("class_name")
+                }
+            )
+
+            await create_notification(
+                db=db,
+                receiver_id="all",
+                receiver_role="student",
+                title="Có kỷ niệm lớp học mới 📸",
+                message=f"Lớp {data.get('class_name', '')} vừa có ảnh kỷ niệm mới.",
+                notification_type="memory",
+                extra_data={
+                    "memory_id": str(result.inserted_id),
+                    "class_id": data.get("class_id"),
+                    "class_name": data.get("class_name")
+                }
+            )
+
+        return {
+            "status": "success",
+            "message": "Đăng kỷ niệm thành công.",
+            "data": serialize_mongo_doc(created)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi đăng kỷ niệm: {str(e)}"
+        )
+
+
+@router.delete("/memories/{memory_id}")
+async def api_delete_memory(
+    memory_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        memory = await db.memories.find_one({"_id": to_object_id(memory_id, "Memory ID")})
+
+        if not memory:
+            raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm.")
+
+        current_role = current_user.get("role", "")
+        current_user_id = str(current_user.get("user_id", ""))
+
+        is_owner = str(memory.get("teacher_id", "")) == current_user_id
+        is_manager = current_role in ["admin", "operator"]
+
+        if not is_owner and not is_manager:
+            raise HTTPException(
+                status_code=403,
+                detail="Bạn không có quyền xóa kỷ niệm này."
+            )
+
+        await delete_cloudinary_image_safely(memory.get("image_public_id", ""))
+
+        await db.memories.delete_one({"_id": memory["_id"]})
+
+        return {
+            "status": "success",
+            "message": "Đã xóa kỷ niệm."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi xóa kỷ niệm: {str(e)}"
+        )
 
 
 @router.post("/memories/{memory_id}/like")
+@router.put("/memories/{memory_id}/like")
 async def api_like_memory(memory_id: str, db=Depends(get_db)):
-    return await like_memory_service(db, memory_id)
+    try:
+        memory = await db.memories.find_one({"_id": to_object_id(memory_id, "Memory ID")})
+
+        if not memory:
+            raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm.")
+
+        await db.memories.update_one(
+            {"_id": memory["_id"]},
+            {
+                "$inc": {"likes": 1},
+                "$set": {"updated_at": datetime.now()}
+            }
+        )
+
+        updated = await db.memories.find_one({"_id": memory["_id"]})
+
+        return {
+            "status": "success",
+            "likes": updated.get("likes", 0),
+            "data": serialize_mongo_doc(updated)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Lỗi thả tim kỷ niệm: {str(e)}"
+        )
 
 
 # =========================================================
@@ -484,6 +715,26 @@ async def api_like_memory(memory_id: str, db=Depends(get_db)):
 @router.post("/contact/submit")
 async def api_submit_contact(request_data: ContactMessageCreate, db=Depends(get_db)):
     return await submit_contact_request(db, request_data)
+
+
+@router.post("/contact")
+async def api_submit_contact_alias(payload: dict = Body(...), db=Depends(get_db)):
+    """
+    Alias cho frontend/pages/parent/lien_he.py nếu trang đó đang gọi POST /api/tv3/contact.
+    """
+    try:
+        req = ContactMessageCreate(**payload)
+        return await submit_contact_request(db, req)
+    except Exception:
+        doc = dict(payload)
+        doc["created_at"] = datetime.now()
+        doc["updated_at"] = datetime.now()
+        result = await db.contact_requests.insert_one(doc)
+
+        return {
+            "status": "success",
+            "id": str(result.inserted_id)
+        }
 
 
 @router.get("/contact/history/{user_id}")
@@ -514,19 +765,6 @@ async def verify_reset(payload: dict = Body(...), db=Depends(get_db)):
         payload.get("otp"),
         payload.get("new_password")
     )
-
-
-@router.post("/gamification/award-exp")
-async def api_award_exp(payload: dict = Body(...), db=Depends(get_db)):
-    student_id = payload.get("student_id")
-    action = payload.get("action")
-
-    amount = calculate_exp_reward(action)
-
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Hành động không hợp lệ.")
-
-    return await award_exp_service(db, student_id, amount, action)
 
 
 # =========================================================
@@ -687,12 +925,19 @@ async def student_request_purchase(req: dict = Body(...), db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Thiếu student_id hoặc product_id.")
 
     student = await db.users.find_one({"_id": to_object_id(student_id, "Student ID")})
-    child_name = student.get("name", "Bé") if student else "Bé"
+    child_name = student.get("name", student.get("full_name", "Bé")) if student else "Bé"
 
     parent_id = req.get("parent_id")
 
     if not parent_id:
         parent = await db.users.find_one({"student_ids_ref": str(student_id)})
+
+        if not parent:
+            try:
+                parent = await db.users.find_one({"student_ids_ref": ObjectId(str(student_id))})
+            except Exception:
+                parent = None
+
         if parent:
             parent_id = str(parent["_id"])
 
@@ -852,24 +1097,6 @@ ALLOWED_IMAGE_TYPES = {
     "image/webp",
     "image/gif"
 }
-
-
-async def delete_cloudinary_image_safely(public_id: str):
-    if not public_id:
-        return
-
-    try:
-        await asyncio.to_thread(
-            cloudinary.uploader.destroy,
-            public_id,
-            resource_type="image"
-        )
-    except Exception as e:
-        print(f"⚠️ Không thể xóa ảnh Cloudinary {public_id}: {str(e)}")
-
-
-def get_payload_public_id(payload: dict) -> str:
-    return payload.get("image_public_id") or payload.get("public_id") or ""
 
 
 @router.post("/upload_image")
@@ -1296,156 +1523,3 @@ async def delete_product(prod_id: str, db=Depends(get_db)):
             status_code=500,
             detail=f"Lỗi xóa sản phẩm: {str(e)}"
         )
-# =========================================================
-# MEMORIES - GÓC KỶ NIỆM LỚP HỌC
-# =========================================================
-
-from pydantic import BaseModel
-from typing import Optional
-from datetime import datetime
-from bson import ObjectId
-
-try:
-    from core.database import get_database
-except Exception:
-    get_database = None
-
-
-class MemoryCreateRequest(BaseModel):
-    title: Optional[str] = "Kỷ niệm lớp học"
-    description: str
-
-    media_url: str
-    image_url: Optional[str] = None
-    image_public_id: Optional[str] = ""
-
-    teacher_id: str
-    teacher_name: Optional[str] = "Giáo viên iKids"
-
-    class_id: Optional[str] = ""
-    class_name: Optional[str] = ""
-    class_subject: Optional[str] = ""
-
-    type: Optional[str] = "image"
-    status: Optional[str] = "published"
-    likes: Optional[int] = 0
-    created_at: Optional[str] = None
-
-
-async def get_tv3_db():
-    """
-    Dùng chung cho router tv3.
-    Nếu project của bạn đã có biến db riêng trong file này thì có thể thay hàm này
-    bằng biến db đang dùng.
-    """
-    if get_database is None:
-        raise HTTPException(status_code=500, detail="Không tìm thấy get_database trong core.database")
-
-    db = get_database()
-
-    if hasattr(db, "__await__"):
-        db = await db
-
-    return db
-
-
-def serialize_memory(doc: dict) -> dict:
-    if not doc:
-        return {}
-
-    doc["id"] = str(doc.get("_id"))
-    doc["_id"] = str(doc.get("_id"))
-
-    return doc
-
-
-def to_object_id_safe(value: str):
-    try:
-        return ObjectId(str(value))
-    except Exception:
-        raise HTTPException(status_code=400, detail="ID không hợp lệ")
-
-
-@router.get("/memories")
-async def get_memories(class_id: Optional[str] = None):
-    db = await get_tv3_db()
-
-    query = {
-        "status": {"$ne": "deleted"}
-    }
-
-    if class_id:
-        query["class_id"] = str(class_id)
-
-    memories = await db.memories.find(query).sort("created_at", -1).to_list(length=300)
-
-    return [serialize_memory(m) for m in memories]
-
-
-@router.post("/memories")
-async def create_memory(payload: MemoryCreateRequest):
-    db = await get_tv3_db()
-
-    data = payload.dict()
-
-    if not data.get("created_at"):
-        data["created_at"] = datetime.utcnow().isoformat()
-
-    if not data.get("image_url"):
-        data["image_url"] = data.get("media_url", "")
-
-    data["media_url"] = data.get("media_url") or data.get("image_url") or ""
-    data["likes"] = int(data.get("likes") or 0)
-    data["status"] = data.get("status") or "published"
-    data["type"] = data.get("type") or "image"
-
-    result = await db.memories.insert_one(data)
-
-    created = await db.memories.find_one({"_id": result.inserted_id})
-
-    return {
-        "status": "success",
-        "message": "Đăng kỷ niệm thành công",
-        "data": serialize_memory(created),
-    }
-
-
-@router.delete("/memories/{memory_id}")
-async def delete_memory(memory_id: str):
-    db = await get_tv3_db()
-
-    oid = to_object_id_safe(memory_id)
-
-    result = await db.memories.delete_one({"_id": oid})
-
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm")
-
-    return {
-        "status": "success",
-        "message": "Đã xóa kỷ niệm",
-    }
-
-
-@router.post("/memories/{memory_id}/like")
-@router.put("/memories/{memory_id}/like")
-async def like_memory(memory_id: str):
-    db = await get_tv3_db()
-
-    oid = to_object_id_safe(memory_id)
-
-    result = await db.memories.update_one(
-        {"_id": oid},
-        {"$inc": {"likes": 1}},
-    )
-
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Không tìm thấy kỷ niệm")
-
-    updated = await db.memories.find_one({"_id": oid})
-
-    return {
-        "status": "success",
-        "likes": updated.get("likes", 0),
-        "data": serialize_memory(updated),
-    }
