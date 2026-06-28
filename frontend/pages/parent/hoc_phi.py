@@ -72,9 +72,6 @@ TUITION_LABELS = {
         "status_paid": "Đã đóng",
         "status_overdue": "Quá hạn",
         "status_cancelled": "Đã hủy",
-        "confirm_pay": "Xác nhận thanh toán hóa đơn này?",
-        "yes_pay": "Xác nhận đóng",
-        "cancel": "Hủy",
     },
     "en": {
         "title": "💳 Tuition",
@@ -113,9 +110,6 @@ TUITION_LABELS = {
         "status_paid": "Paid",
         "status_overdue": "Overdue",
         "status_cancelled": "Cancelled",
-        "confirm_pay": "Confirm payment for this invoice?",
-        "yes_pay": "Confirm Payment",
-        "cancel": "Cancel",
     },
 }
 
@@ -177,11 +171,23 @@ def status_color(status):
     return "orange"
 
 
+def get_child_id(child):
+    return str(child.get("id") or child.get("_id") or "")
+
+
 def get_child_name(child):
     return (
         child.get("full_name")
         or child.get("name")
-        or f"Bé {str(child.get('id', ''))[-4:]}"
+        or f"Bé {get_child_id(child)[-4:]}"
+    )
+
+
+def get_invoice_id(invoice, idx=0):
+    return str(
+        invoice.get("id")
+        or invoice.get("_id")
+        or f"{invoice.get('student_id', '')}_{invoice.get('class_id', '')}_{invoice.get('period_label', '')}_{invoice.get('due_date', '')}_{idx}"
     )
 
 
@@ -192,7 +198,11 @@ def get_profile_cached(api_tv3, auth_token, pid):
             "Authorization": f"Bearer {auth_token}",
             "parent-id": str(pid),
         }
-        res = requests.get(f"{api_tv3}/gamification/profile/{pid}", headers=headers, timeout=15)
+        res = requests.get(
+            f"{api_tv3}/gamification/profile/{pid}",
+            headers=headers,
+            timeout=15,
+        )
         return res.json() if res.status_code == 200 else {}
     except Exception:
         return {}
@@ -205,7 +215,11 @@ def get_children_cached(api_tv3, auth_token, pid):
             "Authorization": f"Bearer {auth_token}",
             "parent-id": str(pid),
         }
-        res = requests.get(f"{api_tv3}/parent/my-children", headers=headers, timeout=15)
+        res = requests.get(
+            f"{api_tv3}/parent/my-children",
+            headers=headers,
+            timeout=15,
+        )
         return res.json() if res.status_code == 200 else []
     except Exception:
         return []
@@ -218,7 +232,11 @@ def get_summary_cached(api_tuition, auth_token, pid):
             "Authorization": f"Bearer {auth_token}",
             "parent-id": str(pid),
         }
-        res = requests.get(f"{api_tuition}/parent/{pid}/summary", headers=headers, timeout=20)
+        res = requests.get(
+            f"{api_tuition}/parent/{pid}/summary",
+            headers=headers,
+            timeout=20,
+        )
 
         if res.status_code == 200:
             data = res.json()
@@ -250,7 +268,12 @@ def get_invoices_cached(api_tuition, auth_token, pid, status=None):
 
         if res.status_code == 200:
             data = res.json()
-            return data.get("items", data if isinstance(data, list) else [])
+
+            if isinstance(data, dict):
+                return data.get("items", data.get("data", []))
+
+            if isinstance(data, list):
+                return data
 
         return []
     except Exception:
@@ -273,7 +296,12 @@ def get_payments_cached(api_tuition, auth_token, pid):
 
         if res.status_code == 200:
             data = res.json()
-            return data.get("items", data if isinstance(data, list) else [])
+
+            if isinstance(data, dict):
+                return data.get("items", data.get("data", []))
+
+            if isinstance(data, list):
+                return data
 
         return []
     except Exception:
@@ -286,14 +314,12 @@ def pay_invoice(invoice_id):
         "parent_id": str(parent_id),
     }
 
-    res = requests.post(
+    return requests.post(
         f"{API_TUITION}/invoices/pay",
         json=payload,
         headers=get_headers(),
         timeout=30,
     )
-
-    return res
 
 
 def render_invoice_card(invoice, balance, key_prefix="invoice"):
@@ -303,8 +329,11 @@ def render_invoice_card(invoice, balance, key_prefix="invoice"):
     amount = to_float(invoice.get("amount", 0))
     status = invoice.get("status", "pending")
 
-    # Nếu invoice_id bị rỗng thì tạo fallback tránh trùng key
-    safe_invoice_id = str(invoice_id or f"{invoice.get('student_id', '')}_{invoice.get('period_label', '')}_{invoice.get('due_date', '')}")
+    safe_invoice_id = str(
+        invoice_id
+        or f"{invoice.get('student_id', '')}_{invoice.get('period_label', '')}_{invoice.get('due_date', '')}"
+    )
+
     button_key = f"{key_prefix}_pay_{safe_invoice_id}"
 
     with st.container(border=True):
@@ -313,7 +342,10 @@ def render_invoice_card(invoice, balance, key_prefix="invoice"):
         with top1:
             st.markdown(f"#### {invoice.get('period_label', labels['invoice'])}")
             st.write(f"**{labels['class']}:** {invoice.get('class_name', '---')}")
-            st.write(f"**{labels['student']}:** {invoice.get('student_name', invoice.get('student_id', '---'))}")
+            st.write(
+                f"**{labels['student']}:** "
+                f"{invoice.get('student_name', invoice.get('student_id', '---'))}"
+            )
             st.caption(f"{labels['due_date']}: {invoice.get('due_date', '---')}")
 
         with top2:
@@ -337,6 +369,10 @@ def render_invoice_card(invoice, balance, key_prefix="invoice"):
                 use_container_width=True,
                 disabled=btn_disabled,
             ):
+                if not invoice_id:
+                    st.error("Không tìm thấy mã hóa đơn để thanh toán.")
+                    return
+
                 with st.spinner(labels["btn_pay"] + "..."):
                     res = pay_invoice(invoice_id)
 
@@ -354,18 +390,16 @@ def render_invoice_card(invoice, balance, key_prefix="invoice"):
 
                     st.error(f"{labels['msg_pay_failed']} {detail}")
 
+
 def render_invoice_list(invoices, balance, child_filter=None, key_prefix="invoice_list"):
     labels = TUITION_LABELS[lang]
-    render_invoice_list(pending_invoices, balance, selected_child, key_prefix="pending_tab")
-    render_invoice_list(overdue_invoices, balance, selected_child, key_prefix="overdue_tab")
-    render_invoice_list(all_invoices, balance, selected_child, key_prefix="all_invoice_tab")
 
-    filtered = invoices
+    filtered = invoices or []
 
     if child_filter and child_filter != "__all__":
         filtered = [
-            inv for inv in invoices
-            if str(inv.get("student_id")) == str(child_filter)
+            inv for inv in filtered
+            if str(inv.get("student_id", "")) == str(child_filter)
         ]
 
     if not filtered:
@@ -373,13 +407,14 @@ def render_invoice_list(invoices, balance, child_filter=None, key_prefix="invoic
         return
 
     for idx, invoice in enumerate(filtered):
-        invoice_id = invoice.get("id") or invoice.get("_id") or idx
+        invoice_id = get_invoice_id(invoice, idx)
 
         render_invoice_card(
             invoice,
             balance,
-            key_prefix=f"{key_prefix}_{idx}_{invoice_id}"
+            key_prefix=f"{key_prefix}_{idx}_{invoice_id}",
         )
+
 
 def render_paid_table(invoices):
     labels = TUITION_LABELS[lang]
@@ -414,7 +449,7 @@ def render_payment_history(payments):
 
     for p in payments:
         rows.append({
-            labels["student"]: p.get("student_id", "---"),
+            labels["student"]: p.get("student_name", p.get("student_id", "---")),
             labels["amount"]: format_money(p.get("amount", 0)),
             labels["payment_method"]: p.get("payment_method", "wallet"),
             labels["balance_after"]: format_money(p.get("balance_after", 0)),
@@ -424,6 +459,7 @@ def render_payment_history(payments):
     st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
+# ================= MAIN UI =================
 st.title(TUITION_LABELS[lang]["title"])
 st.caption(TUITION_LABELS[lang]["subtitle"])
 
@@ -447,11 +483,29 @@ paid_invoices = get_invoices_cached(API_TUITION, token, parent_id, status="paid"
 all_invoices = get_invoices_cached(API_TUITION, token, parent_id)
 payments = get_payments_cached(API_TUITION, token, parent_id)
 
-total_pending = to_float(summary.get("total_pending", sum(to_float(i.get("amount")) for i in pending_invoices)))
-total_overdue = to_float(summary.get("total_overdue", sum(to_float(i.get("amount")) for i in overdue_invoices)))
-total_paid = to_float(summary.get("total_paid", sum(to_float(i.get("amount")) for i in paid_invoices)))
+total_pending = to_float(
+    summary.get(
+        "total_pending",
+        sum(to_float(i.get("amount")) for i in pending_invoices),
+    )
+)
+
+total_overdue = to_float(
+    summary.get(
+        "total_overdue",
+        sum(to_float(i.get("amount")) for i in overdue_invoices),
+    )
+)
+
+total_paid = to_float(
+    summary.get(
+        "total_paid",
+        sum(to_float(i.get("amount")) for i in paid_invoices),
+    )
+)
 
 m1, m2, m3, m4 = st.columns(4)
+
 m1.metric(TUITION_LABELS[lang]["wallet"], format_money(balance))
 m2.metric(TUITION_LABELS[lang]["pending_amount"], format_money(total_pending))
 m3.metric(TUITION_LABELS[lang]["overdue_amount"], format_money(total_overdue))
@@ -462,13 +516,15 @@ st.divider()
 child_options = {"__all__": TUITION_LABELS[lang]["all"]}
 
 for child in children:
-    if child.get("id"):
-        child_options[str(child["id"])] = get_child_name(child)
+    child_id = get_child_id(child)
+
+    if child_id:
+        child_options[child_id] = get_child_name(child)
 
 selected_child = st.selectbox(
     TUITION_LABELS[lang]["filter_child"],
     options=list(child_options.keys()),
-    format_func=lambda x: child_options[x],
+    format_func=lambda x: child_options.get(x, x),
 )
 
 tab_unpaid, tab_paid, tab_history, tab_all = st.tabs([
@@ -477,6 +533,7 @@ tab_unpaid, tab_paid, tab_history, tab_all = st.tabs([
     TUITION_LABELS[lang]["tab_history"],
     TUITION_LABELS[lang]["tab_all"],
 ])
+
 
 with tab_unpaid:
     unpaid = overdue_invoices + pending_invoices
@@ -490,11 +547,12 @@ with tab_unpaid:
     )
 
     render_invoice_list(
-    unpaid,
-    balance,
-    selected_child,
-    key_prefix="unpaid_tab"
-)
+        unpaid,
+        balance,
+        selected_child,
+        key_prefix="unpaid_tab",
+    )
+
 
 with tab_paid:
     filtered_paid = paid_invoices
@@ -502,10 +560,11 @@ with tab_paid:
     if selected_child != "__all__":
         filtered_paid = [
             inv for inv in paid_invoices
-            if str(inv.get("student_id")) == str(selected_child)
+            if str(inv.get("student_id", "")) == str(selected_child)
         ]
 
     render_paid_table(filtered_paid)
+
 
 with tab_history:
     filtered_payments = payments
@@ -513,16 +572,18 @@ with tab_history:
     if selected_child != "__all__":
         filtered_payments = [
             p for p in payments
-            if str(p.get("student_id")) == str(selected_child)
+            if str(p.get("student_id", "")) == str(selected_child)
         ]
 
     render_payment_history(filtered_payments)
+
 
 with tab_all:
     status_filter = st.selectbox(
         TUITION_LABELS[lang]["filter_status"],
         options=["__all__", "pending", "overdue", "paid", "cancelled"],
         format_func=lambda x: TUITION_LABELS[lang]["all"] if x == "__all__" else status_label(x),
+        key="tuition_status_filter_all",
     )
 
     filtered_all = all_invoices
@@ -530,7 +591,7 @@ with tab_all:
     if selected_child != "__all__":
         filtered_all = [
             inv for inv in filtered_all
-            if str(inv.get("student_id")) == str(selected_child)
+            if str(inv.get("student_id", "")) == str(selected_child)
         ]
 
     if status_filter != "__all__":
@@ -540,8 +601,8 @@ with tab_all:
         ]
 
     render_invoice_list(
-    filtered_all,
-    balance,
-    None,
-    key_prefix="all_tab"
-)
+        filtered_all,
+        balance,
+        None,
+        key_prefix="all_tab",
+    )
